@@ -1,0 +1,41 @@
+# OpenManus框架
+# 注意：需要先安装OpenManus
+# 方式1：从本地安装
+# pip install -e ../openmanus
+# 方式2：从GitHub安装
+# pip install git+https://github.com/FoundationAgents/OpenManus.git
+
+# 工程计算
+ansys-mapdl-core>=0.68.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# CAD绘图
+ezdxf>=1.1.0
+
+# 知识库（阶段13）
+langchain>=0.1.0
+chromadb>=0.4.0
+openai>=1.0.0
+
+# 数据处理
+pandas>=2.0.0
+pydantic>=2.0.0
+
+# 可视化
+matplotlib>=3.7.0
+plotly>=5.14.0
+
+# 测试
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# 代码质量
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# 工具
+python-dotenv>=1.0.0
+pyyaml>=6.0

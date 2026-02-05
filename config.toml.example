@@ -1,0 +1,50 @@
+# OpenManus结构设计系统配置文件模板
+# 复制此文件为 config.toml 并填入实际的API密钥
+
+[llm]
+# LLM服务配置
+provider = "openai"  # 或 "anthropic", "deepseek"
+api_key = "your-api-key-here"
+model = "gpt-4o"
+temperature = 0.7
+max_tokens = 4000
+
+[ansys]
+# Ansys配置
+# 如果使用本地Ansys
+use_local = true
+ansys_path = "C:/Program Files/ANSYS Inc/v242/ansys/bin/winx64/ANSYS242.exe"
+
+# 如果使用Ansys Cloud
+use_cloud = false
+cloud_api_key = "your-ansys-cloud-key"
+
+[cad]
+# CAD配置
+output_dir = "./output/drawings"
+default_units = "mm"
+
+[evaluation]
+# 评估系统配置
+weights = { economy = 0.30, efficiency = 0.25, safety = 0.30, sustainability = 0.15 }
+score_threshold = 75  # 低于此分数时提示用户
+
+[rag]
+# RAG知识库配置（阶段13）
+vector_db_path = "./chroma_db"
+embedding_model = "text-embedding-3-small"
+chunk_size = 1000
+chunk_overlap = 200
+
+[system]
+# 系统配置
+log_level = "INFO"
+log_dir = "./logs"
+output_dir = "./output"
+max_iterations = 3  # 最大优化迭代次数
+
+[design_codes]
+# 设计规范
+concrete_code = "GB 50010-2010"  # 混凝土结构设计规范
+steel_code = "GB 50017-2017"     # 钢结构设计规范
+load_code = "GB 50009-2012"      # 建筑结构荷载规范
