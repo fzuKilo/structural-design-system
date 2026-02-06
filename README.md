@@ -22,21 +22,37 @@
 
 ### 安装
 
+#### 普通协作者（推荐）
+
 ```bash
 # 1. 克隆仓库
-git clone <your-repo-url>
+git clone https://github.com/Lin-0408-Yiran/structural-design-system.git
 cd structural-design-system
 
 # 2. 创建虚拟环境
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# 3. 安装依赖
+# 3. 安装依赖（会自动从GitHub安装OpenManus）
 pip install -r requirements.txt
 
 # 4. 配置
 cp config.toml.example config.toml
 # 编辑config.toml，填入API密钥
+```
+
+#### 核心开发者（需要同时开发OpenManus）
+
+```bash
+# 1-2. 同上
+
+# 3. 先安装OpenManus为可编辑模式
+pip install -e /path/to/your/openmanus
+
+# 4. 安装其他依赖（注释掉requirements.txt中的OpenManus行）
+pip install -r requirements.txt
+
+# 5. 配置（同上）
 ```
 
 ### 运行

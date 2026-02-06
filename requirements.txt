@@ -1,9 +1,9 @@
 # OpenManus框架
-# 注意：需要先安装OpenManus
-# 方式1：从本地安装
-# pip install -e ../openmanus
-# 方式2：从GitHub安装
-# pip install git+https://github.com/FoundationAgents/OpenManus.git
+# 默认从GitHub安装（推荐给协作者）
+git+https://github.com/FoundationAgents/OpenManus.git
+
+# 如果需要同时开发OpenManus，请注释上面一行，改用：
+# pip install -e /path/to/your/openmanus
 
 # 工程计算
 ansys-mapdl-core>=0.68.0
