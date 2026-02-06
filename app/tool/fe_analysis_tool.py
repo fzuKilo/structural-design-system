@@ -4,13 +4,8 @@ Provides FE analysis capability to agents through factory pattern
 """
 
 from typing import Dict, Any, Optional
-import sys
-import os
 
-# Add OpenManus to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../openmanus')))
-
-from app.tool.base import BaseTool, ToolResult
+from openmanus.app.tool.base import BaseTool, ToolResult
 from .analyzers.analyzer_factory import AnalyzerFactory
 from .analyzers.base_analyzer import StructureAnalyzer
 
