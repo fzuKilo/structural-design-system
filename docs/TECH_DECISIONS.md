@@ -186,3 +186,78 @@ AnalyzerFactory.register("beam_ansys", AnsysBeamAnalyzer)
 ### 替代方案
 （考虑过哪些其他方案？为什么没选？）
 ```
+
+## TD-005: 多代理模式选择
+
+**日期**：2026-02-07  
+**决策者**：开发团队  
+**状态**：✅ 已实施
+
+### 背景
+
+需要决定如何协调多个 Agent 的工作流程。最初考虑创建 MainCoordinatorAgent 来手动编排任务。
+
+### 决策
+
+使用 **OpenManus 的 PlanningFlow** 替代 MainCoordinatorAgent
+
+### 理由
+
+- **自动规划**：PlanningFlow 可以根据用户输入自动生成任务计划
+- **减少代码**：无需手动编写协调逻辑
+- **灵活性**：支持动态任务调整
+- **框架原生**：充分利用 OpenManus 的能力
+- **降低复杂度**：Agent 数量从 6 个减少到 5 个
+
+### 实施
+
+- 使用 PlanningFlow 进行任务编排
+- 5 个专用 Agent：StructuralDesignAgent、FEAnalysisAgent、EvaluationAgent、CADDrawingAgent、ReportGenerationAgent
+- 通过 [TYPE] 标记进行 Agent 路由
+
+### 影响
+
+- 简化了系统架构
+- 提高了开发效率
+- 更好地利用了 OpenManus 框架的能力
+
+---
+
+
+## TD-006: Agent 数量调整
+
+**日期**：2026-02-07  
+**决策者**：开发团队  
+**状态**：✅ 已实施
+
+### 背景
+
+最初规划了 4 个专用 Agent，但在架构设计过程中发现报告生成和可视化功能较为复杂。
+
+### 决策
+
+将 Agent 数量从 4 个增加到 **5 个**，新增 **ReportGenerationAgent**
+
+### 5 个 Agent 的职责分工
+
+1. **StructuralDesignAgent**：参数收集、初步设计
+2. **FEAnalysisAgent**：有限元分析验算
+3. **EvaluationAgent**：设计质量评估
+4. **CADDrawingAgent**：CAD 图纸生成
+5. **ReportGenerationAgent**：报告生成与可视化（新增）
+
+### 理由
+
+- **职责分离**：报告生成和可视化是独立的功能模块
+- **复杂度管理**：ReportGenerationAgent 需要整合所有前面的输出
+- **可维护性**：独立的 Agent 更易于测试和维护
+- **扩展性**：未来可以支持多种报告格式（PDF、HTML、Markdown）
+
+### 影响
+
+- 工作流程更加清晰
+- 每个 Agent 的职责更加单一
+- 便于并行开发和测试
+
+---
+

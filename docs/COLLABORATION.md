@@ -88,50 +88,193 @@ git commit -m "fix: 解决design_agent合并冲突"
 
 ## 任务分工（按阶段）
 
-### 阶段0：环境准备（一起完成，1天）
-- 两人一起搭建环境
+### 阶段0：环境准备 - 已完成
+**状态**: ✅ 已完成
+**分工**: 一起完成
+- 安装 OpenManus 框架及依赖
+- 安装 OpenSeesPy（有限元分析库）
+- 安装 matplotlib 和 Plotly（可视化库）
+- 配置 LLM API
 - 确定代码规范
 
-### 阶段1-2：技术验证（并行，2-3天）
-- **人员A**: PyMAPDL集成测试
-- **人员B**: CAD绘图测试
+### 阶段1：有限元分析集成测试 - 已完成
+**状态**: ✅ 已完成
+**分工**: 人员A
+- 编写 OpenSeesPy 测试脚本
+- 实现简支梁分析示例（6m跨度，10kN/m均布荷载）
+- 实现静态可视化（matplotlib）：位移云图、弯矩云图、应力云图、弯矩图
+- 实现交互式可视化（Plotly）：位移、弯矩、应力云图
+- 验证分析结果
 
-### 阶段3-4：工具架构（并行，3-4天）
-- **人员A**: Ansys工具架构 (`feature/ansys-tool`)
-- **人员B**: CAD工具架构 (`feature/cad-tool`)
-- ⚠️ 第1天：一起讨论抽象基类接口
+**产出**:
+- `tests/test_opensees_visualization.py`
+- `tests/test_plotly_visualization.py`
 
-### 阶段5：架构设计（一起完成，1-2天）
-- 两人一起设计架构
+### 阶段2：CAD绘图测试
+**状态**: 🔄 进行中
+**分工**: 人员B
+- 编写 ezdxf 测试脚本
+- 生成简单梁结构图纸（DXF格式）
+- 测试节点、线条、标注等基本绘图功能
+
+**产出**:
+- `tests/test_cad_drawing.py`
+
+### 阶段3：有限元分析工具架构 - 已完成
+**状态**: ✅ 已完成
+**分工**: 人员A (`feature/fe-analysis-tool`)
+- 创建 `StructureAnalyzer` 抽象基类
+- 创建 `AnalysisResults` 数据类
+- 实现 `BeamAnalyzer`（使用 OpenSeesPy）
+- 创建 `AnalyzerFactory` 工厂类
+- 创建 `FEAnalysisTool`（OpenManus工具）
+- 编写单元测试（16个测试全部通过）
+
+**产出**:
+- `app/tool/analyzers/base_analyzer.py`
+- `app/tool/analyzers/beam_analyzer.py`
+- `app/tool/analyzers/analyzer_factory.py`
+- `app/tool/fe_analysis_tool.py`
+- `tests/test_fe_analysis_tool.py`
+
+**架构要点**:
+- 抽象基类定义标准接口
+- 工厂模式支持动态扩展
+- BeamAnalyzer 封装 OpenSeesPy 调用
+- 保持通用架构，避免硬编码结构类型
+
+### 阶段4：CAD工具架构
+**状态**: ⏳ 待开始
+**分工**: 人员B (`feature/cad-tool`)
+- 创建 `StructureDrawer` 抽象基类
+- 实现 `BeamDrawer`（使用 ezdxf）
+- 创建 `DrawerFactory` 工厂类
+- 创建 `CADDrawingTool`（OpenManus工具）
+- 编写单元测试
+
+**产出**:
+- `app/tool/drawers/base_drawer.py`
+- `app/tool/drawers/beam_drawer.py`
+- `app/tool/drawers/drawer_factory.py`
+- `app/tool/cad_tool.py`
+
+**注意**: 第1天与人员A讨论抽象基类接口设计
+
+### 阶段5：架构设计
+**状态**: ⏳ 待开始
+**分工**: 一起完成（1-2天）
+- 设计多Agent协作架构
+- 定义Agent职责分工（MainCoordinatorAgent、StructuralDesignAgent、FEAnalysisAgent、CADDrawingAgent、EvaluationAgent）
+- 定义通用数据传递格式（JSON Schema）
 - 绘制UML类图
+- 编写扩展指南
+
+**产出**:
+- `docs/agent_architecture.md`
+- `docs/how_to_add_new_structure_type.md`
 
 ### 阶段6-8：Agent实现（并行，5-7天）
-- **人员A**: DesignAgent + AnalysisAgent (`feature/design-analysis-agents`)
-- **人员B**: DrawingAgent + EvaluationAgent骨架 (`feature/drawing-evaluation-agents`)
-- ⚠️ 每2天：代码审查
+**人员A**: DesignAgent + AnalysisAgent (`feature/design-analysis-agents`)
+- 实现 `StructuralDesignAgent`（参数收集、初步设计）
+- 实现 `FEAnalysisAgent`（调用有限元分析工具）
+- 集成 `FEAnalysisTool`
+- 编写单元测试
 
-### 阶段9：MainAgent协调器（人员A，2-3天）
-- **人员A**: MainCoordinatorAgent (`feature/main-coordinator`)
-- **人员B**: 优化之前的代码或准备下一阶段
+**人员B**: DrawingAgent + EvaluationAgent骨架 (`feature/drawing-evaluation-agents`)
+- 实现 `CADDrawingAgent`（调用CAD工具生成图纸）
+- 实现 `EvaluationAgent` 骨架
+- 编写单元测试
 
-### 阶段10：端到端测试（一起完成，1-2天）
-- 两人一起测试和修复bug
+**注意**: 每2天进行代码审查
+
+### 阶段9：MainAgent协调器（2-3天）
+**人员A**: MainCoordinatorAgent (`feature/main-coordinator`)
+- 实现 `MainCoordinatorAgent`
+- 使用 PlanningFlow 编排任务流程
+- 实现Agent间数据传递
+- 处理异常和错误恢复
+
+**人员B**: 优化之前的代码或准备下一阶段
+
+### 阶段10：端到端测试
+**状态**: ⏳ 待开始
+**分工**: 一起完成（1-2天）
+- 完整流程测试：用户输入 → 设计 → 验算 → 绘图
+- 测试用例：简支梁设计（6米跨度，10kN均布荷载）
+- 验证Agent协作流程
+- 修复bug
 
 ### 阶段10.5：架构验证（并行，2-3天）
-- **人员A**: CantileverBeamAnalyzer
-- **人员B**: CantileverBeamDrawer
+**人员A**: CantileverBeamAnalyzer (`feature/cantilever-beam-analyzer`)
+- 实现 `CantileverBeamAnalyzer`
+- 在 `AnalyzerFactory` 中注册
+- 编写单元测试
+
+**人员B**: CantileverBeamDrawer (`feature/cantilever-beam-drawer`)
+- 实现 `CantileverBeamDrawer`
+- 在 `DrawerFactory` 中注册
+- 编写单元测试
+
+**重要性**: 验证"通用架构"是否成功的关键阶段，确保Agent代码零修改
 
 ### 阶段11：规范验证（并行，3-4天）
-- **人员A**: Validator架构
-- **人员B**: BeamValidator实现
+**人员A**: Validator架构 (`feature/validator-architecture`)
+- 创建 `CodeValidator` 抽象基类
+- 创建 `ValidatorFactory` 工厂类
+- 集成到 Analyzer 的 `check_code()` 方法
+
+**人员B**: BeamValidator实现 (`feature/beam-validator`)
+- 实现 `BeamValidator`（混凝土规范GB 50010）
+- 硬编码关键规范条文
+- 实现规范校验逻辑（应力限值、挠度限值、配筋率等）
+- 编写单元测试
 
 ### 阶段11.5：设计评估（并行，2-3天）
-- **人员A**: EvaluationAgent
-- **人员B**: Evaluator实现 + ParetoAnalyzer
+**人员A**: EvaluationAgent (`feature/evaluation-agent`)
+- 实现 `EvaluationAgent`
+- 实现单方案评估功能
+- 实现多方案评估 + 帕累托分析
+- 集成到 MainCoordinatorAgent 工作流
 
-### 阶段12-13：增强功能（并行，3-4天）
-- **人员A**: 报告生成
-- **人员B**: RAG系统
+**人员B**: Evaluator实现 + ParetoAnalyzer (`feature/evaluator`)
+- 创建 `DesignEvaluator` 抽象基类
+- 实现 `BeamEvaluator`（4维度评估：经济性、结构效率、安全性、可持续性）
+- 创建 `EvaluatorFactory` 工厂类
+- 实现 `ParetoAnalyzer`（可选）
+- 编写单元测试
+
+**评估体系**:
+- 综合评分（0-100分）+ 等级（A+/A/B+/B/C+/C/D）
+- 评分<75时智能提示用户优化
+
+### 阶段12：结果可视化与报告（并行，3-4天）
+**人员A**: 报告生成 (`feature/report-generation`)
+- 创建 `VisualizationTool`（基于阶段1的测试代码）
+- 集成静态可视化（matplotlib）：PNG格式，用于PDF报告
+- 集成交互式可视化（Plotly）：HTML格式，用于Web查看
+- 实现报告模板系统（Markdown格式）
+- 整合设计参数、验算结果、评估得分、图纸路径
+
+**人员B**: 导出架构 (`feature/export-architecture`)
+- 创建 `DesignExporter` 抽象基类
+- 实现 `JSONExporter`（当前使用）
+- 预留 `IFCExporter`、`SpeckleExporter` 接口
+- 编写单元测试
+
+**可视化功能**:
+- 位移云图、弯矩云图、应力云图、弯矩图
+- 支持悬停查看数值、缩放、平移（Plotly）
+
+### 阶段13：集成RAG知识库（并行，3-4天）
+**人员A**: RAG系统搭建 (`feature/rag-system`)
+- 导入工程规范文档（PDF转文本）
+- 使用 LangChain 构建 RAG 系统
+- 集成 ChromaDB 向量数据库
+
+**人员B**: Agent集成 (`feature/rag-integration`)
+- 在 DesignAgent 中支持规范查询
+- 实现自然语言查询规范条文
+- 编写测试用例
 
 ## 代码规范
 
