@@ -177,7 +177,6 @@ git commit -m "fix: 解决design_agent合并冲突"
 **产出**:
 - `docs/agent_architecture.md`（架构设计文档）
 - `docs/how_to_add_new_structure_type.md`（扩展指南）
-- `docs/export_interface_design.md`（导出接口设计）
 
 ### 阶段6-10：Agent实现 + PlanningFlow编排（并行，7-10天）
 **人员A**: StructuralDesignAgent + FEAnalysisAgent + EvaluationAgent (`feature/design-analysis-evaluation-agents`)
