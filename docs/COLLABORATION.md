@@ -163,38 +163,55 @@ git commit -m "fix: 解决design_agent合并冲突"
 ### 阶段5：架构设计
 **状态**: ⏳ 待开始
 **分工**: 一起完成（1-2天）
-- 设计多Agent协作架构
-- 定义Agent职责分工（MainCoordinatorAgent、StructuralDesignAgent、FEAnalysisAgent、CADDrawingAgent、EvaluationAgent）
+- 使用 OpenManus 的 PlanningFlow 进行任务编排
+- 设计5个专用Agent的职责分工：
+  - **StructuralDesignAgent**（注册名：design）：参数收集、初步设计
+  - **FEAnalysisAgent**（注册名：analysis）：有限元分析验算
+  - **EvaluationAgent**（注册名：evaluation）：量化评估设计质量
+  - **CADDrawingAgent**（注册名：drawing）：CAD图纸生成
+  - **ReportGenerationAgent**（注册名：report）：报告生成与可视化
+- 定义Agent间通信机制（共享上下文、数据提取）
 - 定义通用数据传递格式（JSON Schema）
-- 绘制UML类图
-- 编写扩展指南
+- 编写架构文档和扩展指南
 
 **产出**:
-- `docs/agent_architecture.md`
-- `docs/how_to_add_new_structure_type.md`
+- `docs/agent_architecture.md`（架构设计文档）
+- `docs/how_to_add_new_structure_type.md`（扩展指南）
+- `docs/export_interface_design.md`（导出接口设计）
 
-### 阶段6-8：Agent实现（并行，5-7天）
-**人员A**: DesignAgent + AnalysisAgent (`feature/design-analysis-agents`)
-- 实现 `StructuralDesignAgent`（参数收集、初步设计）
-- 实现 `FEAnalysisAgent`（调用有限元分析工具）
-- 集成 `FEAnalysisTool`
+### 阶段6-10：Agent实现 + PlanningFlow编排（并行，7-10天）
+**人员A**: StructuralDesignAgent + FEAnalysisAgent + EvaluationAgent (`feature/design-analysis-evaluation-agents`)
+- 实现 `StructuralDesignAgent`（继承ToolCallAgent）
+  - 参数收集（使用AskHuman工具）
+  - 初步设计（调用LLM）
+  - 输出DesignProposal（JSON字符串，含type字段）
+- 实现 `FEAnalysisAgent`（继承ToolCallAgent）
+  - 从上下文提取DesignProposal
+  - 调用FEAnalysisTool进行有限元分析
+  - 输出AnalysisResults（JSON字符串）
+- 实现 `EvaluationAgent`（继承ToolCallAgent）
+  - 从上下文提取DesignProposal和AnalysisResults
+  - 调用EvaluationTool进行量化评估
+  - 输出EvaluationReport（JSON字符串）
 - 编写单元测试
 
-**人员B**: DrawingAgent + EvaluationAgent骨架 (`feature/drawing-evaluation-agents`)
-- 实现 `CADDrawingAgent`（调用CAD工具生成图纸）
-- 实现 `EvaluationAgent` 骨架
+**人员B**: CADDrawingAgent + ReportGenerationAgent + PlanningFlow (`feature/drawing-report-planning`)
+- 实现 `CADDrawingAgent`（继承ToolCallAgent）
+  - 从上下文提取DesignProposal
+  - 调用CADDrawingTool生成图纸
+  - 输出DrawingResults（JSON字符串）
+- 实现 `ReportGenerationAgent`（继承ToolCallAgent）
+  - 从上下文提取所有前面的输出
+  - 调用VisualizationTool和ReportTool
+  - 输出ReportResults（JSON字符串）
+- 配置 PlanningFlow 编排完整工作流
+- 实现智能决策机制（评分<75时询问用户）
 - 编写单元测试
 
-**注意**: 每2天进行代码审查
-
-### 阶段9：MainAgent协调器（2-3天）
-**人员A**: MainCoordinatorAgent (`feature/main-coordinator`)
-- 实现 `MainCoordinatorAgent`
-- 使用 PlanningFlow 编排任务流程
-- 实现Agent间数据传递
-- 处理异常和错误恢复
-
-**人员B**: 优化之前的代码或准备下一阶段
+**注意**:
+- 所有Agent继承自OpenManus的ToolCallAgent
+- 每2天进行代码审查
+- 确保Agent代码保持通用，不硬编码结构类型
 
 ### 阶段10：端到端测试
 **状态**: ⏳ 待开始
@@ -205,65 +222,87 @@ git commit -m "fix: 解决design_agent合并冲突"
 - 修复bug
 
 ### 阶段10.5：架构验证（并行，2-3天）
-**人员A**: CantileverBeamAnalyzer (`feature/cantilever-beam-analyzer`)
-- 实现 `CantileverBeamAnalyzer`
-- 在 `AnalyzerFactory` 中注册
+**人员A**: CantileverBeamAnalyzer + CantileverBeamEvaluator (`feature/cantilever-beam-analyzer-evaluator`)
+- 实现 `CantileverBeamAnalyzer`（继承StructureAnalyzer）
+  - 实现悬臂梁的OpenSeesPy建模逻辑（固定端边界条件）
+  - 实现规范校核（挠度限值：L/250）
+- 在 `AnalyzerFactory` 中注册：`AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)`
+- 实现 `CantileverBeamEvaluator`（继承DesignEvaluator）
+- 在 `EvaluatorFactory` 中注册
 - 编写单元测试
 
 **人员B**: CantileverBeamDrawer (`feature/cantilever-beam-drawer`)
-- 实现 `CantileverBeamDrawer`
-- 在 `DrawerFactory` 中注册
+- 实现 `CantileverBeamDrawer`（继承StructureDrawer）
+  - 实现悬臂梁的ezdxf绘图逻辑（固定端支座符号）
+- 在 `DrawerFactory` 中注册：`DrawerFactory.register("cantilever_beam", CantileverBeamDrawer)`
 - 编写单元测试
 
-**重要性**: 验证"通用架构"是否成功的关键阶段，确保Agent代码零修改
+**验收标准**:
+- ✅ Agent代码零修改
+- ✅ 端到端测试通过（悬臂梁设计）
+- ✅ 验证真正的通用性
 
-### 阶段11：规范验证（并行，3-4天）
-**人员A**: Validator架构 (`feature/validator-architecture`)
-- 创建 `CodeValidator` 抽象基类
-- 创建 `ValidatorFactory` 工厂类
-- 集成到 Analyzer 的 `check_code()` 方法
-
-**人员B**: BeamValidator实现 (`feature/beam-validator`)
-- 实现 `BeamValidator`（混凝土规范GB 50010）
-- 硬编码关键规范条文
-- 实现规范校验逻辑（应力限值、挠度限值、配筋率等）
+### 阶段11：规范验证（集成到Analyzer，1-2天）
+**分工**: 一起完成
+- 在 `BeamAnalyzer.check_code()` 方法中完善规范校核逻辑
+  - 挠度限值校核（简支梁：L/400）
+  - 应力限值校核（与材料强度对比）
+  - 安全系数计算
+  - 违规项记录
+- 返回标准化的CodeCheckResults
 - 编写单元测试
+
+**注意**:
+- 规范校核直接集成到Analyzer，不需要单独的Validator架构
+- 保持简单，避免过度设计
+- 如果未来需要更复杂的规范验证，可以创建独立的Validator类
 
 ### 阶段11.5：设计评估（并行，2-3天）
-**人员A**: EvaluationAgent (`feature/evaluation-agent`)
-- 实现 `EvaluationAgent`
-- 实现单方案评估功能
-- 实现多方案评估 + 帕累托分析
-- 集成到 MainCoordinatorAgent 工作流
-
-**人员B**: Evaluator实现 + ParetoAnalyzer (`feature/evaluator`)
-- 创建 `DesignEvaluator` 抽象基类
-- 实现 `BeamEvaluator`（4维度评估：经济性、结构效率、安全性、可持续性）
+**人员A**: EvaluationTool (`feature/evaluation-tool`)
+- 创建 `DesignEvaluator` 抽象基类（`app/tool/evaluators/base_evaluator.py`）
+  - 定义4个评估方法：`evaluate_economy()`, `evaluate_efficiency()`, `evaluate_safety()`, `evaluate_sustainability()`
+  - 定义通用方法：`evaluate_comprehensive()`（加权综合评分）
 - 创建 `EvaluatorFactory` 工厂类
-- 实现 `ParetoAnalyzer`（可选）
+- 创建 `EvaluationTool`（继承BaseTool）
 - 编写单元测试
 
-**评估体系**:
+**人员B**: BeamEvaluator实现 (`feature/beam-evaluator`)
+- 实现 `BeamEvaluator`（继承DesignEvaluator）
+  - **经济性评估**：材料用量指数、造价效率比
+  - **结构效率评估**：平均利用率、利用率均匀性
+  - **安全性评估**：最小安全系数、挠度裕度
+  - **可持续性评估**：碳排放量、可回收率
+  - **综合评分**：加权计算（经济30% + 效率25% + 安全30% + 可持续15%）
+- 在 `EvaluatorFactory` 中注册
+- 编写单元测试
+
+**注意**:
+- EvaluationAgent已在阶段6-10实现，此阶段完善评估逻辑
 - 综合评分（0-100分）+ 等级（A+/A/B+/B/C+/C/D）
-- 评分<75时智能提示用户优化
+- 评分<75时PlanningFlow智能提示用户优化
 
 ### 阶段12：结果可视化与报告（并行，3-4天）
-**人员A**: 报告生成 (`feature/report-generation`)
-- 创建 `VisualizationTool`（基于阶段1的测试代码）
-- 集成静态可视化（matplotlib）：PNG格式，用于PDF报告
-- 集成交互式可视化（Plotly）：HTML格式，用于Web查看
-- 实现报告模板系统（Markdown格式）
-- 整合设计参数、验算结果、评估得分、图纸路径
-
-**人员B**: 导出架构 (`feature/export-architecture`)
-- 创建 `DesignExporter` 抽象基类
-- 实现 `JSONExporter`（当前使用）
-- 预留 `IFCExporter`、`SpeckleExporter` 接口
+**人员A**: VisualizationTool + ReportTool (`feature/visualization-report-tools`)
+- 创建 `VisualizationTool`（继承BaseTool）
+  - 基于阶段1的测试代码进行封装
+  - 静态可视化：matplotlib（位移云图、弯矩云图、应力云图、弯矩图）→ PNG格式
+  - 交互式可视化：Plotly（位移、弯矩、应力）→ HTML格式
+  - 支持悬停查看数值、缩放、平移
+- 创建 `ReportTool`（继承BaseTool）
+  - 生成结构化的Markdown报告
+  - 整合设计参数、验算结果、评估得分、图纸路径
+  - 实现报告模板系统
 - 编写单元测试
 
-**可视化功能**:
-- 位移云图、弯矩云图、应力云图、弯矩图
-- 支持悬停查看数值、缩放、平移（Plotly）
+**人员B**: 导出架构 (`feature/export-architecture`)
+- 创建 `DesignExporter` 抽象基类（`app/tool/exporters/base_exporter.py`）
+- 实现 `JSONExporter`（当前使用）
+- 预留 `IFCExporter`、`SpeckleExporter` 接口（为BIM扩展预留）
+- 编写单元测试
+
+**注意**:
+- ReportGenerationAgent已在阶段6-10实现，此阶段完善可视化和报告工具
+- 可视化功能独立于FEAnalysisTool，保持职责分离
 
 ### 阶段13：集成RAG知识库（并行，3-4天）
 **人员A**: RAG系统搭建 (`feature/rag-system`)
