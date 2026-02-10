@@ -156,7 +156,7 @@ git commit -m "fix: 解决design_agent合并冲突"
 - `app/tool/drawers/base_drawer.py`
 - `app/tool/drawers/beam_drawer.py`
 - `app/tool/drawers/drawer_factory.py`
-- `app/tool/cad_tool.py`
+- `app/tool/cad_drawing_tool.py`
 
 **注意**: 第1天与人员A讨论抽象基类接口设计
 
@@ -179,6 +179,16 @@ git commit -m "fix: 解决design_agent合并冲突"
 - `docs/how_to_add_new_structure_type.md`（扩展指南）
 
 ### 阶段6-10：Agent实现 + PlanningFlow编排（并行，7-10天）
+
+**说明**: 在主规划文档中,此阶段细分为:
+- 阶段6: StructuralDesignAgent
+- 阶段7: FEAnalysisAgent
+- 阶段8: CADDrawingAgent
+- 阶段9: EvaluationAgent
+- 阶段10: ReportGenerationAgent + PlanningFlow编排
+
+在实际开发中,这些Agent可以并行开发,因此在协同文档中合并为一个阶段。
+
 **人员A**: StructuralDesignAgent + FEAnalysisAgent + EvaluationAgent (`feature/design-analysis-evaluation-agents`)
 - 实现 `StructuralDesignAgent`（继承ToolCallAgent）
   - 参数收集（使用AskHuman工具）

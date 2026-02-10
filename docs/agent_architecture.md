@@ -338,34 +338,6 @@ StructuralDesignAgent / FEAnalysisAgent / EvaluationAgent / CADDrawingAgent / Re
 
 ---
 
-### 5.3 Agent 间通信机制
-
-**OpenManus 的 PlanningFlow 通信机制**：
-
-1. **上下文共享**：
-   - 所有 Agent 共享同一个对话历史（Memory）
-   - 前一个 Agent 的输出自动添加到上下文
-   - 后续 Agent 可以从上下文中提取所需数据
-
-2. **数据提取方式**：
-   ```python
-   # Agent 从上下文中提取数据
-   def extract_design_proposal(self, context: str) -> Dict:
-       # 使用 LLM 从上下文中提取 JSON
-       # 或使用正则表达式匹配 JSON 块
-       pass
-   ```
-
-3. **类型路由**：
-   ```python
-   # Tool 层根据 type 字段路由
-   design = extract_design_proposal(context)
-   structure_type = design["type"]  # "beam", "frame", etc.
-   analyzer = AnalyzerFactory.create(structure_type)
-   ```
-
----
-
 ## 4. Tool 层设计
 
 ### 4.1 整体架构
@@ -490,6 +462,89 @@ AnalyzerFactory.register("frame", FrameAnalyzer)  # 未来扩展
 1. 实现新的 Analyzer/Evaluator/Drawer 子类
 2. 在工厂类中注册
 3. Agent 代码无需修改
+
+### 4.5 导出接口设计
+
+导出系统负责将设计方案转换为不同的格式,支持与外部系统集成（如BIM工具）。
+
+#### 4.5.1 Exporter 层次结构
+
+```python
+DesignExporter (抽象基类)
+    ├── export(design: Dict, results: Dict, format: str) -> str
+    └── validate_data(design: Dict, results: Dict) -> bool
+
+    ↓ 具体实现
+
+JSONExporter (当前实现)
+IFCExporter (未来扩展 - BIM标准格式)
+SpeckleExporter (未来扩展 - Speckle平台集成)
+```
+
+#### 4.5.2 当前实现：JSONExporter
+
+**职责**：
+- 将设计方案和分析结果导出为JSON格式
+- 用于数据持久化和系统间数据交换
+- 支持完整的设计数据序列化
+
+**输出格式**：
+```json
+{
+  "design": {
+    "type": "beam",
+    "geometry": {...},
+    "material": {...},
+    "loads": {...}
+  },
+  "analysis_results": {
+    "max_displacement_mm": 1.04,
+    "max_stress_MPa": 2.49,
+    ...
+  },
+  "evaluation": {
+    "comprehensive_score": 82.5,
+    "grade": "A",
+    ...
+  },
+  "metadata": {
+    "export_time": "2026-02-07T14:30:22",
+    "system_version": "1.0.0"
+  }
+}
+```
+
+#### 4.5.3 未来扩展：BIM集成
+
+**IFCExporter**（预留）：
+- 导出为IFC（Industry Foundation Classes）格式
+- 支持与Revit、ArchiCAD等BIM软件交互
+- 符合ISO 16739标准
+
+**SpeckleExporter**（预留）：
+- 推送设计方案到Speckle平台
+- 支持Web 3D查看器
+- 实现版本管理和协作功能
+
+#### 4.5.4 使用方式
+
+导出功能集成在ReportGenerationAgent中，作为报告生成的一部分：
+
+```python
+# 在 ReportGenerationAgent 中调用
+exporter = JSONExporter()
+export_path = exporter.export(design, results, format="json")
+
+# 未来扩展（可选）
+if enable_bim:
+    speckle_exporter = SpeckleExporter()
+    speckle_url = speckle_exporter.export(design, results)
+```
+
+**关键设计**：
+- 导出功能独立于核心设计流程
+- 通过抽象基类预留扩展点
+- 不影响MVP功能，可按需启用
 
 ---
 
@@ -794,7 +849,11 @@ EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
 
 ---
 
-**文档版本**：v1.0  
-**创建日期**：2026-02-07  
-**最后更新**：2026-02-07
+**文档版本**：v1.1
+**创建日期**：2026-02-07
+**最后更新**：2026-02-10
+
+**更新日志**：
+- v1.1 (2026-02-10): 添加4.5节"导出接口设计",包含JSONExporter当前实现和BIM扩展预留
+- v1.0 (2026-02-07): 初始版本,完整的Agent架构设计
 
