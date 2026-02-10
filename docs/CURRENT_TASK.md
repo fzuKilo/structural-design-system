@@ -2,9 +2,9 @@
 
 ## 项目概览
 
-**项目名称**：OpenManus 结构设计系统  
-**当前分支**：dev  
-**最新提交**：ac049ad - docs: 改进OpenManus依赖安装说明
+**项目名称**：OpenManus 结构设计系统
+**当前分支**：dev
+**最新提交**：2876b3a - feat: 实现StructuralDesignAgent (阶段6)
 
 ## 开发阶段进度
 
@@ -23,13 +23,21 @@
   - [x] 单元测试（16个测试，全部通过）
   - [x] 依赖管理修复（移除 sys.path hack）
   - [x] 协作开发文档完善
-- [x] **阶段 5**：架构设计 ✨ 今日完成
+- [x] **阶段 5**：架构设计
   - [x] 定义5个Agent的职责分工
   - [x] 设计通用数据传递格式（JSON Schema）
   - [x] 设计Agent工作流程和调用关系
   - [x] 绘制UML类图（7个Mermaid图表）
   - [x] 编写架构设计文档（agent_architecture.md）
   - [x] 编写扩展指南文档（how_to_add_new_structure_type.md）
+- [x] **阶段 6**：StructuralDesignAgent 实现 ✨ 今日完成
+  - [x] 创建 StructuralDesignAgent 类（继承 ToolCallAgent）
+  - [x] 实现参数收集逻辑（AskHuman 工具集成）
+  - [x] 实现 LLM 设计调用和系统提示词
+  - [x] 实现 DesignProposal 输出（JSON 格式）
+  - [x] 实现 JSON 提取、验证、格式化方法
+  - [x] 编写单元测试（23个测试，全部通过）
+  - [x] 解决 OpenManus 命名空间冲突问题
 
 ### 🔄 进行中
 
@@ -37,44 +45,36 @@
 
 ### 📋 待完成
 
-- [ ] **阶段 6-9**：Agent 层实现
-- [ ] **阶段 10**：端到端测试
+- [ ] **阶段 7**：FEAnalysisAgent 实现
+- [ ] **阶段 8**：CADDrawingAgent 实现
+- [ ] **阶段 9**：EvaluationAgent 实现
+- [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
 - [ ] **阶段 10.5**：架构验证（添加悬臂梁）
 - [ ] **阶段 11-13**：增强功能（规范验证、评估、报告、RAG）
 
 ## 当前任务详情
 
-### 阶段 4：CAD 绘图工具架构
+### 阶段 7：FEAnalysisAgent 实现（下一步）
 
-**目标**：创建通用的 CAD 绘图工具架构，遵循"类型区分在 Tool 层"原则
+**目标**：实现有限元分析 Agent，调用 FEAnalysisTool 进行结构验算
 
 **子任务**：
-1. [ ] 创建 `StructureDrawer` 抽象基类
-   - 定义标准绘图接口（draw_plan, draw_elevation, draw_details）
-   - 定义通用的图纸数据格式
-
-2. [ ] 实现 `BeamDrawer`（第一个实现）
-   - 实现简支梁的立面图绘制
-   - 实现配筋详图绘制
-   - 使用 ezdxf 生成 DXF 文件
-
-3. [ ] 创建 `DrawerFactory` 工厂类
-   - 根据结构类型返回对应的绘图器实例
-
-4. [ ] 创建 `CADDrawingTool`（OpenManus 工具）
-   - 通过工厂模式路由到具体绘图器
-   - 定义工具参数
-
+1. [ ] 创建 `FEAnalysisAgent` 类（继承 ToolCallAgent）
+2. [ ] 从上下文提取 DesignProposal
+3. [ ] 调用 FEAnalysisTool 进行有限元分析
+4. [ ] 返回 AnalysisResults（JSON 字符串）
 5. [ ] 编写单元测试
-   - 测试 BeamDrawer 功能
-   - 验证 DXF 文件生成
-   - 测试工厂模式路由
 
-**预计时间**：2-3 天
+**预计时间**：1-2 天
 
 **参考文档**：
-- `docs/agent_architecture.md`（第4节：Tool层设计）
-- `docs/how_to_add_new_structure_type.md`（扩展指南）
+- `docs/agent_architecture.md`（第3.4节：FEAnalysisAgent）
+- `app/tool/fe_analysis_tool.py`（已完成的工具）
+
+**注意事项**：
+- Agent 保持通用，不针对特定结构类型
+- 通过工厂模式路由到具体的 Analyzer
+- 确保正确处理 OpenManus 命名空间（参考 StructuralDesignAgent）
 
 ## 技术栈
 
