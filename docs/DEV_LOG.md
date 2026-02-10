@@ -68,6 +68,17 @@
 
 ### 明天计划
 
+**优先级1：重构包结构（彻底解决命名空间冲突）**
+- 重命名 `app` → `structural_app`
+- 更新所有导入语句（约3处）
+- 移除 `structural_design_agent.py` 中的 sys.path 黑魔法
+- 简化 `tests/conftest.py`
+- 运行所有测试确保正常
+- 提交到 Git
+- **预计时间**: 15-20分钟
+- **收益**: 永久解决命名空间冲突，后续所有 Agent 开发都会受益
+
+**优先级2：继续 Agent 开发**
 - 开始阶段 7：FEAnalysisAgent 实现
 - 或开始阶段 4：CAD 工具架构（根据团队分工）
 

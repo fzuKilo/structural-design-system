@@ -54,7 +54,33 @@
 
 ## 当前任务详情
 
-### 阶段 7：FEAnalysisAgent 实现（下一步）
+### 🔥 优先任务：包结构重构（明天首要任务）
+
+**目标**：重命名 `app` → `structural_app`，彻底解决 OpenManus 命名空间冲突
+
+**为什么现在做：**
+- ✅ 项目规模小（21个文件，3处导入）
+- ✅ 还在开发初期，改动成本低
+- ✅ 一次性解决，避免技术债务
+- ✅ 后续7个 Agent 都会受益
+
+**子任务：**
+1. [ ] 重命名目录 `app` → `structural_app`
+2. [ ] 更新导入语句（3处）
+   - `tests/test_fe_analysis_tool.py`
+   - `app/agent/structural_design_agent.py`（移除 sys.path 黑魔法）
+3. [ ] 简化 `tests/conftest.py`（不再需要复杂的路径配置）
+4. [ ] 运行所有测试（pytest）
+5. [ ] 提交到 Git
+
+**预计时间**：15-20 分钟
+
+**参考文档**：
+- 当前的命名空间冲突解决方案在 `app/agent/structural_design_agent.py` 第12-37行
+
+---
+
+### 阶段 7：FEAnalysisAgent 实现（重构后进行）
 
 **目标**：实现有限元分析 Agent，调用 FEAnalysisTool 进行结构验算
 
