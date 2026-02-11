@@ -66,8 +66,8 @@ class StructuralDesignAgent(ToolCallAgent):
             **kwargs
         )
 
-        # System prompt for design generation
-        self.design_system_prompt = self._create_design_system_prompt()
+        # Set system prompt for design generation
+        self.system_prompt = self._create_design_system_prompt()
 
     def _create_design_system_prompt(self) -> str:
         """
@@ -143,32 +143,28 @@ DESIGN GUIDELINES:
 
 OUTPUT ONLY THE JSON - no explanations before or after."""
 
-    async def run(self, task: str, **kwargs) -> Dict[str, Any]:
+    async def run(self, request: str, **kwargs) -> str:
         """
         Main execution method for the agent
 
         Args:
-            task: User's design requirement in natural language
+            request: User's design requirement in natural language
             **kwargs: Additional parameters
 
         Returns:
-            Dict containing the design proposal
+            String containing the execution results
         """
         # Prepare the design generation prompt
         design_prompt = f"""User Requirement:
-{task}
+{request}
 
 Please analyze the requirement and generate a complete structural design proposal.
 If any critical information is missing, use the AskHuman tool to ask the user.
 
 Remember to output ONLY a valid JSON object following the specified format."""
 
-        # Call the parent run method with the design system prompt
-        result = await super().run(
-            task=design_prompt,
-            system_prompt=self.design_system_prompt,
-            **kwargs
-        )
+        # Call the parent run method (system_prompt is already set in __init__)
+        result = await super().run(request=design_prompt, **kwargs)
 
         return result
 
@@ -177,26 +173,32 @@ Remember to output ONLY a valid JSON object following the specified format."""
         Extract DesignProposal JSON from LLM response
 
         Args:
-            response: LLM response text
+            response: LLM response text (may be wrapped in OpenManus execution logs)
 
         Returns:
             Parsed design proposal dict, or None if extraction fails
         """
         try:
-            # Try to find JSON block in the response
-            # Pattern 1: ```json ... ```
+            # Pattern 1: OpenManus execution log format
+            # "Observed output of cmd `create_chat_completion` executed:\n{JSON}\nStep"
+            match = re.search(r'create_chat_completion.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)', response, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+                return json.loads(json_str)
+
+            # Pattern 2: ```json ... ```
             json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
                 return json.loads(json_str)
 
-            # Pattern 2: ``` ... ```
+            # Pattern 3: ``` ... ```
             json_match = re.search(r'```\s*(\{.*?\})\s*```', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
                 return json.loads(json_str)
 
-            # Pattern 3: Direct JSON object
+            # Pattern 4: Direct JSON object
             json_match = re.search(r'\{.*?\}', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(0)
