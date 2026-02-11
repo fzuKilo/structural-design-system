@@ -3,38 +3,12 @@ Structural Design Agent for OpenManus
 Handles parameter collection and initial structural design
 """
 
-import sys
-import os
 from typing import Dict, Any, Optional, List
 import json
 import re
 
-# Add OpenManus to path for imports (temporary solution until proper package installation)
-# CRITICAL: Must be at position 0 to override local 'app' package
-_current_file = os.path.abspath(__file__)
-_project_root = os.path.dirname(os.path.dirname(os.path.dirname(_current_file)))
-_openmanus_path = os.path.join(os.path.dirname(_project_root), 'openmanus')
-
-if os.path.exists(_openmanus_path):
-    # Remove current project root from sys.path temporarily to avoid conflicts
-    _paths_to_restore = []
-    for path in list(sys.path):
-        if os.path.abspath(path) == _project_root:
-            sys.path.remove(path)
-            _paths_to_restore.append(path)
-
-    # Add OpenManus at position 0
-    if _openmanus_path not in sys.path:
-        sys.path.insert(0, _openmanus_path)
-
 from app.agent.toolcall import ToolCallAgent
 from app.tool.ask_human import AskHuman
-
-# Restore removed paths after imports
-if os.path.exists(_openmanus_path):
-    for path in _paths_to_restore:
-        if path not in sys.path:
-            sys.path.append(path)
 
 
 class StructuralDesignAgent(ToolCallAgent):

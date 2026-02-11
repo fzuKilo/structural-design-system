@@ -5,7 +5,7 @@ Tests analyzer factory, beam analyzer (without full OpenManus integration)
 
 import pytest
 import numpy as np
-from app.tool.analyzers import AnalyzerFactory, BeamAnalyzer, StructureAnalyzer, AnalysisResults
+from structural_app.tool.analyzers import AnalyzerFactory, BeamAnalyzer, StructureAnalyzer, AnalysisResults
 
 
 class TestAnalyzerFactory:

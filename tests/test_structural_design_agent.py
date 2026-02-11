@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch, AsyncMock
 import importlib.util
 
 # Direct import of structural_design_agent module to avoid package conflicts
-_agent_file = os.path.join(os.path.dirname(__file__), '..', 'app', 'agent', 'structural_design_agent.py')
+_agent_file = os.path.join(os.path.dirname(__file__), '..', 'structural_app', 'agent', 'structural_design_agent.py')
 _spec = importlib.util.spec_from_file_location("structural_design_agent", _agent_file)
 _agent_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_agent_module)
