@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：300a100 - feat: 阶段6集成测试完成 - StructuralDesignAgent LLM集成
+**最新提交**：b8fca6c - feat: 实现阶段4 CAD工具架构（通用设计）
 
 ## 开发阶段进度
 
@@ -23,6 +23,16 @@
   - [x] 单元测试（16个测试，全部通过）
   - [x] 依赖管理修复（移除 sys.path hack）
   - [x] 协作开发文档完善
+- [x] **阶段 4**：CAD 绘图工具架构 ✨ 今日完成
+  - [x] StructureDrawer 抽象基类设计（DrawingResults 数据类）
+  - [x] BeamDrawer 实现（ezdxf，支持立面图/平面图/详图）
+  - [x] DrawerFactory 工厂模式
+  - [x] CADDrawingTool 封装（继承 BaseTool）
+  - [x] 支座符号：铰支座、滚动支座、固定支座
+  - [x] 尺寸标注和中文文字标注
+  - [x] 单元测试（5个测试，全部通过）
+  - [x] 架构验证（无硬编码，工厂模式路由）
+  - [x] 提交：b8fca6c
 - [x] **阶段 5**：架构设计
   - [x] 定义5个Agent的职责分工
   - [x] 设计通用数据传递格式（JSON Schema）
@@ -42,17 +52,6 @@
   - [x] 修复 ToolCallAgent.run() 参数名错误
   - [x] 修复 JSON 提取逻辑支持 OpenManus 执行日志格式
 
-### 🔄 进行中
-
-- [ ] **阶段 4**：CAD 绘图工具架构（下一步）
-
-### 📋 待完成
-
-- [ ] **阶段 4**：CAD 绘图工具架构
-  - [ ] 创建 StructureDrawer 抽象基类
-  - [ ] 实现 BeamDrawer 原型
-  - [ ] 创建 DrawerFactory 工厂类
-  - [ ] 编写单元测试
 - [ ] **阶段 7**：FEAnalysisAgent 实现
   - [ ] 创建 FEAnalysisAgent 类（继承 ToolCallAgent）
   - [ ] 从上下文提取 DesignProposal
@@ -136,10 +135,10 @@
 ## 下一步行动
 
 1. 开始阶段7：FEAnalysisAgent 实现（推荐）
-2. 或开始阶段4：CAD 工具架构（根据团队分工）
+2. 或开始阶段8：CADDrawingAgent 实现（使用已创建的 CADDrawingTool）
 3. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
 
 ---
 
-**最后更新**：2026-02-11
-**更新人**：Claude Code + 用户A
+**最后更新**：2026-02-12
+**更新人**：Claude Code
