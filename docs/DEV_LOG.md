@@ -1,5 +1,73 @@
 # 开发日志
 
+## 2026-02-11
+
+### 完成的工作
+
+1. **阶段 6 集成测试** - 完全完成 ✅
+   - 修复 StructuralDesignAgent.run() 参数名（task → request）
+   - 修复系统提示词设置方式（self.system_prompt）
+   - 更新 extract_design_proposal() 支持 OpenManus 执行日志格式
+   - 配置 DeepSeek LLM（config.toml）
+   - 创建集成测试脚本 tests/integration/test_design_agent_integration.py
+   - 成功验证 LLM 调用，生成有效的设计方案
+
+2. **包结构重构** - 完全完成 ✅
+   - 重命名目录 app → structural_app
+   - 更新导入语句（3处）
+   - 移除 structural_design_agent.py 中的 sys.path 黑魔法
+   - 简化 tests/conftest.py
+   - 所有测试通过（41 passed, 1 skipped）
+   - 提交到本地分支并推送到远程
+
+3. **文档更新**
+   - 创建 INTEGRATION_TEST_PLAN.md（集成测试计划文档）
+   - 更新 CURRENT_TASK.md：标记阶段 6 完成，更新下一步任务
+   - 更新 DEV_LOG.md：记录今日工作
+
+### 遇到的问题
+
+**问题 1：ToolCallAgent.run() 参数名错误**
+- **现象**：`TypeError: ToolCallAgent.run() got an unexpected keyword argument 'task'`
+- **原因**：OpenManus 的 BaseAgent.run() 参数名为 `request`，不是 `task`
+- **解决**：修改 StructuralDesignAgent.run() 参数名为 request，更新 super().run() 调用
+
+**问题 2：JSON 提取失败**
+- **现象**：`Failed to parse JSON: Expecting ',' delimiter: line 8 column 4`
+- **原因**：LLM 的 JSON 响应被包裹在 OpenManus 的执行日志中，格式为：
+  ```
+  Step 1: Observed output of cmd `create_chat_completion` executed:
+  {JSON}
+  Step 2: ...
+  ```
+- **解决**：更新 extract_design_proposal() 添加新正则表达式模式匹配 OpenManus 日志格式
+
+**问题 3：Windows 控制台 Unicode 编码错误**
+- **现象**：`UnicodeEncodeError: 'gbk' codec can't encode character '\u2713'`
+- **原因**：Windows 控制台使用 GBK 编码，无法显示 Unicode 字符（✓ ✗ ⚠）
+- **解决**：将所有 Unicode 字符替换为 ASCII 字符（[PASS] [FAIL] [WARN] 等）
+
+### 技术决策
+
+- **LLM 提供商**：DeepSeek (deepseek-chat)
+- **测试策略**：单元测试 + 集成测试（调用真实 LLM）
+- **包命名**：将本地 app 包重命名为 structural_app 解决命名冲突
+
+### 明天计划
+
+**优先级1：阶段 7 - FEAnalysisAgent 实现**
+- 创建 FEAnalysisAgent 类（继承 ToolCallAgent）
+- 从上下文提取 DesignProposal
+- 调用 FEAnalysisTool 进行有限元分析
+- 返回 AnalysisResults（JSON 字符串）
+- 编写单元测试
+
+**优先级2：其他任务**
+- 阶段 4：CAD 工具架构（如果 FEAnalysisAgent 开发顺利）
+- 或根据团队分工调整
+
+---
+
 ## 2026-02-10
 
 ### 完成的工作

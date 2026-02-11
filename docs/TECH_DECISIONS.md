@@ -162,6 +162,142 @@ AnalyzerFactory.register("beam_ansys", AnsysBeamAnalyzer)
 
 ---
 
+## TD-007: 包命名与 OpenManus 命名空间冲突解决
+
+**日期**：2026-02-11
+**决策者**：开发团队
+**状态**：✅ 已实施
+
+### 背景
+
+项目本地有一个 `app/` 包，与 OpenManus 框架的 `app/` 包命名冲突，导致：
+- `from app.agent.toolcall import ToolCallAgent` 导入失败
+- Python 优先导入本地 `app` 包，而不是 OpenManus 的 `app` 包
+
+### 决策
+
+将本地 `app` 包重命名为 `structural_app`
+
+### 理由
+
+- **彻底解决冲突**：重命名后，`from app.` 开头的导入会正确找到 OpenManus 的包
+- **长期有效**：一次解决，避免技术债务
+- **简单直接**：比 sys.path hack 更清晰
+- **后续受益**：所有未来的 Agent 开发都不再需要处理命名空间问题
+
+### 实施
+
+1. 重命名目录 `app/` → `structural_app/`
+2. 更新导入语句：
+   - `tests/test_fe_analysis_tool.py`
+   - `tests/test_structural_design_agent.py`
+3. 移除 `structural_design_agent.py` 中的 sys.path hack（27行代码）
+4. 简化 `tests/conftest.py`（不再需要复杂的路径配置）
+
+### 影响
+
+- 所有导入语句需要更新（从 `app.` 改为 `structural_app.`）
+- OpenManus 的导入保持 `from app.` 不变（现在会正确找到 OpenManus 的包）
+
+---
+
+## TD-008: DeepSeek LLM 集成
+
+**日期**：2026-02-11
+**决策者**：开发团队
+**状态**：✅ 已实施
+
+### 背景
+
+需要配置 LLM 供 StructuralDesignAgent 调用。原配置使用 GPT-4o。
+
+### 决策
+
+使用 **DeepSeek** 作为 LLM 提供商
+- Provider: deepseek
+- Model: deepseek-chat
+- API Key: 用户配置
+
+### 理由
+
+- **成本优化**：DeepSeek 相比 GPT-4o 成本更低
+- **性能良好**：DeepSeek 在代码和推理任务上表现优秀
+- **本地配置**：用户已有 DeepSeek API key
+
+### 实施
+
+- 创建 `config.toml` 文件
+- 配置 DeepSeek 相关参数
+- 集成测试验证 LLM 调用成功
+
+---
+
+## TD-009: OpenManus 执行日志格式兼容
+
+**日期**：2026-02-11
+**决策者**：开发团队
+**状态**：✅ 已实施
+
+### 背景
+
+OpenManus 的 ToolCallAgent 在执行时，LLM 的 JSON 响应被包裹在执行日志中，格式为：
+```
+Step 1: Observed output of cmd `create_chat_completion` executed:
+{JSON}
+Step 2: Observed output of cmd `terminate` executed:
+...
+```
+
+原有的 JSON 提取正则表达式无法匹配这种格式。
+
+### 决策
+
+更新 `extract_design_proposal()` 方法，添加新的正则表达式模式：
+
+```python
+# Pattern 1: OpenManus execution log format
+match = re.search(r'create_chat_completion.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)', response, re.DOTALL)
+```
+
+### 理由
+
+- **兼容性**：支持 OpenManus 的执行日志格式
+- **向后兼容**：保留原有正则表达式模式作为后备
+- **鲁棒性**：多种提取模式确保成功率
+
+### 实施
+
+添加第一个匹配模式来处理 OpenManus 日志格式，保持原有 4 种模式不变。
+
+---
+
+## TD-010: Windows 控制台 Unicode 编码处理
+
+**日期**：2026-02-11
+**决策者**：开发团队
+**状态**：✅ 已实施
+
+### 背景
+
+Windows 控制台使用 GBK 编码，默认无法显示某些 Unicode 字符（✓ ✗ ⚠等）。
+
+### 决策
+
+将所有 Unicode 字符替换为 ASCII 字符：
+- ✓ → [PASS]
+- ✗ → [FAIL]
+- ⚠ → [WARN]
+- ✅ → [OK]/[SUCCESS]
+- ⚡ → [OK]
+
+### 理由
+
+- **兼容性**：Windows 控制台完全支持 ASCII
+- **清晰性**：方括号标记同样清晰易读
+- **避免错误**：防止 UnicodeEncodeError 中断测试
+
+---
+
 ## 模板
 
 ```markdown

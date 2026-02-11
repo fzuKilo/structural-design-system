@@ -4,11 +4,11 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：2876b3a - feat: 实现StructuralDesignAgent (阶段6)
+**最新提交**：300a100 - feat: 阶段6集成测试完成 - StructuralDesignAgent LLM集成
 
 ## 开发阶段进度
 
-根据 `OpenManus开发规划2.3.md`：
+根据 `OpenManus开发规划2.4.md`：
 
 ### ✅ 已完成
 
@@ -30,14 +30,17 @@
   - [x] 绘制UML类图（7个Mermaid图表）
   - [x] 编写架构设计文档（agent_architecture.md）
   - [x] 编写扩展指南文档（how_to_add_new_structure_type.md）
-- [x] **阶段 6**：StructuralDesignAgent 实现 ✨ 今日完成
+- [x] **阶段 6**：StructuralDesignAgent 实现与集成测试 ✨ 今日完成
   - [x] 创建 StructuralDesignAgent 类（继承 ToolCallAgent）
   - [x] 实现参数收集逻辑（AskHuman 工具集成）
   - [x] 实现 LLM 设计调用和系统提示词
   - [x] 实现 DesignProposal 输出（JSON 格式）
   - [x] 实现 JSON 提取、验证、格式化方法
   - [x] 编写单元测试（23个测试，全部通过）
-  - [x] 解决 OpenManus 命名空间冲突问题
+  - [x] 包结构重构（app → structural_app）
+  - [x] 配置 DeepSeek LLM 并完成集成测试
+  - [x] 修复 ToolCallAgent.run() 参数名错误
+  - [x] 修复 JSON 提取逻辑支持 OpenManus 执行日志格式
 
 ### 🔄 进行中
 
@@ -45,7 +48,17 @@
 
 ### 📋 待完成
 
+- [ ] **阶段 4**：CAD 绘图工具架构
+  - [ ] 创建 StructureDrawer 抽象基类
+  - [ ] 实现 BeamDrawer 原型
+  - [ ] 创建 DrawerFactory 工厂类
+  - [ ] 编写单元测试
 - [ ] **阶段 7**：FEAnalysisAgent 实现
+  - [ ] 创建 FEAnalysisAgent 类（继承 ToolCallAgent）
+  - [ ] 从上下文提取 DesignProposal
+  - [ ] 调用 FEAnalysisTool 进行有限元分析
+  - [ ] 返回 AnalysisResults（JSON 字符串）
+  - [ ] 编写单元测试
 - [ ] **阶段 8**：CADDrawingAgent 实现
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
@@ -54,33 +67,7 @@
 
 ## 当前任务详情
 
-### 🔥 优先任务：包结构重构（明天首要任务）
-
-**目标**：重命名 `app` → `structural_app`，彻底解决 OpenManus 命名空间冲突
-
-**为什么现在做：**
-- ✅ 项目规模小（21个文件，3处导入）
-- ✅ 还在开发初期，改动成本低
-- ✅ 一次性解决，避免技术债务
-- ✅ 后续7个 Agent 都会受益
-
-**子任务：**
-1. [ ] 重命名目录 `app` → `structural_app`
-2. [ ] 更新导入语句（3处）
-   - `tests/test_fe_analysis_tool.py`
-   - `app/agent/structural_design_agent.py`（移除 sys.path 黑魔法）
-3. [ ] 简化 `tests/conftest.py`（不再需要复杂的路径配置）
-4. [ ] 运行所有测试（pytest）
-5. [ ] 提交到 Git
-
-**预计时间**：15-20 分钟
-
-**参考文档**：
-- 当前的命名空间冲突解决方案在 `app/agent/structural_design_agent.py` 第12-37行
-
----
-
-### 阶段 7：FEAnalysisAgent 实现（重构后进行）
+### 🔥 优先任务：阶段 7 - FEAnalysisAgent 实现
 
 **目标**：实现有限元分析 Agent，调用 FEAnalysisTool 进行结构验算
 
@@ -91,16 +78,38 @@
 4. [ ] 返回 AnalysisResults（JSON 字符串）
 5. [ ] 编写单元测试
 
-**预计时间**：1-2 天
+**预计时间**：1天
 
 **参考文档**：
 - `docs/agent_architecture.md`（第3.4节：FEAnalysisAgent）
-- `app/tool/fe_analysis_tool.py`（已完成的工具）
+- `structural_app/tool/fe_analysis_tool.py`（已完成的工具）
 
 **注意事项**：
 - Agent 保持通用，不针对特定结构类型
 - 通过工厂模式路由到具体的 Analyzer
-- 确保正确处理 OpenManus 命名空间（参考 StructuralDesignAgent）
+- OpenManus 命名空间已解决，无需 sys.path hack
+
+---
+
+### 阶段 4：CAD 绘图工具架构（可选，取决于团队分工）
+
+**目标**：实现 CAD 绘图工具的通用架构
+
+**子任务**：
+1. [ ] 创建 `StructureDrawer` 抽象基类
+2. [ ] 实现 `BeamDrawer` 原型（简单立面图）
+3. [ ] 创建 `DrawerFactory` 工厂类
+4. [ ] 编写单元测试
+
+**预计时间**：1-2天
+
+**参考文档**：
+- `docs/agent_architecture.md`（第3.5节：CADDrawingAgent）
+- `docs/how_to_add_new_structure_type.md`
+
+**注意事项**：
+- ezdxf 库需要安装：`pip install ezdxf`
+- 绘图逻辑需要根据结构类型区分（梁、框架、桁架等）
 
 ## 技术栈
 
@@ -126,13 +135,11 @@
 
 ## 下一步行动
 
-1. 阅读 ezdxf 文档，了解基本绘图功能
-2. 设计 StructureDrawer 抽象基类接口
-3. 实现 BeamDrawer 原型（简单立面图）
-4. 创建 DrawerFactory 工厂类
-5. 编写单元测试
+1. 开始阶段7：FEAnalysisAgent 实现（推荐）
+2. 或开始阶段4：CAD 工具架构（根据团队分工）
+3. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
 
 ---
 
-**最后更新**：2026-02-07
-**更新人**：Claude Code
+**最后更新**：2026-02-11
+**更新人**：Claude Code + 用户A
