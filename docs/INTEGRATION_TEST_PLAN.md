@@ -209,7 +209,7 @@
 ## 测试记录
 
 ### 阶段6集成测试
-- 日期：2026-02-11
+- 日期：2026-02-11 & 2026-02-15
 - 执行人：Claude Code + 用户A
 - 结果：通过
 - LLM：DeepSeek (deepseek-chat)
@@ -231,11 +231,23 @@
 - 问题记录：
   1. 初始API调用参数错误 (task vs request) - 已修复
   2. JSON提取失败 (未识别OpenManus执行日志格式) - 已修复
+  3. AskHuman工具未正确注册到available_tools - 已修复
+  4. 外部验证循环与OpenManus内部循环冲突 - 已移除外部循环
+  5. 相对导入导致ModuleNotFoundError - 已改为绝对导入
 - 修复措施：
   1. 修改StructuralDesignAgent.run()参数名为request
   2. 更新extract_design_proposal()支持OpenManus日志格式
-- Token使用：Input=2753, Completion=242, Total=2995
-- 执行时间：约12秒
+  3. FEAnalysisAgent.__init__()中添加: self.available_tools = ToolCollection(*all_tools)
+  4. 简化StructuralDesignAgent.run()，移除外部验证循环
+  5. fe_analysis_tool.py使用绝对导入
+- AskHuman测试记录（2026-02-15）：
+  - 测试方式：集成测试脚本交互式输入
+  - 输入："设计一个简支梁"
+  - 用户补充：跨度6m，均布荷载10kN/m，楼面梁
+  - 结果：Agent正确调用AskHuman询问参数，获取后生成设计方案
+  - 验证：测试通过，AskHuman工具正常工作
+- Token使用：Input=2753, Completion=242, Total=2995 (基础测试)
+- 执行时间：约12秒 (基础测试) / 约2分钟 (含AskHuman交互)
 
 ### 阶段7集成测试
 - 日期：____

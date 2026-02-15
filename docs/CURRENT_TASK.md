@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：b8fca6c - feat: 实现阶段4 CAD工具架构（通用设计）
+**最新提交**：66cdbe6 - docs: 更新阶段6集成测试记录（补充AskHuman测试）
 
 ## 开发阶段进度
 
@@ -52,12 +52,15 @@
   - [x] 修复 ToolCallAgent.run() 参数名错误
   - [x] 修复 JSON 提取逻辑支持 OpenManus 执行日志格式
 
-- [ ] **阶段 7**：FEAnalysisAgent 实现
-  - [ ] 创建 FEAnalysisAgent 类（继承 ToolCallAgent）
-  - [ ] 从上下文提取 DesignProposal
-  - [ ] 调用 FEAnalysisTool 进行有限元分析
-  - [ ] 返回 AnalysisResults（JSON 字符串）
-  - [ ] 编写单元测试
+- [x] **阶段 7**：FEAnalysisAgent 实现 ✨ 今日完成
+  - [x] 创建 FEAnalysisAgent 类（继承 ToolCallAgent）
+  - [x] 集成 FEAnalysisTool 进行有限元分析
+  - [x] 集成 AskHuman 工具支持参数询问
+  - [x] 实现系统提示词引导 LLM 调用 FEAnalysisTool
+  - [x] 实现 DesignProposal 和 AnalysisResults 提取方法
+  - [x] 编写单元测试（8个测试，全部通过）
+  - [x] ParameterValidator 抽象架构（支持扩展新结构类型）
+  - [x] 提交：66cdbe6
 - [ ] **阶段 8**：CADDrawingAgent 实现
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
@@ -66,27 +69,41 @@
 
 ## 当前任务详情
 
-### 🔥 优先任务：阶段 7 - FEAnalysisAgent 实现
+### 🔥 优先任务：阶段 7 集成测试
 
-**目标**：实现有限元分析 Agent，调用 FEAnalysisTool 进行结构验算
+**目标**：执行 StructuralDesignAgent → FEAnalysisAgent 端到端集成测试
 
 **子任务**：
-1. [ ] 创建 `FEAnalysisAgent` 类（继承 ToolCallAgent）
+1. [ ] 创建集成测试脚本（调用真实 LLM）
+2. [ ] 测试 DesignProposal 数据传递
+3. [ ] 验证 FEAnalysisTool 调用 OpenSeesPy
+4. [ ] 验证 AnalysisResults 数值合理
+
+**预计时间**：30分钟
+
+**参考文档**：
+- `docs/INTEGRATION_TEST_PLAN.md`（第61-86行）
+- `structural_app/agent/fe_analysis_agent.py`
+- `structural_app/tool/fe_analysis_tool.py`
+
+---
+
+### 后续任务：阶段 8 - CADDrawingAgent 实现
+
+**目标**：实现 CAD 绘图 Agent，调用 CADDrawingTool 生成图纸
+
+**子任务**：
+1. [ ] 创建 CADDrawingAgent 类（继承 ToolCallAgent）
 2. [ ] 从上下文提取 DesignProposal
-3. [ ] 调用 FEAnalysisTool 进行有限元分析
-4. [ ] 返回 AnalysisResults（JSON 字符串）
+3. [ ] 调用 CADDrawingTool 生成 DXF 文件
+4. [ ] 返回 DrawingResults（JSON 字符串）
 5. [ ] 编写单元测试
 
 **预计时间**：1天
 
 **参考文档**：
-- `docs/agent_architecture.md`（第3.4节：FEAnalysisAgent）
-- `structural_app/tool/fe_analysis_tool.py`（已完成的工具）
-
-**注意事项**：
-- Agent 保持通用，不针对特定结构类型
-- 通过工厂模式路由到具体的 Analyzer
-- OpenManus 命名空间已解决，无需 sys.path hack
+- `docs/agent_architecture.md`（第3.5节：CADDrawingAgent）
+- `structural_app/tool/drawers/cad_drawing_tool.py`
 
 ---
 
@@ -140,5 +157,5 @@
 
 ---
 
-**最后更新**：2026-02-12
+**最后更新**：2026-02-15
 **更新人**：Claude Code
