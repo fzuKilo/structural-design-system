@@ -5,9 +5,14 @@ Provides FE analysis capability to agents through factory pattern
 
 from typing import Dict, Any, Optional
 
-from openmanus.app.tool.base import BaseTool, ToolResult
-from .analyzers.analyzer_factory import AnalyzerFactory
-from .analyzers.base_analyzer import StructureAnalyzer
+# Handle OpenManus import with path fallback
+try:
+    from openmanus.app.tool.base import BaseTool, ToolResult
+except ImportError:
+    from app.tool.base import BaseTool, ToolResult
+# Use absolute imports for analyzer modules
+from structural_app.tool.analyzers.analyzer_factory import AnalyzerFactory
+from structural_app.tool.analyzers.base_analyzer import StructureAnalyzer
 
 
 class FEAnalysisTool(BaseTool):
