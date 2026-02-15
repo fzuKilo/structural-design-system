@@ -8,6 +8,8 @@ import os
 import asyncio
 import json
 
+import pytest
+
 # Add OpenManus to path
 _openmanus_path = 'D:\\openmanus'
 if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
@@ -21,6 +23,7 @@ if _project_root not in sys.path:
 from structural_app.agent.structural_design_agent import StructuralDesignAgent
 
 
+@pytest.mark.asyncio
 async def test_simple_beam_design():
     """
     Test 1: Simple beam design with complete parameters
@@ -106,11 +109,11 @@ async def test_simple_beam_design():
         return False
 
 
+@pytest.mark.asyncio
 async def test_incomplete_parameters():
     """
     Test 2: Beam design with missing parameters
     Expected: Agent should ask for missing information (if AskHuman is properly configured)
-    Note: This test may not work in non-interactive environment
     """
     print("\n" + "="*80)
     print("Test 2: Incomplete Parameters (Should Ask Questions)")
@@ -118,15 +121,50 @@ async def test_incomplete_parameters():
 
     agent = StructuralDesignAgent()
 
+    # Use a simple request that will trigger AskHuman
     request = "设计一个简支梁"
 
     print(f"\n输入: {request}")
-    print("\n注意: 此测试在非交互环境中可能无法完成")
-    print("预期行为: Agent应该询问缺失的参数（跨度、荷载等）")
+    print("\n注意: 如果缺少必要参数，Agent 会通过 AskHuman 询问你。")
+    print("请在终端根据 Agent 的提示输入缺失的信息。\n")
 
-    # This test is informational only in non-interactive mode
-    print("\n[SKIP] 跳过此测试（需要交互式环境）")
-    return None
+    try:
+        result = await agent.run(request)
+
+        print("\n原始输出:")
+        print(result)
+
+        # Extract design proposal
+        if isinstance(result, dict) and 'content' in result:
+            response_text = result['content']
+        elif isinstance(result, str):
+            response_text = result
+        else:
+            response_text = str(result)
+
+        design_proposal = agent.extract_design_proposal(response_text)
+
+        if design_proposal:
+            print("\n提取的设计方案:")
+            print(json.dumps(design_proposal, indent=2, ensure_ascii=False))
+
+            is_valid, error = agent.validate_design_proposal(design_proposal)
+
+            if is_valid:
+                print("\n[PASS] 验证通过")
+                return True
+            else:
+                print(f"\n[FAIL] 验证失败: {error}")
+                return False
+        else:
+            print("\n[FAIL] 无法提取设计方案")
+            return False
+
+    except Exception as e:
+        print(f"\n[FAIL] 测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 async def main():
@@ -156,16 +194,74 @@ async def main():
 
     print("\n[OK] 配置文件检查通过")
 
-    # Run tests
+    # Ask user for test mode
+    print("\n" + "-"*80)
+    print("测试模式选择:")
+    print("  1. 自定义需求测试 (输入你的结构设计需求)")
+    print("  2. 使用预设测试 (完整参数测试)")
+    print("  3. 使用预设测试 (缺失参数测试)")
+    print("-"*80)
+
+    test_mode = input("\n请选择测试模式 (1/2/3): ").strip()
+
+    # Run tests based on mode
     results = []
 
-    # Test 1
-    result1 = await test_simple_beam_design()
-    results.append(("Test 1: Simple Beam Design", result1))
+    if test_mode == "1":
+        # Custom user request
+        print("\n" + "="*80)
+        print("自定义需求测试")
+        print("="*80)
+        user_request = input("\n请输入你的结构设计需求:\n> ")
 
-    # Test 2 (informational only)
-    result2 = await test_incomplete_parameters()
-    results.append(("Test 2: Incomplete Parameters", result2))
+        agent = StructuralDesignAgent()
+        print("\n调用LLM生成设计方案...")
+
+        try:
+            result = await agent.run(user_request)
+            print("\n原始输出:")
+            print(result)
+
+            # Extract and validate
+            if isinstance(result, dict) and 'content' in result:
+                response_text = result['content']
+            elif isinstance(result, str):
+                response_text = result
+            else:
+                response_text = str(result)
+
+            design_proposal = agent.extract_design_proposal(response_text)
+
+            if design_proposal:
+                print("\n提取的设计方案:")
+                print(json.dumps(design_proposal, indent=2, ensure_ascii=False))
+
+                is_valid, error = agent.validate_design_proposal(design_proposal)
+                print(f"\n验证结果: {'[PASS] 通过' if is_valid else '[FAIL] ' + error}")
+
+                results.append(("Custom Request Test", is_valid))
+            else:
+                print("\n[FAIL] 无法提取设计方案")
+                results.append(("Custom Request Test", False))
+        except Exception as e:
+            print(f"\n[FAIL] 测试失败: {e}")
+            import traceback
+            traceback.print_exc()
+            results.append(("Custom Request Test", False))
+
+    elif test_mode == "2":
+        # Test 1: Complete parameters
+        result1 = await test_simple_beam_design()
+        results.append(("Test 1: Complete Parameters", result1))
+
+    elif test_mode == "3":
+        # Test 2: Incomplete parameters
+        result2 = await test_incomplete_parameters()
+        results.append(("Test 2: Incomplete Parameters", result2))
+
+    else:
+        print(f"\n[ERROR] 无效的选项: {test_mode}")
+        return
 
     # Summary
     print("\n" + "="*80)

@@ -9,6 +9,22 @@ import re
 
 from app.agent.toolcall import ToolCallAgent
 from app.tool.ask_human import AskHuman
+from app.schema import Message
+from app.tool import ToolCollection, CreateChatCompletion, Terminate
+
+# Import validators directly to avoid full package import chain
+import importlib.util
+
+# Load validators module without triggering structural_app.tool.__init__
+_spec = importlib.util.spec_from_file_location(
+    "validators",
+    "D:\\structural-design-system\\structural_app\\tool\\validators\\__init__.py"
+)
+validators_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(validators_module)
+
+ParameterValidator = validators_module.ParameterValidator
+BeamValidator = validators_module.BeamValidator
 
 
 class StructuralDesignAgent(ToolCallAgent):
@@ -33,6 +49,7 @@ class StructuralDesignAgent(ToolCallAgent):
         name: str = "StructuralDesignAgent",
         description: str = None,
         tools: Optional[List] = None,
+        max_iterations: int = 3,
         **kwargs
     ):
         """
@@ -42,6 +59,7 @@ class StructuralDesignAgent(ToolCallAgent):
             name: Agent name (default: "StructuralDesignAgent")
             description: Agent description
             tools: List of tools available to the agent
+            max_iterations: Maximum number of validation iterations
             **kwargs: Additional arguments passed to ToolCallAgent
         """
         if description is None:
@@ -66,8 +84,25 @@ class StructuralDesignAgent(ToolCallAgent):
             **kwargs
         )
 
+        # Override available_tools to include all tools including AskHuman
+        # ToolCallAgent uses available_tools (not tools) for LLM tool options
+        # Combine user-provided tools with default tools
+        all_tools = tools + [CreateChatCompletion(), Terminate()]
+        self.available_tools = ToolCollection(*all_tools)
+
         # Set system prompt for design generation
         self.system_prompt = self._create_design_system_prompt()
+
+        # Validator mapping by structure type
+        self._validator_map = {
+            'beam': BeamValidator(),
+            # Add more validators here as needed:
+            # 'frame': FrameValidator(),
+            # 'truss': TrussValidator(),
+        }
+
+        # Maximum iterations for validation loop
+        self.max_iterations = max_iterations
 
     def _create_design_system_prompt(self) -> str:
         """
@@ -139,13 +174,43 @@ DESIGN GUIDELINES:
 
 4. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
 
-5. Use engineering judgment to fill in missing parameters with reasonable defaults.
+CRITICAL RULES FOR PARAMETER COLLECTION:
+=========================================
 
-OUTPUT ONLY THE JSON - no explanations before or after."""
+[HOW TO HANDLE MISSING PARAMETERS]
+When the user's request is missing critical information, you MUST use the AskHuman tool.
+
+What constitutes "critical information" depends on the structure type:
+- For beams: span/length, loads, and support type are ALWAYS required
+- For other structures: critical parameters may vary
+
+[WHEN TO USE AskHuman TOOL]
+Use the ask_human tool when:
+1. User request doesn't specify critical design parameters
+2. User request is ambiguous about loads (e.g., "承受荷载" but no magnitude)
+3. User request doesn't specify support conditions
+4. You cannot make reasonable engineering assumptions without user input
+
+[HOW TO USE AskHuman TOOL]
+Call the ask_human tool with a clear, specific inquiry that asks for the missing information.
+The tool will display your question to the user and return their response.
+
+Example inquiry for a beam without span:
+"请补充以下信息：1. 跨度（长度）是多少米？2. 荷载是多少？3. 支座类型是什么？"
+
+OUTPUT FORMAT:
+- If you have all required information: Output ONLY a valid JSON object.
+- If you need more information: Use the ask_human tool FIRST.
+"""
 
     async def run(self, request: str, **kwargs) -> str:
         """
-        Main execution method for the agent
+        Main execution method for the agent.
+
+        The agent uses OpenManus's ReAct loop to:
+        1. Analyze user requirements
+        2. Call AskHuman tool if parameters are missing
+        3. Generate design proposal with valid JSON
 
         Args:
             request: User's design requirement in natural language
@@ -159,11 +224,12 @@ OUTPUT ONLY THE JSON - no explanations before or after."""
 {request}
 
 Please analyze the requirement and generate a complete structural design proposal.
-If any critical information is missing, use the AskHuman tool to ask the user.
+Follow the rules in the system prompt for determining which parameters must be asked.
 
 Remember to output ONLY a valid JSON object following the specified format."""
 
         # Call the parent run method (system_prompt is already set in __init__)
+        # The parent class handles the ReAct loop with AskHuman tool
         result = await super().run(request=design_prompt, **kwargs)
 
         return result

@@ -42,7 +42,7 @@ class TestStructuralDesignAgentInitialization:
         # Create a minimal instance to test prompt generation
         try:
             agent = StructuralDesignAgent()
-            prompt = agent.design_system_prompt
+            prompt = agent.system_prompt
 
             # Check for key elements
             assert isinstance(prompt, str)
