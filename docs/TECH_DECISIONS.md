@@ -501,3 +501,122 @@ ParameterValidator (抽象基类)
 
 ---
 
+## TD-014: FEAnalysisTool 参数格式兼容与 JSON 输出
+
+**日期**：2026-02-16
+**决策者**：Claude Code
+**状态**：✅ 已实施
+
+### 背景
+
+FEAnalysisTool 在集成测试中遇到以下问题：
+1. LLM 调用工具时传递 `design_proposal` 参数（JSON 字符串），但工具期望独立参数
+2. ToolResult 输出使用 `str(dict)` 返回 Python 字典格式，无法被 json.loads() 解析
+3. extract_analysis_results 正则表达式无法匹配长 JSON
+
+### 决策
+
+1. **添加 design_proposal 参数支持**
+   ```python
+   # 在参数定义中添加
+   "design_proposal": {
+       "type": "string",
+       "description": "Complete design proposal in JSON format. This is an alternative to passing individual parameters."
+   }
+   ```
+
+2. **统一 JSON 输出格式**
+   ```python
+   # 使用 json.dumps 确保标准 JSON 格式
+   return ToolResult(output=json.dumps(output_data, ensure_ascii=False))
+   ```
+
+3. **修复 JSON 提取正则表达式**
+   ```python
+   pattern = r'fe_analysis.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+   matches = re.findall(pattern, response, re.DOTALL)
+   if matches:
+       json_str = matches[-1]  # 获取最后一个匹配（最新结果）
+       return json.loads(json_str)
+   ```
+
+### 理由
+
+- **兼容性**：同时支持独立参数和 design_proposal 两种格式
+- **标准性**：统一使用 json.dumps() 确保返回标准 JSON 格式
+- **鲁棒性**：正则表达式使用非贪婪匹配 + Step/EOF 分隔符
+
+### 实施
+
+1. fe_analysis_tool.py：添加 design_proposal 参数
+2. fe_analysis_tool.py：所有输出使用 json.dumps()
+3. fe_analysis_agent.py：修复 extract_analysis_results() 方法
+
+---
+
+## TD-015: AskHuman 工具 EOFError 处理
+
+**日期**：2026-02-16
+**决策者**：Claude Code
+**状态**：✅ 已实施
+
+### 背景
+
+在无交互环境下运行集成测试时，AskHuman 工具的 input() 调用会抛出 EOFError：
+```
+EOFError: EOF when reading a line
+```
+
+### 决策
+
+在 OpenManus 的 `app/tool/ask_human.py` 中添加异常处理：
+```python
+async def execute(self, inquire: str) -> str:
+    try:
+        return input(f"""Bot: {inquire}\n\nYou: """).strip()
+    except EOFError:
+        return "EOF_ERROR"
+```
+
+### 理由
+
+- **测试友好**：无交互环境下测试不会中断
+- **明确错误**：返回 "EOF_ERROR" 字符串，便于调试
+- **向后兼容**：交互环境下正常工作
+
+---
+
+## TD-016: Windows 控制台编码规范
+
+**日期**：2026-02-16
+**决策者**：Claude Code
+**状态**：✅ 已实施
+
+### 背景
+
+测试脚本运行时出现 UnicodeEncodeError：
+```
+UnicodeEncodeError: 'gbk' codec can't encode character '\u26a0'
+```
+
+Windows 控制台使用 GBK 编码，无法显示 Unicode 字符（⚠️ ✓ ✗ 等）。
+
+### 决策
+
+在测试脚本中添加 UnicodeEncodeError 捕获：
+```python
+except UnicodeEncodeError as e:
+    print(f"\n[FAIL] 编码错误: {e}")
+    print("注意: 这是由于 Windows 控制台使用 GBK 编码，无法显示 Unicode 字符")
+    print("请确保所有输出只使用 ASCII 字符 (参考 TD-010)")
+    return False
+```
+
+### 理由
+
+- **兼容性**：Windows 控制台完全支持 ASCII
+- **清晰性**：方括号标记同样清晰易读
+- **预防性**：提示用户参考 TD-010 避免类似问题
+
+---
+
