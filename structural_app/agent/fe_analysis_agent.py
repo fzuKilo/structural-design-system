@@ -244,27 +244,36 @@ Return the complete AnalysisResults."""
             Parsed analysis results dict, or None if extraction fails
         """
         try:
+            re = __import__('re')
+            json = __import__('json')
+
             # Pattern 1: Extract from fe_analysis tool output
-            match = __import__('re').search(r'fe_analysis.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)', response, __import__('re').DOTALL)
-            if match:
-                json_str = match.group(1)
-                return __import__('json').loads(json_str)
+            # Match the JSON object after "fe_analysis ... executed:"
+            # Use a greedy approach to match everything until "Step" or end of string
+            pattern = r'fe_analysis.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            matches = re.findall(pattern, response, re.DOTALL)
+
+            if matches:
+                # Get the last match (most recent execution)
+                json_str = matches[-1]
+                return json.loads(json_str)
 
             # Pattern 2: Extract from code block
-            json_match = __import__('re').search(r'```json\s*(\{.*?\})\s*```', response, __import__('re').DOTALL)
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
-                return __import__('json').loads(json_str)
+                return json.loads(json_str)
 
-            # Pattern 3: Direct JSON object (best effort)
-            json_match = __import__('re').search(r'\{.*"status".*?\}', response, __import__('re').DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                return __import__('json').loads(json_str)
+            # Pattern 3: Direct JSON object with status field (fallback)
+            # Match JSON objects containing "status"
+            matches = re.findall(r'\{[^}]*"status"[^}]*\}', response, re.DOTALL)
+            if matches:
+                json_str = matches[-1]  # Get last match
+                return json.loads(json_str)
 
             return None
 
-        except __import__('json').JSONDecodeError as e:
+        except json.JSONDecodeError as e:
             print(f"Failed to parse analysis results JSON: {e}")
             return None
 
