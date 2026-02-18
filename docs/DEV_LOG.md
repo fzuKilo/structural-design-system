@@ -1,5 +1,93 @@
 # 开发日志
 
+## 2026-02-18
+
+### 完成的工作
+
+1. **阶段 7 循环模式修复与优化** - 完全完成 ✅
+   - 回滚到 commit aeb6dc7 修复循环模式完全不工作的问题
+   - 修复循环模式中轮次数字显示错误（总是显示第1/3轮）
+   - 添加 start_loop_count 参数支持递归调用
+   - 简化 analysis_prompt 避免双重嵌套问题
+   - 过滤 _loop_count 参数到 parent_kwargs
+
+2. **FEAnalysisAgent 循环模式工作原理**
+   - enable_loop=True 时自动进入 improvement loop
+   - code_check 不通过时自动调用 AskHuman 询问改进
+   - 支持最多 max_loop_count 轮改进（默认 3 轮）
+   - 用户可输入改进方案或输入 "skip" 跳过
+   - 通过规范校核或达到最大轮数后退出循环
+
+3. **步骤3验证方案提取修复** - 完全完成 ✅
+   - 问题：validate_analysis_results 显示原始设计方案而非最终改进方案
+   - 解决：从 analysis_results 的 detailed_results 中提取 geometry 和 material
+   - 构建 final_design_proposal 并传递给 validate_analysis_results
+   - 修改三个测试函数：
+     - run_custom_test()
+     - run_predefined_complete_test()
+     - run_predefined_incomplete_test()
+
+4. **Git 提交**
+   - commit 20b72e2: fix: 修复循环模式中递归调用的问题
+   - commit a744435: fix: 从analysis_results提取最终设计方案用于验证
+   - 推送到远程 dev 分支
+
+### 遇到的问题
+
+**问题 1：循环模式完全不工作**
+- **现象**：code_check 不通过时，AskHuman 没有被调用，循环模式没有触发
+- **原因**：之前的代码尝试直接调用 fe_analysis_tool.execute()，导致 extract_analysis_results 无法正确提取结果
+- **解决**：使用 `git checkout aeb6dc7 -- structural_app/agent/fe_analysis_agent.py` 回滚到工作版本
+
+**问题 2：轮次数字显示错误（第2轮显示第1/3轮）**
+- **现象**：循环模式中，第2轮改进时提示仍然显示"第1/3轮"
+- **原因**：递归调用 self.run() 会重新进入 _enter_improvement_loop，loop_count 被重置为 0
+- **解决**：添加 start_loop_count 参数，在递归调用时传递当前轮次
+  ```python
+  async def _enter_improvement_loop(self, ..., start_loop_count: int = 0) -> str:
+      loop_count = start_loop_count
+      # ...
+      result = await self.run(original_request, loop_request=loop_request, _loop_count=loop_count)
+  ```
+
+**问题 3：analysis_prompt 双重嵌套**
+- **现象**：LLM 被混淆，无法正确生成设计改进
+- **原因**：analysis_prompt 包含外层的 "Analyze" 指令和内层的 "请分析" 指令
+- **解决**：简化 analysis_prompt，去掉外层指令，只保留 "Use the fe_analysis tool..." 指令
+
+**问题 4：validate_analysis_results 显示原始方案**
+- **现象**：步骤3验证时显示原始设计方案（0.3m高，C30），而不是最终改进方案（1.5m高，C40）
+- **原因**：test_fe_analysis 返回的 analysis_results 中包含最终设计方案在 detailed_results 中，但验证时传入的是原始 design_proposal
+- **解决**：从 analysis_results 的 detailed_results 中提取 geometry 和 material，构建 final_design_proposal
+
+### 技术决策
+
+- **循环模式实现**：使用递归调用 self.run() 实现改进循环，而不是外部 while 循环
+- **轮次传递**：通过 _loop_count 和 start_loop_count 参数在递归调用间传递轮次信息
+- **参数过滤**：在 run() 方法中过滤 _loop_count 到 parent_kwargs，避免 Pydantic 冲突
+- **方案提取**：从 analysis_results.detailed_results 中提取最终设计方案用于验证
+
+### 明天计划
+
+**阶段 7 收尾工作**
+- 运行多种测试场景验证循环模式
+- 测试不同荷载组合下的设计改进
+- 测试不同结构类型（框架、桁架）
+
+**优先级1：阶段 8 - CADDrawingAgent 实现**
+- 创建 CADDrawingAgent 类（继承 ToolCallAgent）
+- 从上下文提取 DesignProposal
+- 调用 CADDrawingTool 生成 DXF 文件
+- 返回 DrawingResults（JSON 字符串）
+- 编写单元测试
+
+**优先级2：阶段 9 - EvaluationAgent 实现**
+- 创建 EvaluationAgent 类
+- 实现设计质量评估逻辑
+- 返回 EvaluationReport
+
+---
+
 ## 2026-02-16
 
 ### 完成的工作

@@ -620,3 +620,82 @@ except UnicodeEncodeError as e:
 
 ---
 
+## TD-017: FEAnalysisAgent 循环模式实现
+
+**日期**：2026-02-18
+**决策者**：Claude Code
+**状态**：✅ 已实施
+
+### 背景
+
+FEAnalysisAgent 需要在规范校核不通过时，自动询问用户进行设计改进。OpenManus 的 ReAct 循环模式需要正确配置才能支持这种多轮交互。
+
+### 决策
+
+采用递归调用 self.run() 实现改进循环：
+
+```python
+async def _enter_improvement_loop(self, ..., start_loop_count: int = 0) -> str:
+    loop_count = start_loop_count
+
+    while loop_count < self.max_loop_count:
+        loop_count += 1
+
+        # AskHuman 询问改进
+        user_input_result = await ask_human_tool.execute(inquire=ask_human_prompt)
+        user_input = user_input_result.output
+
+        # 递归调用 run 进行重新分析
+        result = await self.run(original_request, loop_request=loop_request, _loop_count=loop_count)
+
+        # 检查是否通过校核
+        new_results = self.extract_analysis_results(result)
+        if new_results and new_results.get('code_check', {}).get('compliant', False):
+            return result  # 通过，退出循环
+
+        last_results = new_results  # 继续循环
+
+    return result  # 达到最大轮数，退出循环
+```
+
+### 理由
+
+- **避免冲突**：外部 while 循环与 OpenManus 内部 ReAct 循环冲突
+- **AskHuman 集成**：OpenManus 内部循环已正确处理 AskHuman 多轮交互
+- **轮次传递**：通过 _loop_count 和 start_loop_count 参数在递归调用间传递轮次信息
+- **简化代码**：不需要手动管理消息历史和迭代
+
+### 参数传递机制
+
+```python
+# 1. 在 run() 方法中过滤 _loop_count
+parent_kwargs = {k: v for k, v in kwargs.items() if k not in ('loop_request', '_loop_count')}
+
+# 2. 在递归调用时传递当前轮次
+result = await self.run(original_request, loop_request=loop_request, _loop_count=loop_count)
+
+# 3. 在 _enter_improvement_loop 中使用 start_loop_count
+async def _enter_improvement_loop(self, ..., start_loop_count: int = 0):
+    loop_count = start_loop_count
+```
+
+### 问题记录
+
+- **问题 1**：循环模式完全不工作
+  - **原因**：之前的代码尝试直接调用 fe_analysis_tool.execute()
+  - **解决**：回滚到 commit aeb6dc7，使用正确的递归调用方式
+
+- **问题 2**：轮次数字显示错误
+  - **原因**：递归调用重新进入 _enter_improvement_loop，loop_count 被重置为 0
+  - **解决**：添加 start_loop_count 参数，在递归调用时传递当前轮次
+
+- **问题 3**：analysis_prompt 双重嵌套
+  - **原因**：analysis_prompt 包含外层的 "Analyze" 指令和内层的 "请分析" 指令
+  - **解决**：简化 analysis_prompt，去掉外层指令
+
+- **问题 4**：validate_analysis_results 显示原始方案
+  - **原因**：验证时传入的是原始 design_proposal，而不是最终改进方案
+  - **解决**：从 analysis_results.detailed_results 中提取最终设计方案
+
+---
+

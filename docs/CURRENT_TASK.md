@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：9197310 - feat: 实现阶段7集成测试（StructuralDesignAgent -> FEAnalysisAgent）
+**最新提交**：a744435 - fix: 从analysis_results提取最终设计方案用于验证
 
 ## 开发阶段进度
 
@@ -64,7 +64,11 @@
   - [x] 测试 DesignProposal 数据传递
   - [x] 验证 FEAnalysisTool 调用 OpenSeesPy
   - [x] 验证 AnalysisResults 数值合理（位移1.8mm，应力3.58MPa，弯矩44.77kN*m）
-  - [x] 提交：9197310
+  - [x] 修复循环模式完全不工作的问题（回滚到 commit aeb6dc7）
+  - [x] 修复循环模式中轮次数字显示错误
+  - [x] 修复 analysis_prompt 双重嵌套问题
+  - [x] 修复 validate_analysis_results 显示原始方案问题
+  - [x] 提交：20b72e2, a744435
 - [ ] **阶段 8**：CADDrawingAgent 实现
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
@@ -73,7 +77,7 @@
 
 ## 当前任务详情
 
-### ✅ 已完成：阶段 7 集成测试
+### ✅ 已完成：阶段 7 集成测试（循环模式优化）
 
 **目标**：执行 StructuralDesignAgent → FEAnalysisAgent 端到端集成测试
 
@@ -84,12 +88,19 @@
 - FEAnalysisAgent 正常调用 FEAnalysisTool
 - OpenSeesPy 分析结果数值合理
 - 数据传递流程完整
+- 循环模式正常工作，支持多次改进
+- 验证提取最终设计方案正确
 
-**关键结果验证**：
-- 最大位移：1.80 mm（在合理范围内）
-- 最大应力：3.58 MPa（在合理范围内）
-- 最大弯矩：44.77 kN*m（接近理论值 45 kN*m）
-- 规范校核：通过
+**关键结果验证**（最终改进方案）：
+- 最大位移：4.28 mm（在合理范围内）
+- 最大应力：7.11 MPa（在合理范围内）
+- 最大弯矩：533.25 kN*m（与理论值一致）
+- 规范校核：通过（应力安全系数 2.51，挠度安全系数 11.21）
+
+**改进历程**：
+1. 原始设计：0.3m高，C30混凝土 → 严重不合格
+2. 第一次改进：0.5m高，C40混凝土 → 仍不合格
+3. 最终设计：1.5m高，C40混凝土 → 完全合格
 
 ---
 
@@ -166,5 +177,5 @@
 
 ---
 
-**最后更新**：2026-02-16
+**最后更新**：2026-02-18
 **更新人**：Claude Code
