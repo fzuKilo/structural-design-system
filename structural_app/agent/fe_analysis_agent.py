@@ -207,15 +207,14 @@ USER IMPROVEMENTS:
 Please update the design based on these improvements and re-analyze."""
 
         # Prepare the analysis prompt
-        analysis_prompt = f"""Analyze the following structural design:
-
-{request}
+        # Use the request directly as the analysis prompt to avoid nested instructions
+        analysis_prompt = f"""{request}
 
 Use the fe_analysis tool to perform the finite element analysis.
 Return the complete AnalysisResults."""
 
-        # Remove loop_request from kwargs before passing to parent
-        parent_kwargs = {k: v for k, v in kwargs.items() if k != 'loop_request'}
+        # Remove loop_request and _loop_count from kwargs before passing to parent
+        parent_kwargs = {k: v for k, v in kwargs.items() if k not in ('loop_request', '_loop_count')}
 
         # Call the parent run method (system_prompt is already set in __init__)
         result = await super().run(request=analysis_prompt, **parent_kwargs)
@@ -228,7 +227,9 @@ Return the complete AnalysisResults."""
 
             # If loop mode is enabled and code check fails, enter improvement cycle
             if self.enable_loop and not code_check.get('compliant', False):
-                result = await self._enter_improvement_loop(request, result, analysis_results)
+                # Get start_loop_count from kwargs for recursive calls
+                start_loop_count = kwargs.get('_loop_count', 0)
+                result = await self._enter_improvement_loop(request, result, analysis_results, start_loop_count)
 
         return result
 
@@ -236,7 +237,8 @@ Return the complete AnalysisResults."""
         self,
         original_request: str,
         initial_result: str,
-        analysis_results: Dict[str, Any]
+        analysis_results: Dict[str, Any],
+        start_loop_count: int = 0
     ) -> str:
         """
         Enter improvement loop when code_check fails.
@@ -246,11 +248,12 @@ Return the complete AnalysisResults."""
             original_request: Original analysis request
             initial_result: Initial analysis result string (for appending loop summaries)
             analysis_results: Results from initial analysis
+            start_loop_count: Starting loop count (for recursive calls)
 
         Returns:
             Final analysis results (either compliant or after max loops)
         """
-        loop_count = 0
+        loop_count = start_loop_count
         current_request = original_request
         last_results = analysis_results
         result = initial_result  # Initialize result from initial analysis
@@ -320,8 +323,8 @@ Return the complete AnalysisResults."""
 
 Please update the design and re-analyze."""
 
-                # Call run recursively with loop_request
-                result = await self.run(original_request, loop_request=loop_request)
+                # Call run recursively with loop_request, passing current loop_count
+                result = await self.run(original_request, loop_request=loop_request, _loop_count=loop_count)
 
                 # Check if the new result is compliant
                 new_results = self.extract_analysis_results(result)
