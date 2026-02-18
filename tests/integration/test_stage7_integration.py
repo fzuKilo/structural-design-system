@@ -361,8 +361,22 @@ async def run_custom_test():
         print("\n[FAIL] 分析阶段失败")
         return False
 
-    # Step 3: 验证结果（传入design_proposal进行动态验证）
-    results_valid = validate_analysis_results(analysis_results, design_proposal)
+    # Step 3: 从analysis_results中提取最终的设计方案（可能经过多次改进）
+    detailed_results = analysis_results.get('results', {}).get('detailed_results', {})
+    final_geometry = detailed_results.get('geometry', design_proposal.get('geometry', {}))
+    final_material = detailed_results.get('material', design_proposal.get('material', {}))
+
+    # 构建最终的设计方案
+    final_design_proposal = {
+        'type': design_proposal.get('type', 'beam'),
+        'geometry': final_geometry,
+        'material': final_material,
+        'loads': design_proposal.get('loads', {}),
+        'constraints': design_proposal.get('constraints', {})
+    }
+
+    # Step 3: 验证结果（传入final_design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, final_design_proposal)
 
     # 总结
     print("\n" + "="*80)
@@ -410,8 +424,22 @@ async def run_predefined_complete_test():
         print("\n[FAIL] 分析阶段失败")
         return False
 
-    # Step 3: 验证结果（传入design_proposal进行动态验证）
-    results_valid = validate_analysis_results(analysis_results, design_proposal)
+    # Step 3: 从analysis_results中提取最终的设计方案（可能经过多次改进）
+    detailed_results = analysis_results.get('results', {}).get('detailed_results', {})
+    final_geometry = detailed_results.get('geometry', design_proposal.get('geometry', {}))
+    final_material = detailed_results.get('material', design_proposal.get('material', {}))
+
+    # 构建最终的设计方案
+    final_design_proposal = {
+        'type': design_proposal.get('type', 'beam'),
+        'geometry': final_geometry,
+        'material': final_material,
+        'loads': design_proposal.get('loads', {}),
+        'constraints': design_proposal.get('constraints', {})
+    }
+
+    # Step 3: 验证结果（传入final_design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, final_design_proposal)
 
     # 总结
     print("\n" + "="*80)
@@ -455,8 +483,22 @@ async def run_predefined_incomplete_test():
         print("\n[FAIL] 分析阶段失败")
         return False
 
-    # Step 3: 验证结果（传入design_proposal进行动态验证）
-    results_valid = validate_analysis_results(analysis_results, design_proposal)
+    # Step 3: 从analysis_results中提取最终的设计方案（可能经过多次改进）
+    detailed_results = analysis_results.get('results', {}).get('detailed_results', {})
+    final_geometry = detailed_results.get('geometry', design_proposal.get('geometry', {}))
+    final_material = detailed_results.get('material', design_proposal.get('material', {}))
+
+    # 构建最终的设计方案
+    final_design_proposal = {
+        'type': design_proposal.get('type', 'beam'),
+        'geometry': final_geometry,
+        'material': final_material,
+        'loads': design_proposal.get('loads', {}),
+        'constraints': design_proposal.get('constraints', {})
+    }
+
+    # Step 3: 验证结果（传入final_design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, final_design_proposal)
 
     # 总结
     print("\n" + "="*80)
