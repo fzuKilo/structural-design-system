@@ -214,8 +214,11 @@ Please update the design based on these improvements and re-analyze."""
 Use the fe_analysis tool to perform the finite element analysis.
 Return the complete AnalysisResults."""
 
+        # Remove loop_request from kwargs before passing to parent
+        parent_kwargs = {k: v for k, v in kwargs.items() if k != 'loop_request'}
+
         # Call the parent run method (system_prompt is already set in __init__)
-        result = await super().run(request=analysis_prompt, **kwargs)
+        result = await super().run(request=analysis_prompt, **parent_kwargs)
 
         # Extract analysis results to check code compliance
         analysis_results = self.extract_analysis_results(result)
@@ -225,13 +228,14 @@ Return the complete AnalysisResults."""
 
             # If loop mode is enabled and code check fails, enter improvement cycle
             if self.enable_loop and not code_check.get('compliant', False):
-                result = await self._enter_improvement_loop(request, analysis_results)
+                result = await self._enter_improvement_loop(request, result, analysis_results)
 
         return result
 
     async def _enter_improvement_loop(
         self,
         original_request: str,
+        initial_result: str,
         analysis_results: Dict[str, Any]
     ) -> str:
         """
@@ -240,6 +244,7 @@ Return the complete AnalysisResults."""
 
         Args:
             original_request: Original analysis request
+            initial_result: Initial analysis result string (for appending loop summaries)
             analysis_results: Results from initial analysis
 
         Returns:
@@ -248,6 +253,7 @@ Return the complete AnalysisResults."""
         loop_count = 0
         current_request = original_request
         last_results = analysis_results
+        result = initial_result  # Initialize result from initial analysis
 
         while loop_count < self.max_loop_count:
             loop_count += 1
