@@ -140,6 +140,8 @@ class FEAnalysisTool(BaseTool):
             constraints: Boundary conditions
             OR
             design_proposal: Complete design proposal in JSON string format (alternative)
+            OR
+            input: Complete design proposal in JSON string format (alternative, for backward compatibility)
 
         Returns:
             ToolResult containing analysis results or error
@@ -147,11 +149,13 @@ class FEAnalysisTool(BaseTool):
         try:
             import json as json_module
 
-            # Extract parameters - support both formats
+            # Extract parameters - support multiple formats
             # Format 1: Individual parameters (structure_type, geometry, etc.)
             # Format 2: design_proposal as JSON string (from agent)
+            # Format 3: input as JSON string (backward compatibility)
 
-            design_proposal = kwargs.get('design_proposal')
+            # First try design_proposal, then input for backward compatibility
+            design_proposal = kwargs.get('design_proposal') or kwargs.get('input')
 
             if design_proposal and isinstance(design_proposal, str):
                 # Parse JSON string

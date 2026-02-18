@@ -36,11 +36,14 @@ class FEAnalysisAgent(ToolCallAgent):
     1. Receives a DesignProposal (from context or user input)
     2. Calls FEAnalysisTool to perform FE analysis
     3. Returns AnalysisResults in JSON format
+    4. Supports loop mode: when code_check fails, automatically ask user for improvements
+       and re-analyze until compliant or user cancels
 
     Key Features:
     - Generic: handles all structure types (beam, frame, truss, etc.)
     - Uses FEAnalysisTool with factory pattern routing
     - Standardized input/output via DesignProposal/AnalysisResults
+    - Loop mode: automatic improvement cycle with AskHuman
     """
 
     def __init__(
@@ -48,6 +51,8 @@ class FEAnalysisAgent(ToolCallAgent):
         name: str = "FEAnalysisAgent",
         description: str = None,
         tools: Optional[List] = None,
+        enable_loop: bool = False,
+        max_loop_count: int = 3,
         **kwargs
     ):
         """
@@ -57,8 +62,13 @@ class FEAnalysisAgent(ToolCallAgent):
             name: Agent name (default: "FEAnalysisAgent")
             description: Agent description
             tools: List of tools available to the agent
+            enable_loop: If True, automatically enter improvement loop when code_check fails
+            max_loop_count: Maximum number of improvement cycles
             **kwargs: Additional arguments passed to ToolCallAgent
         """
+        self.enable_loop = enable_loop
+        self.max_loop_count = max_loop_count
+
         if description is None:
             description = (
                 "I am an FE analysis agent. I perform finite element analysis on structural designs. "
@@ -172,13 +182,29 @@ ANALYSIS WORKFLOW:
         """
         Main execution method for the agent.
 
+        Supports two modes:
+        1. Normal mode: Analyze once and return results
+        2. Loop mode: When code_check fails, automatically ask user for improvements
+           and re-analyze until compliant or max_loop_count reached
+
         Args:
             request: User's request (typically contains a DesignProposal)
-            **kwargs: Additional parameters
+            **kwargs: Additional parameters (loop_request: str for re-analysis with improvements)
 
         Returns:
             String containing the analysis results
         """
+        # Check if this is a re-analysis request with improvements
+        loop_request = kwargs.get('loop_request')
+        if loop_request:
+            # Append user's improvements to the request
+            request = f"""{request}
+
+USER IMPROVEMENTS:
+{loop_request}
+
+Please update the design based on these improvements and re-analyze."""
+
         # Prepare the analysis prompt
         analysis_prompt = f"""Analyze the following structural design:
 
@@ -190,7 +216,140 @@ Return the complete AnalysisResults."""
         # Call the parent run method (system_prompt is already set in __init__)
         result = await super().run(request=analysis_prompt, **kwargs)
 
+        # Extract analysis results to check code compliance
+        analysis_results = self.extract_analysis_results(result)
+
+        if analysis_results is not None:
+            code_check = analysis_results.get('code_check', {})
+
+            # If loop mode is enabled and code check fails, enter improvement cycle
+            if self.enable_loop and not code_check.get('compliant', False):
+                result = await self._enter_improvement_loop(request, analysis_results)
+
         return result
+
+    async def _enter_improvement_loop(
+        self,
+        original_request: str,
+        analysis_results: Dict[str, Any]
+    ) -> str:
+        """
+        Enter improvement loop when code_check fails.
+        Ask user for improvements and re-analyze until compliant or max_loop_count reached.
+
+        Args:
+            original_request: Original analysis request
+            analysis_results: Results from initial analysis
+
+        Returns:
+            Final analysis results (either compliant or after max loops)
+        """
+        loop_count = 0
+        current_request = original_request
+        last_results = analysis_results
+
+        while loop_count < self.max_loop_count:
+            loop_count += 1
+
+            # Extract details for AskHuman prompt
+            code_check = last_results.get('code_check', {})
+            results = last_results.get('results', {})
+            violations = code_check.get('violations', [])
+
+            # Get design parameters from detailed_results
+            detailed_results = results.get('detailed_results', {})
+            geometry = detailed_results.get('geometry') or {}
+            material = detailed_results.get('material') or {}
+            loads = detailed_results.get('loads') or {}
+            constraints = detailed_results.get('constraints') or {}
+
+            # Build violation message
+            violation_text = "\n".join([f"  - {v.get('description', 'Unknown violation')}" for v in violations])
+
+            # Build AskHuman prompt
+            ask_human_prompt = f"""**有限元分析结果 - 规范校核未通过** (第 {loop_count}/{self.max_loop_count} 轮)
+
+您的设计方案未通过规范校核。具体违规如下：
+{violation_text}
+
+关键结果：
+- 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
+- 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
+- 最大弯矩: {results.get('max_moment_kNm', 'N/A')} kN*m
+
+当前设计参数：
+- 跨度: {geometry.get('length', 'N/A')} m
+- 截面: {geometry.get('width', 'N/A')} x {geometry.get('height', 'N/A')} m
+- 材料: {material.get('material_name', 'N/A')}
+
+请根据以上信息，提供具体的设计改进方案：
+1. 直接输入改进后的设计参数（JSON格式）
+2. 描述需要调整的地方（如：增加截面高度到0.5m，改用C40混凝土）
+3. 输入 "skip" 跳过改进，直接返回当前结果
+
+请输入您的改进方案（第 {loop_count}/{self.max_loop_count} 轮）："""
+
+            try:
+                # Use AskHuman tool to get user input
+                ask_human_tool = next(
+                    t for t in self.available_tools.tool_map.values()
+                    if hasattr(t, 'name') and t.name == 'ask_human'
+                )
+
+                user_input_result = await ask_human_tool.execute(inquire=ask_human_prompt)
+                user_input = user_input_result.output if hasattr(user_input_result, 'output') else str(user_input_result)
+
+                # Check if user wants to skip
+                if user_input.strip().lower() == 'skip':
+                    # Append skip message to result
+                    return f"""{result}
+
+---
+**循环中止：用户选择跳过改进**
+"""
+
+                # Re-analyze with user's improvements
+                loop_request = f"""{user_input}
+
+Please update the design and re-analyze."""
+
+                # Call run recursively with loop_request
+                result = await self.run(original_request, loop_request=loop_request)
+
+                # Check if the new result is compliant
+                new_results = self.extract_analysis_results(result)
+                if new_results and new_results.get('code_check', {}).get('compliant', False):
+                    # Success! Append loop summary
+                    return f"""{result}
+
+---
+**循环完成：设计通过规范校核** (共 {loop_count} 轮)
+"""
+
+                # Not compliant yet, continue loop
+                last_results = new_results
+
+            except StopIteration:
+                # AskHuman tool not found, return result with warning
+                return f"""{result}
+
+---
+**警告: 无法使用 AskHuman 工具进行交互**
+"""
+            except Exception as e:
+                # Error during AskHuman, return result with error
+                return f"""{result}
+
+---
+**错误: 循环交互失败 - {str(e)}**
+"""
+
+        # Max loop count reached
+        return f"""{result}
+
+---
+**循环中止：达到最大轮数 ({self.max_loop_count} 轮)**
+"""
 
     def extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
         """

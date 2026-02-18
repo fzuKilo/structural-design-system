@@ -1,17 +1,19 @@
 """
 阶段7集成测试：StructuralDesignAgent -> FEAnalysisAgent 端到端测试
 
-测试内容：
-1. StructuralDesignAgent 生成设计方案
-2. FEAnalysisAgent 接收方案并进行有限元分析
-3. 验证 AnalysisResults 数值合理性
+支持三种测试模式：
+1. 自定义需求测试 (手动输入设计需求)
+2. 完整参数测试 (预设的6米简支梁)
+3. 缺失参数测试 (测试AskHuman交互功能)
+
+运行方式:
+    python tests/integration/test_stage7_integration.py
 """
 
 import sys
 import os
 import asyncio
 import json
-import re
 
 import pytest
 
@@ -29,29 +31,17 @@ from structural_app.agent.structural_design_agent import StructuralDesignAgent
 from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
 
 
-@pytest.mark.asyncio
-async def test_stage7_end_to_end():
+async def test_with_complete_parameters(user_request):
     """
-    阶段7端到端测试：完整的设计-分析流程
-
-    测试步骤：
-    1. StructuralDesignAgent 生成简支梁设计方案
-    2. FEAnalysisAgent 进行有限元分析
-    3. 验证分析结果
+    测试完整参数场景：Agent直接生成设计方案，无需交互
     """
     print("\n" + "="*80)
-    print("阶段7集成测试：StructuralDesignAgent -> FEAnalysisAgent")
+    print("步骤1: 调用 StructuralDesignAgent 生成设计方案...")
     print("="*80)
 
-    # 配置测试参数
-    user_request = "设计一个6米跨度的简支梁，承受10kN/m的均布荷载，使用C30混凝土"
-
-    print(f"\n[步骤1] 用户需求: {user_request}")
-
-    # ========== 步骤1: 结构设计 ==========
-    print("\n[步骤2] 调用 StructuralDesignAgent 生成设计方案...")
-
     design_agent = StructuralDesignAgent()
+
+    print(f"\n用户需求: {user_request}")
 
     try:
         design_result = await design_agent.run(user_request)
@@ -71,7 +61,7 @@ async def test_stage7_end_to_end():
 
         if design_proposal is None:
             print("\n[FAIL] 无法从设计Agent响应中提取设计方案")
-            return False
+            return None, None
 
         print("\n[提取的设计方案]:")
         print(json.dumps(design_proposal, indent=2, ensure_ascii=False))
@@ -80,20 +70,87 @@ async def test_stage7_end_to_end():
         is_valid, error = design_agent.validate_design_proposal(design_proposal)
         if not is_valid:
             print(f"\n[FAIL] 设计方案验证失败: {error}")
-            return False
+            return None, None
 
         print("\n[PASS] 设计方案验证通过")
+
+        return design_proposal, design_response
 
     except Exception as e:
         print(f"\n[FAIL] 设计Agent执行失败: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return None, None
 
-    # ========== 步骤2: 有限元分析 ==========
-    print("\n[步骤3] 调用 FEAnalysisAgent 进行有限元分析...")
 
-    fe_agent = FEAnalysisAgent()
+async def test_with_incomplete_parameters(user_request):
+    """
+    测试缺失参数场景：Agent通过AskHuman询问用户
+    """
+    print("\n" + "="*80)
+    print("步骤1: 调用 StructuralDesignAgent (参数缺失，会交互)...")
+    print("="*80)
+
+    design_agent = StructuralDesignAgent()
+
+    print(f"\n用户需求: {user_request}")
+    print("\n注意: 由于参数缺失，Agent会通过AskHuman工具询问你。")
+    print("请在终端根据提示输入缺失的信息。\n")
+
+    try:
+        design_result = await design_agent.run(user_request)
+
+        # 提取设计方案
+        if isinstance(design_result, dict) and 'content' in design_result:
+            design_response = design_result['content']
+        elif isinstance(design_result, str):
+            design_response = design_result
+        else:
+            design_response = str(design_result)
+
+        print("\n[设计Agent原始响应]:")
+        print(design_response[:500] + "..." if len(design_response) > 500 else design_response)
+
+        design_proposal = design_agent.extract_design_proposal(design_response)
+
+        if design_proposal is None:
+            print("\n[FAIL] 无法从设计Agent响应中提取设计方案")
+            return None, None
+
+        print("\n[提取的设计方案]:")
+        print(json.dumps(design_proposal, indent=2, ensure_ascii=False))
+
+        # 验证设计方案
+        is_valid, error = design_agent.validate_design_proposal(design_proposal)
+        if not is_valid:
+            print(f"\n[FAIL] 设计方案验证失败: {error}")
+            return None, None
+
+        print("\n[PASS] 设计方案验证通过")
+
+        return design_proposal, design_response
+
+    except Exception as e:
+        print(f"\n[FAIL] 设计Agent执行失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+
+async def test_fe_analysis(design_proposal, enable_loop: bool = False):
+    """
+    测试FEAnalysisAgent进行有限元分析
+
+    Args:
+        design_proposal: 设计方案
+        enable_loop: 是否启用循环模式（code_check不通过时自动AskHuman）
+    """
+    print("\n" + "="*80)
+    print("步骤2: 调用 FEAnalysisAgent 进行有限元分析...")
+    print("="*80)
+    print(f"[配置] 循环模式: {'开启' if enable_loop else '关闭'}")
+
+    fe_agent = FEAnalysisAgent(enable_loop=enable_loop)
 
     try:
         # 将设计方案传递给FE分析Agent
@@ -101,6 +158,8 @@ async def test_stage7_end_to_end():
 
 {json.dumps(design_proposal, indent=2, ensure_ascii=False)}
 """
+
+        print(f"\nFE分析请求: {fe_request[:200]}...")
 
         fe_result = await fe_agent.run(fe_request)
 
@@ -119,7 +178,7 @@ async def test_stage7_end_to_end():
 
         if analysis_results is None:
             print("\n[FAIL] 无法从FE分析Agent响应中提取分析结果")
-            return False
+            return None
 
         print("\n[提取的分析结果]:")
         print(json.dumps(analysis_results, indent=2, ensure_ascii=False))
@@ -127,75 +186,194 @@ async def test_stage7_end_to_end():
         # 验证分析结果
         if analysis_results.get('status') != 'success':
             print(f"\n[FAIL] FE分析失败: {analysis_results.get('error', 'Unknown error')}")
-            return False
+            return None
 
         print("\n[PASS] FE分析状态检查通过")
+        return analysis_results
 
     except UnicodeEncodeError as e:
         print(f"\n[FAIL] 编码错误: {e}")
         print("注意: 这是由于 Windows 控制台使用 GBK 编码，无法显示 Unicode 字符")
         print("请确保所有输出只使用 ASCII 字符 (参考 TD-010)")
-        return False
+        return None
     except Exception as e:
         print(f"\n[FAIL] FEAnalysisAgent执行失败: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return None
 
-    # ========== 步骤3: 验证分析结果数值 ==========
-    print("\n[步骤4] 验证分析结果数值...")
+
+def validate_analysis_results(analysis_results, design_proposal=None):
+    """
+    验证分析结果数值合理性
+
+    Args:
+        analysis_results: 分析结果字典
+        design_proposal: 设计方案（可选，用于动态验证）
+
+    Returns:
+        bool: 是否通过验证
+    """
+    print("\n" + "="*80)
+    print("步骤3: 验证分析结果数值...")
+    print("="*80)
 
     results = analysis_results.get('results', {})
-
-    # 关键结果验证
     max_displacement_mm = results.get('max_displacement_mm', 0)
     max_stress_MPa = results.get('max_stress_MPa', 0)
     max_moment_kNm = results.get('max_moment_kNm', 0)
 
     print("\n[关键结果]:")
-    print(f"  - 最大位移: {max_displacement_mm:.4f} mm (预期: ~1.0 mm)")
-    print(f"  - 最大应力: {max_stress_MPa:.4f} MPa (预期: ~2.5 MPa)")
-    print(f"  - 最大弯矩: {max_moment_kNm:.4f} kN*m (预期: ~45 kN*m)")
-
-    # 数值合理性检查
-    code_check = analysis_results.get('code_check', {})
-
-    # 位移检查 (简支梁6m跨度，10kN/m，C30混凝土 0.3x0.6截面)
-    # 理论值: delta_max = 5qL^4/384EI = 1.04mm
-    if 0.5 <= max_displacement_mm <= 3.0:
-        print("\n  [PASS] 最大位移在合理范围内")
-    else:
-        print(f"\n  [WARN] 最大位移可能异常 (理论值~1.0mm)")
-
-    # 应力检查 (M_max = qL^2/8 = 45kN*m, sigma = M*y/I = 2.5MPa)
-    if 1.0 <= max_stress_MPa <= 5.0:
-        print("  [PASS] 最大应力在合理范围内")
-    else:
-        print(f"  [WARN] 最大应力可能异常 (理论值~2.5MPa)")
-
-    # 弯矩检查
-    if 35 <= max_moment_kNm <= 55:
-        print("  [PASS] 最大弯矩在合理范围内")
-    else:
-        print(f"  [WARN] 最大弯矩可能异常 (理论值~45kN*m)")
+    print(f"  - 最大位移: {max_displacement_mm:.4f} mm")
+    print(f"  - 最大应力: {max_stress_MPa:.4f} MPa")
+    print(f"  - 最大弯矩: {max_moment_kNm:.4f} kN*m")
 
     # 规范校核检查
+    code_check = analysis_results.get('code_check', {})
+
+    # 如果提供了设计方案，进行动态验证
+    all_passed = True
+
+    if design_proposal:
+        geometry = design_proposal.get('geometry', {})
+        material = design_proposal.get('material', {})
+        loads = design_proposal.get('loads', {})
+        length = geometry.get('length', 0)
+        height = geometry.get('height', 0)
+        E = material.get('E', 0)
+        fy = material.get('fy', 0)
+        material_name = material.get('material_name', 'Unknown')
+
+        print(f"\n[设计方案信息]:")
+        print(f"  - 跨度: {length} m")
+        print(f"  - 截面高度: {height} m")
+        print(f"  - 弹性模量: {E/1e9:.1f} GPa")
+        print(f"  - 材料: {material_name}")
+
+        # 动态位移检查（简支梁均布荷载理论位移公式：5qL^4/384EI）
+        # 简单检查：位移应该与 L^4 成正比，与 I 成反比
+        # 对于梁，跨高比通常在 10-15 之间
+        if length > 0 and height > 0:
+            span_depth_ratio = length / height
+            print(f"  - 跨高比: {span_depth_ratio:.1f} (合理范围: 10-15)")
+            if 8 <= span_depth_ratio <= 20:
+                print("    [PASS] 跨高比合理")
+            else:
+                print("    [WARN] 跨高比可能不合理")
+
+        # 动态应力检查（基于材料屈服强度）
+        if fy > 0:
+            stress_utilization = max_stress_MPa / (fy / 1e6) * 100
+            print(f"\n  - 应力利用率: {stress_utilization:.1f}% (屈服强度: {fy/1e6:.0f} MPa)")
+            if stress_utilization < 100:
+                print("    [PASS] 应力低于屈服强度")
+            else:
+                print("    [FAIL] 应力超过屈服强度！")
+                all_passed = False
+
+        # 动态弯矩检查（简支梁均布荷载理论弯矩：qL^2/8）
+        distributed_loads = loads.get('distributed', [])
+        if distributed_loads and length > 0:
+            q = abs(distributed_loads[0].get('q', 0)) / 1000  # N/m -> kN/m
+            theoretical_moment = q * length * length / 8  # kN*m
+            moment_ratio = max_moment_kNm / theoretical_moment if theoretical_moment > 0 else 1
+            print(f"\n  - 均布荷载: {q:.1f} kN/m")
+            print(f"  - 理论最大弯矩: {theoretical_moment:.1f} kN*m")
+            print(f"  - 实际最大弯矩: {max_moment_kNm:.1f} kN*m")
+            print(f"  - 弯矩比: {moment_ratio*100:.1f}%")
+            if 0.95 <= moment_ratio <= 1.05:
+                print("    [PASS] 弯矩与理论值一致")
+            else:
+                print("    [WARN] 弯矩与理论值有偏差")
+    else:
+        # 没有设计方案时，使用默认范围检查
+        print("\n[使用默认验证范围]:")
+        # 位移检查（默认范围）
+        if 0.5 <= max_displacement_mm <= 3.0:
+            print("\n  [PASS] 最大位移在合理范围内")
+        else:
+            print(f"\n  [WARN] 最大位移可能异常 (默认范围 0.5-3.0mm)")
+            all_passed = False
+
+        # 应力检查（默认范围）
+        if 1.0 <= max_stress_MPa <= 5.0:
+            print("  [PASS] 最大应力在合理范围内")
+        else:
+            print(f"  [WARN] 最大应力可能异常 (默认范围 1.0-5.0MPa)")
+            all_passed = False
+
+        # 弯矩检查（默认范围）
+        if 35 <= max_moment_kNm <= 55:
+            print("  [PASS] 最大弯矩在合理范围内")
+        else:
+            print(f"  [WARN] 最大弯矩可能异常 (默认范围 35-55kN*m)")
+            all_passed = False
+
+    # 规范校核检查（最重要）
+    print("\n[规范校核检查]:")
     if code_check.get('compliant', False):
         print("  [PASS] 规范校核通过")
+        # 安全系数检查
+        safety_factors = code_check.get('safety_factors', {})
+        stress_sf = safety_factors.get('stress', 0)
+        deflection_sf = safety_factors.get('deflection', 0)
+        print(f"  - 应力安全系数: {stress_sf:.2f}")
+        print(f"  - 挠度安全系数: {deflection_sf:.2f}")
+        if stress_sf < 1.0 or deflection_sf < 1.0:
+            print("  [FAIL] 安全系数小于1.0")
+            all_passed = False
     else:
-        print(f"  [WARN] 规范校核未通过: {code_check.get('violations', [])}")
+        print(f"  [FAIL] 规范校核未通过: {code_check.get('violations', [])}")
+        all_passed = False
 
-    # ========== 测试总结 ==========
+    return all_passed
+
+
+async def run_custom_test():
+    """自定义需求测试模式"""
     print("\n" + "="*80)
-    print("阶段7集成测试总结")
+    print("自定义需求测试")
     print("="*80)
 
-    # 通过条件
+    # 获取用户输入
+    user_request = input("\n请输入你的结构设计需求:\n> ")
+
+    print("\n" + "-"*80)
+    print("说明: Agent会自动判断是否需要询问缺失参数")
+    print("-"*80)
+
+    # Step 1: 结构设计 (自动判断是否交互)
+    design_proposal, design_response = await test_with_complete_parameters(user_request)
+
+    # 如果提取失败，说明可能是需要交互，切换到交互模式
+    if design_proposal is None:
+        print("\n[INFO] 无法提取设计方案，可能需要交互式输入参数...")
+        design_proposal, design_response = await test_with_incomplete_parameters(user_request)
+
+    if design_proposal is None:
+        print("\n[FAIL] 设计阶段失败")
+        return False
+
+    # Step 2: 有限元分析（启用循环模式，当code_check不通过时自动AskHuman）
+    analysis_results = await test_fe_analysis(design_proposal, enable_loop=True)
+
+    if analysis_results is None:
+        print("\n[FAIL] 分析阶段失败")
+        return False
+
+    # Step 3: 验证结果（传入design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, design_proposal)
+
+    # 总结
+    print("\n" + "="*80)
+    print("测试总结")
+    print("="*80)
+
     all_passed = (
         design_proposal is not None and
         analysis_results is not None and
         analysis_results.get('status') == 'success' and
-        0.5 <= max_displacement_mm <= 3.0
+        results_valid
     )
 
     if all_passed:
@@ -204,6 +382,96 @@ async def test_stage7_end_to_end():
         print("  - FEAnalysisAgent 正常调用 FEAnalysisTool")
         print("  - OpenSeesPy 分析结果数值合理")
         print("  - 数据传递流程完整")
+        return True
+    else:
+        print("\n[FAIL] 阶段7集成测试部分失败")
+        return False
+
+
+async def run_predefined_complete_test():
+    """预设完整参数测试模式"""
+    print("\n" + "="*80)
+    print("预设完整参数测试")
+    print("="*80)
+
+    user_request = "设计一个6米跨度的简支梁，承受10kN/m的均布荷载，使用C30混凝土"
+
+    # Step 1: 结构设计
+    design_proposal, design_response = await test_with_complete_parameters(user_request)
+
+    if design_proposal is None:
+        print("\n[FAIL] 设计阶段失败")
+        return False
+
+    # Step 2: 有限元分析（启用循环模式，当code_check不通过时自动AskHuman）
+    analysis_results = await test_fe_analysis(design_proposal, enable_loop=True)
+
+    if analysis_results is None:
+        print("\n[FAIL] 分析阶段失败")
+        return False
+
+    # Step 3: 验证结果（传入design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, design_proposal)
+
+    # 总结
+    print("\n" + "="*80)
+    print("测试总结")
+    print("="*80)
+
+    all_passed = (
+        design_proposal is not None and
+        analysis_results is not None and
+        analysis_results.get('status') == 'success' and
+        results_valid
+    )
+
+    if all_passed:
+        print("\n[SUCCESS] 阶段7集成测试通过！")
+        return True
+    else:
+        print("\n[FAIL] 阶段7集成测试部分失败")
+        return False
+
+
+async def run_predefined_incomplete_test():
+    """预设缺失参数测试模式"""
+    print("\n" + "="*80)
+    print("预设缺失参数测试 (测试AskHuman交互)")
+    print("="*80)
+
+    user_request = "设计一个简支梁"
+
+    # Step 1: 结构设计 (会触发AskHuman)
+    design_proposal, design_response = await test_with_incomplete_parameters(user_request)
+
+    if design_proposal is None:
+        print("\n[FAIL] 设计阶段失败")
+        return False
+
+    # Step 2: 有限元分析（启用循环模式，当code_check不通过时自动AskHuman）
+    analysis_results = await test_fe_analysis(design_proposal, enable_loop=True)
+
+    if analysis_results is None:
+        print("\n[FAIL] 分析阶段失败")
+        return False
+
+    # Step 3: 验证结果（传入design_proposal进行动态验证）
+    results_valid = validate_analysis_results(analysis_results, design_proposal)
+
+    # 总结
+    print("\n" + "="*80)
+    print("测试总结")
+    print("="*80)
+
+    all_passed = (
+        design_proposal is not None and
+        analysis_results is not None and
+        analysis_results.get('status') == 'success' and
+        results_valid
+    )
+
+    if all_passed:
+        print("\n[SUCCESS] 阶段7集成测试通过！")
         return True
     else:
         print("\n[FAIL] 阶段7集成测试部分失败")
@@ -235,12 +503,26 @@ async def main():
     print("[OK] 配置文件检查通过")
     print("[OK] OpenManus 导入检查通过")
 
-    # Run test
+    # 选择测试模式
     print("\n" + "-"*80)
-    print("开始执行阶段7集成测试...")
+    print("测试模式选择:")
+    print("  1. 自定义需求测试 (输入你的结构设计需求)")
+    print("  2. 预设完整参数测试 (6米简支梁，10kN/m)")
+    print("  3. 预设缺失参数测试 (测试AskHuman交互)")
     print("-"*80)
 
-    result = await test_stage7_end_to_end()
+    test_mode = input("\n请选择测试模式 (1/2/3): ").strip()
+
+    # Run tests based on mode
+    if test_mode == "1":
+        result = await run_custom_test()
+    elif test_mode == "2":
+        result = await run_predefined_complete_test()
+    elif test_mode == "3":
+        result = await run_predefined_incomplete_test()
+    else:
+        print(f"\n[ERROR] 无效的选项: {test_mode}")
+        return
 
     # Summary
     print("\n" + "="*80)
