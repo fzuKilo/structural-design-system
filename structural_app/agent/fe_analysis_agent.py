@@ -66,9 +66,6 @@ class FEAnalysisAgent(ToolCallAgent):
             max_loop_count: Maximum number of improvement cycles
             **kwargs: Additional arguments passed to ToolCallAgent
         """
-        self.enable_loop = enable_loop
-        self.max_loop_count = max_loop_count
-
         if description is None:
             description = (
                 "I am an FE analysis agent. I perform finite element analysis on structural designs. "
@@ -97,12 +94,16 @@ class FEAnalysisAgent(ToolCallAgent):
             **kwargs
         )
 
+        # Set custom attributes AFTER super().__init__() to avoid Pydantic conflict
+        object.__setattr__(self, 'enable_loop', enable_loop)
+        object.__setattr__(self, 'max_loop_count', max_loop_count)
+
         # Override available_tools to include all tools
         all_tools = tools + [CreateChatCompletion(), Terminate()]
-        self.available_tools = ToolCollection(*all_tools)
+        object.__setattr__(self, 'available_tools', ToolCollection(*all_tools))
 
         # Set system prompt for FE analysis
-        self.system_prompt = self._create_fe_analysis_system_prompt()
+        object.__setattr__(self, 'system_prompt', self._create_fe_analysis_system_prompt())
 
     def _create_fe_analysis_system_prompt(self) -> str:
         """
