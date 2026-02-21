@@ -440,9 +440,17 @@ Please update the design and re-analyze."""
 
             # Pattern 3: Direct JSON object with status field (fallback)
             # Match JSON objects containing "status"
+            # Use a more specific pattern to avoid matching other JSON
             matches = re.findall(r'\{[^}]*"status"[^}]*\}', response, re.DOTALL)
             if matches:
                 json_str = matches[-1]  # Get last match
+                return json.loads(json_str)
+
+            # Pattern 4: Extract the entire JSON object from error message
+            # This handles cases where the response is just an error JSON
+            json_match = re.search(r'(\{.*?"status".*?\})\s*$', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
                 return json.loads(json_str)
 
             return None
