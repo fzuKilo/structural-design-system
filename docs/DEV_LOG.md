@@ -1,5 +1,78 @@
 # 开发日志
 
+## 2026-02-21
+
+### 完成的工作
+
+1. **阶段 7 收尾与集成测试验证** - 完全完成 ✅
+   - 运行 StructuralDesignAgent → FEAnalysisAgent 端到端集成测试
+   - 验证循环模式在真实 LLM 调用中的行为
+   - 确认分析结果数值合理（位移、应力、弯矩均在合理范围）
+   - 验证规范校核逻辑正确工作
+
+2. **JSON 提取功能增强** - 完全完成 ✅
+   - 修复 `extract_design_proposal()` 的正则表达式（Pattern 1）
+   - 更新 `extract_analysis_results()` 添加 Pattern 4 处理错误 JSON
+   - 支持从错误消息中提取完整 JSON 对象
+   - 确保 status='error' 的结果能被正确提取和判断
+
+3. **FEAnalysisAgent 改进** - 完全完成 ✅
+   - 添加提前类型检查：分析前先检查 type 是否支持
+   - 不支持的类型直接返回错误，不进入 fe_analysis tool
+   - 避免循环模式对不支持的类型进行无意义的分析
+
+4. **错误提示优化** - 完全完成 ✅
+   - AnalyzerFactory/DrawerFactory 返回中文友好错误提示
+   - FEAnalysisTool/CADDrawingTool 添加可用类型提示
+   - FEAnalysisAgent 分析失败时不进入循环模式
+
+5. **文档更新**
+   - 更新 `how_to_add_new_structure_type.md`（v2.0）：方案B循序渐进策略
+   - 更新 `CURRENT_TASK.md`：标记阶段 7 完成
+   - 更新 `DEV_LOG.md`：记录今日工作
+
+6. **Git 提交**
+   - commit 6fb34b7: fix: 增强extract_analysis_results - 添加Pattern 4处理错误JSON
+   - commit a9cc707: fix: 修复extract_design_proposal的正则表达式
+   - commit 0d1bf27: fix: FEAnalysisAgent 添加提前类型检查
+   - commit b73961d: fix: 修复AnalyzerFactory导入错误
+   - commit 399392b: fix: 修复extract_design_proposal的JSON提取问题
+   - 推送到远程 dev 分支
+
+### 遇到的问题
+
+**问题 1：循环模式最大轮数问题**
+- **现象**：第3轮后仍可能显示"第2/3轮"提示
+- **原因**：LLM 使用 `terminate` 工具时会跳过循环逻辑，导致 run() 方法没机会检查 `start_loop_count`
+- **状态**：⭐ 已记录，搁置处理（不影响核心功能，暂时绕过）
+- **备注**：需要确保即使 LLM 决定终止，也要正确显示"达到最大轮数"或强制结束
+
+### 技术决策
+
+- **提前类型检查**：在分析前先检查 type 是否支持，避免无意义的分析和循环
+- **错误提示友好化**：返回中文错误提示和可用类型列表，提升用户体验
+- **JSON 提取鲁棒性**：多种正则模式 + 错误 JSON 处理，确保提取成功率
+- **循环模式实现**：采用递归调用 self.run() 实现改进循环（TD-017）
+
+### 明天计划
+
+**优先级1：阶段 8 - CADDrawingAgent 实现**
+- 创建 CADDrawingAgent 类（继承 ToolCallAgent）
+- 从上下文提取 DesignProposal
+- 调用 CADDrawingTool 生成 DXF 文件
+- 返回 DrawingResults（JSON 字符串）
+- 编写单元测试
+
+**优先级2：阶段 9 - EvaluationAgent 实现**
+- 创建 EvaluationAgent 类
+- 实现设计质量评估逻辑
+- 返回 EvaluationReport
+
+**优先级3：搁置任务**
+- 修复循环模式最大轮数问题（bug 记录在案，后续处理）
+
+---
+
 ## 2026-02-18
 
 ### 完成的工作

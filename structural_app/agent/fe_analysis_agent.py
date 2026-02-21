@@ -255,6 +255,10 @@ Return the complete AnalysisResults."""
             if self.enable_loop and not code_check.get('compliant', False):
                 # Get start_loop_count from kwargs for recursive calls
                 start_loop_count = kwargs.get('_loop_count', 0)
+
+                # DEBUG: Print the loop count for debugging
+                print(f"DEBUG: Entering improvement loop with start_loop_count={start_loop_count}")
+
                 result = await self._enter_improvement_loop(request, result, analysis_results, start_loop_count)
 
         return result
