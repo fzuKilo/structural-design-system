@@ -223,7 +223,12 @@ Return the complete AnalysisResults."""
         analysis_results = self.extract_analysis_results(result)
 
         if analysis_results is not None:
+            status = analysis_results.get('status')
             code_check = analysis_results.get('code_check', {})
+
+            # If analysis failed (e.g., unsupported structure type), do not enter loop
+            if status == 'error':
+                return result
 
             # If loop mode is enabled and code check fails, enter improvement cycle
             if self.enable_loop and not code_check.get('compliant', False):

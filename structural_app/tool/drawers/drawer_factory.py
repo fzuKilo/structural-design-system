@@ -53,9 +53,11 @@ class DrawerFactory:
         """
         if structure_type not in cls._registry:
             available_types = list(cls._registry.keys())
+            # 友好错误提示：包含未知类型和可用类型列表
             raise ValueError(
-                f"Unknown structure type: '{structure_type}'. "
-                f"Available types: {available_types}"
+                f"当前未支持的结构类型: '{structure_type}'。\n"
+                f"可用类型: {available_types}\n"
+                f"请使用已支持的类型，或参考 docs/how_to_add_new_structure_type.md 添加新类型支持。"
             )
 
         drawer_class = cls._registry[structure_type]

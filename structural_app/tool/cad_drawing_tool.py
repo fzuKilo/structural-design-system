@@ -155,9 +155,13 @@ class CADDrawingTool(BaseTool):
 
             # Validate structure type
             if not DrawerFactory.is_registered(structure_type):
-                return ToolResult(
-                    error=f"Unknown structure type: {structure_type}. Available: {DrawerFactory.get_available_types()}"
+                available_types = DrawerFactory.get_available_types()
+                error_msg = (
+                    f"当前未支持的结构类型: '{structure_type}'。\n"
+                    f"可用类型: {available_types}\n"
+                    f"请使用已支持的类型，或参考 docs/how_to_add_new_structure_type.md 添加新类型支持。"
                 )
+                return ToolResult(error=error_msg)
 
             # Create drawer using factory
             drawer = DrawerFactory.create(structure_type)

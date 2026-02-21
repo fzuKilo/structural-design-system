@@ -53,6 +53,8 @@ class FEAnalysisTool(BaseTool):
                     "description": "Complete design proposal in JSON format. This is an alternative to passing individual parameters. If provided, this will be used instead of individual parameters."
                 },
                 # Individual parameters (traditional format)
+                # 注意：enum 在初始化时固定，但 description 中会显示当前可用类型
+                # LLM 会根据错误提示动态调整，所以 enum 只作为参考
                 "structure_type": {
                     "type": "string",
                     "description": f"Type of structure to analyze. Available: {AnalyzerFactory.get_available_types()}. Use this OR design_proposal, not both.",
@@ -188,9 +190,12 @@ class FEAnalysisTool(BaseTool):
 
             # Validate structure type
             if not AnalyzerFactory.is_registered(structure_type):
+                available_types = AnalyzerFactory.get_available_types()
                 error_result = {
                     'status': 'error',
-                    'error': f"Unknown structure type: {structure_type}. Available: {AnalyzerFactory.get_available_types()}"
+                    'error': f"当前未支持的结构类型: '{structure_type}'。\n"
+                            f"可用类型: {available_types}\n"
+                            f"请使用已支持的类型，或参考 docs/how_to_add_new_structure_type.md 添加新类型支持。"
                 }
                 return ToolResult(output=json.dumps(error_result, ensure_ascii=False))
 
