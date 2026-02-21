@@ -34,6 +34,12 @@ analyzer_module = importlib.util.module_from_spec(_spec_analyzer)
 _spec_analyzer.loader.exec_module(analyzer_module)
 AnalyzerFactory = analyzer_module.AnalyzerFactory
 
+# Load BeamAnalyzer for type checking (used in tests)
+_beam_analyzer_path = os.path.join(_structural_app_path, 'tool', 'analyzers', 'beam_analyzer.py')
+_spec_beam = importlib.util.spec_from_file_location("beam_analyzer", _beam_analyzer_path)
+beam_module = importlib.util.module_from_spec(_spec_beam)
+_spec_beam.loader.exec_module(beam_module)
+
 
 class FEAnalysisAgent(ToolCallAgent):
     """
