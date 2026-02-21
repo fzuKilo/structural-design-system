@@ -27,18 +27,9 @@ fe_analysis_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fe_analysis_module)
 FEAnalysisTool = fe_analysis_module.FEAnalysisTool
 
-# Load AnalyzerFactory for type checking
-_analyzer_factory_path = os.path.join(_structural_app_path, 'tool', 'analyzers', 'analyzer_factory.py')
-_spec_analyzer = importlib.util.spec_from_file_location("analyzer_factory", _analyzer_factory_path)
-analyzer_module = importlib.util.module_from_spec(_spec_analyzer)
-_spec_analyzer.loader.exec_module(analyzer_module)
-AnalyzerFactory = analyzer_module.AnalyzerFactory
-
-# Load BeamAnalyzer for type checking (used in tests)
-_beam_analyzer_path = os.path.join(_structural_app_path, 'tool', 'analyzers', 'beam_analyzer.py')
-_spec_beam = importlib.util.spec_from_file_location("beam_analyzer", _beam_analyzer_path)
-beam_module = importlib.util.module_from_spec(_spec_beam)
-_spec_beam.loader.exec_module(beam_module)
+# Get AnalyzerFactory from already-loaded FEAnalysisTool module
+# FEAnalysisTool already imports AnalyzerFactory, so we can access it from there
+AnalyzerFactory = fe_analysis_module.AnalyzerFactory
 
 
 class FEAnalysisAgent(ToolCallAgent):
@@ -407,33 +398,39 @@ Please update the design and re-analyze."""
             Parsed design proposal dict, or None if extraction fails
         """
         try:
-            # Pattern 1: OpenManus execution log format
-            match = __import__('re').search(r'create_chat_completion.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)', response, __import__('re').DOTALL)
+            import re
+            import json
+
+            # Pattern 1: ```json ... ``` 代码块格式（优先处理）
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                if json_str.endswith('\n}'):
+                    return json.loads(json_str)
+
+            # Pattern 2: OpenManus execution log format with create_chat_completion
+            match = re.search(r'create_chat_completion.*?executed:[\s\S]*?(\{[\s\S]*?\n\})\s*(?:Step|\Z)', response, re.DOTALL)
             if match:
                 json_str = match.group(1)
-                return __import__('json').loads(json_str)
+                if '...' not in json_str:
+                    return json.loads(json_str)
 
-            # Pattern 2: ```json ... ```
-            json_match = __import__('re').search(r'```json\s*(\{.*?\})\s*```', response, __import__('re').DOTALL)
+            # Pattern 3: ``` ... ``` 普通代码块
+            json_match = re.search(r'```\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                if json_str.endswith('\n}'):
+                    return json.loads(json_str)
+
+            # Pattern 4: Direct JSON object - 匹配包含 type 字段的 JSON 对象
+            json_match = re.search(r'(\{[\s\S]*?"type":[\s\S]*?\n\})\s*(?:,|\n|\Z)', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
-                return __import__('json').loads(json_str)
-
-            # Pattern 3: ``` ... ```
-            json_match = __import__('re').search(r'```\s*(\{.*?\})\s*```', response, __import__('re').DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                return __import__('json').loads(json_str)
-
-            # Pattern 4: Direct JSON object
-            json_match = __import__('re').search(r'\{.*?\}', response, __import__('re').DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                return __import__('json').loads(json_str)
+                return json.loads(json_str)
 
             return None
 
-        except __import__('json').JSONDecodeError as e:
+        except json.JSONDecodeError as e:
             print(f"Failed to parse JSON: {e}")
             return None
 

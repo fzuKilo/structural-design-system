@@ -245,30 +245,38 @@ Remember to output ONLY a valid JSON object following the specified format."""
             Parsed design proposal dict, or None if extraction fails
         """
         try:
-            # Pattern 1: OpenManus execution log format
+            import re
+            import json
+
+            # Pattern 1: ```json ... ``` 代码块格式（优先处理）
+            # 匹配从 ```json 开始到 ``` 结束之间的所有内容
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                # 检查是否以换行+}结尾
+                if json_str.endswith('\n}'):
+                    return json.loads(json_str)
+
+            # Pattern 2: OpenManus execution log format with create_chat_completion
             # "Observed output of cmd `create_chat_completion` executed:\n{JSON}\nStep"
-            # 使用 [\s\S]* 匹配多行内容
-            match = re.search(r'create_chat_completion.*?executed:[\s\S]*?(\{.*?\})[\s\S]*?(?:Step|\Z)', response, re.DOTALL)
+            match = re.search(r'create_chat_completion.*?executed:[\s\S]*?(\{[\s\S]*?\n\})\s*(?:Step|\Z)', response, re.DOTALL)
             if match:
                 json_str = match.group(1)
-                return json.loads(json_str)
+                # 检查是否是完整的 JSON（排除带省略号的情况）
+                if '...' not in json_str:
+                    return json.loads(json_str)
 
-            # Pattern 2: ```json ... ```
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+            # Pattern 3: ``` ... ``` 普通代码块
+            json_match = re.search(r'```\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                if json_str.endswith('\n}'):
+                    return json.loads(json_str)
+
+            # Pattern 4: Direct JSON object - 匹配包含 type 字段的 JSON 对象
+            json_match = re.search(r'(\{[\s\S]*?"type":[\s\S]*?\n\})\s*(?:,|\n|\Z)', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
-                return json.loads(json_str)
-
-            # Pattern 3: ``` ... ```
-            json_match = re.search(r'```\s*(\{.*?\})\s*```', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                return json.loads(json_str)
-
-            # Pattern 4: Direct JSON object
-            json_match = re.search(r'\{.*?\}', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
                 return json.loads(json_str)
 
             return None
