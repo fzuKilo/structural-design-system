@@ -247,7 +247,8 @@ Remember to output ONLY a valid JSON object following the specified format."""
         try:
             # Pattern 1: OpenManus execution log format
             # "Observed output of cmd `create_chat_completion` executed:\n{JSON}\nStep"
-            match = re.search(r'create_chat_completion.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)', response, re.DOTALL)
+            # 使用 [\s\S]* 匹配多行内容
+            match = re.search(r'create_chat_completion.*?executed:[\s\S]*?(\{.*?\})[\s\S]*?(?:Step|\Z)', response, re.DOTALL)
             if match:
                 json_str = match.group(1)
                 return json.loads(json_str)
