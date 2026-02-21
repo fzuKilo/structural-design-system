@@ -27,6 +27,13 @@ fe_analysis_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fe_analysis_module)
 FEAnalysisTool = fe_analysis_module.FEAnalysisTool
 
+# Load AnalyzerFactory for type checking
+_analyzer_factory_path = os.path.join(_structural_app_path, 'tool', 'analyzers', 'analyzer_factory.py')
+_spec_analyzer = importlib.util.spec_from_file_location("analyzer_factory", _analyzer_factory_path)
+analyzer_module = importlib.util.module_from_spec(_spec_analyzer)
+_spec_analyzer.loader.exec_module(analyzer_module)
+AnalyzerFactory = analyzer_module.AnalyzerFactory
+
 
 class FEAnalysisAgent(ToolCallAgent):
     """
@@ -205,6 +212,23 @@ USER IMPROVEMENTS:
 {loop_request}
 
 Please update the design based on these improvements and re-analyze."""
+
+        # 新增：在分析前先检查设计类型是否支持
+        # 从 request 中提取 DesignProposal
+        design_proposal = self.extract_design_proposal(request)
+        if design_proposal:
+            structure_type = design_proposal.get('type')
+            if structure_type and not AnalyzerFactory.is_registered(structure_type):
+                available_types = AnalyzerFactory.get_available_types()
+                error_result = {
+                    'status': 'error',
+                    'error': f"当前未支持的结构类型: '{structure_type}'。\n可用类型: {available_types}\n请使用已支持的类型，或参考 docs/how_to_add_new_structure_type.md 添加新类型支持。"
+                }
+                # 直接返回错误结果，不进入分析流程
+                import json as json_module
+                return f"""FEAnalysisTool 执行失败：
+{json_module.dumps(error_result, ensure_ascii=False)}
+"""
 
         # Prepare the analysis prompt
         # Use the request directly as the analysis prompt to avoid nested instructions
