@@ -23,8 +23,9 @@ except ImportError:
             self.error = error
 
 
-from .drawers.drawer_factory import DrawerFactory
-from .drawers.base_drawer import StructureDrawer
+# Use absolute imports for drawer modules
+from structural_app.tool.drawers.drawer_factory import DrawerFactory
+from structural_app.tool.drawers.base_drawer import StructureDrawer
 
 
 class CADDrawingTool(BaseTool):
