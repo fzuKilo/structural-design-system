@@ -56,7 +56,6 @@ class FEAnalysisAgent(ToolCallAgent):
         description: str = None,
         tools: Optional[List] = None,
         enable_loop: bool = False,
-        max_loop_count: int = 3,
         **kwargs
     ):
         """
@@ -67,8 +66,13 @@ class FEAnalysisAgent(ToolCallAgent):
             description: Agent description
             tools: List of tools available to the agent
             enable_loop: If True, automatically enter improvement loop when code_check fails
-            max_loop_count: Maximum number of improvement cycles
             **kwargs: Additional arguments passed to ToolCallAgent
+
+        Loop Mode Behavior:
+        - When enable_loop=True and code_check fails, automatically enters improvement cycle
+        - Continues looping until design passes code check OR user inputs "skip"
+        - No maximum loop count limit - fully iterative based on engineering logic
+        - Warns after 5 consecutive failures to prompt user review
         """
         if description is None:
             description = (
@@ -100,7 +104,6 @@ class FEAnalysisAgent(ToolCallAgent):
 
         # Set custom attributes AFTER super().__init__() to avoid Pydantic conflict
         object.__setattr__(self, 'enable_loop', enable_loop)
-        object.__setattr__(self, 'max_loop_count', max_loop_count)
 
         # Override available_tools to include all tools
         all_tools = tools + [CreateChatCompletion(), Terminate()]
@@ -190,7 +193,7 @@ ANALYSIS WORKFLOW:
         Supports two modes:
         1. Normal mode: Analyze once and return results
         2. Loop mode: When code_check fails, automatically ask user for improvements
-           and re-analyze until compliant or max_loop_count reached
+           and re-analyze until compliant or user skips
 
         Args:
             request: User's request (typically contains a DesignProposal)
@@ -272,7 +275,7 @@ Return the complete AnalysisResults."""
     ) -> str:
         """
         Enter improvement loop when code_check fails.
-        Ask user for improvements and re-analyze until compliant or max_loop_count reached.
+        Continue looping until design is compliant or user skips.
 
         Args:
             original_request: Original analysis request
@@ -281,14 +284,15 @@ Return the complete AnalysisResults."""
             start_loop_count: Starting loop count (for recursive calls)
 
         Returns:
-            Final analysis results (either compliant or after max loops)
+            Final analysis results (either compliant or user skipped)
         """
         loop_count = start_loop_count
         current_request = original_request
         last_results = analysis_results
         result = initial_result  # Initialize result from initial analysis
+        consecutive_failures = 0  # Track consecutive failures to prevent infinite loops
 
-        while loop_count < self.max_loop_count:
+        while True:  # Loop until compliant or user skips
             loop_count += 1
 
             # Extract details for AskHuman prompt
@@ -307,7 +311,7 @@ Return the complete AnalysisResults."""
             violation_text = "\n".join([f"  - {v.get('description', 'Unknown violation')}" for v in violations])
 
             # Build AskHuman prompt
-            ask_human_prompt = f"""**有限元分析结果 - 规范校核未通过** (第 {loop_count}/{self.max_loop_count} 轮)
+            ask_human_prompt = f"""**有限元分析结果 - 规范校核未通过** (第 {loop_count} 轮)
 
 您的设计方案未通过规范校核。具体违规如下：
 {violation_text}
@@ -327,7 +331,7 @@ Return the complete AnalysisResults."""
 2. 描述需要调整的地方（如：增加截面高度到0.5m，改用C40混凝土）
 3. 输入 "skip" 跳过改进，直接返回当前结果
 
-请输入您的改进方案（第 {loop_count}/{self.max_loop_count} 轮）："""
+请输入您的改进方案（第 {loop_count} 轮）："""
 
             try:
                 # Use AskHuman tool to get user input
@@ -359,14 +363,26 @@ Please update the design and re-analyze."""
                 # Check if the new result is compliant
                 new_results = self.extract_analysis_results(result)
                 if new_results and new_results.get('code_check', {}).get('compliant', False):
-                    # Success! Append loop summary
+                    # Success! Design passes code check
                     return f"""{result}
 
 ---
 **循环完成：设计通过规范校核** (共 {loop_count} 轮)
 """
 
-                # Not compliant yet, continue loop
+                # Not compliant yet, check for consecutive failures
+                consecutive_failures += 1
+                if consecutive_failures >= 5:
+                    # Continuous 5 failures, warn user
+                    return f"""{result}
+
+---
+**警告：连续 {consecutive_failures} 次改进未通过校核**
+请检查输入的改进方案是否有效（如：增加截面高度、提高混凝土强度等级）。
+或输入 "skip" 跳过改进，直接返回当前结果。
+"""
+
+                # Continue loop
                 last_results = new_results
 
             except StopIteration:
@@ -382,13 +398,6 @@ Please update the design and re-analyze."""
 
 ---
 **错误: 循环交互失败 - {str(e)}**
-"""
-
-        # Max loop count reached
-        return f"""{result}
-
----
-**循环中止：达到最大轮数 ({self.max_loop_count} 轮)**
 """
 
     def extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
