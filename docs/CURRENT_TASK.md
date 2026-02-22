@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：399392b - fix: 修复extract_design_proposal的JSON提取问题
+**最新提交**：61eb816 - feat: 实现CADDrawingAgent（阶段8）
 
 ## 开发阶段进度
 
@@ -71,8 +71,20 @@
   - [x] 增强 JSON 提取功能（Pattern 4 处理错误 JSON）
   - [x] 添加提前类型检查（避免无意义的分析）
   - [x] 优化错误提示（友好的中文提示）
-  - [x] 提交：6fb34b7, a9cc707, 0d1bf27, b73961d, 399392b
-- [ ] **阶段 8**：CADDrawingAgent 实现
+  - [x] 优化循环逻辑：无限循环直到设计通过规范校核（移除 max_loop_count）
+  - [x] 提交：6fb34b7, a9cc707, 0d1bf27, b73961d, 399392b, 26a3f60
+- [x] **阶段 8**：CADDrawingAgent 实现 ✨ 今日完成
+  - [x] 创建 CADDrawingAgent 类（继承 ToolCallAgent）
+  - [x] 集成 CADDrawingTool 生成 DXF 文件
+  - [x] 集成 AskHuman 工具支持参数修正
+  - [x] 实现从上下文提取 DesignProposal 的功能
+  - [x] 返回 DrawingResults（JSON 格式）
+  - [x] 支持循环模式（可选）
+  - [x] 编写单元测试（11个测试，全部通过）
+  - [x] 修复 cad_drawing_tool.py 相对导入问题（改用绝对导入）
+  - [x] 更新 agent/__init__.py 导出 CADDrawingAgent
+  - [x] 添加结构类型扩展计划文档
+  - [x] 提交：61eb816, c7033b9
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
 - [ ] **阶段 10.5**：架构验证（添加悬臂梁）
@@ -80,80 +92,78 @@
 
 ## 当前任务详情
 
-### ✅ 已完成：阶段 7 集成测试（循环模式优化）
+### ✅ 已完成：阶段 7 收尾（循环逻辑优化）
 
-**目标**：执行 StructuralDesignAgent → FEAnalysisAgent 端到端集成测试
+**目标**：优化 FEAnalysisAgent 的循环模式
 
 **完成状态**：已完成 ✅
 
 **结果**：
-- StructuralDesignAgent 正常生成设计方案
-- FEAnalysisAgent 正常调用 FEAnalysisTool
-- OpenSeesPy 分析结果数值合理
-- 数据传递流程完整
-- 循环模式正常工作，支持多次改进
-- 验证提取最终设计方案正确
+- 移除 max_loop_count 参数，改为无限循环模式
+- 循环直到 design passes code_check 或用户输入 "skip"
+- 轮次显示从 "第 X/Y 轮" 改为 "第 X 轮"
+- 添加连续失败检测（5次失败后警告用户）
+- 测试通过：12m跨度简支梁，3轮改进后通过规范校核
 
-**关键结果验证**（最终改进方案）：
-- 最大位移：4.28 mm（在合理范围内）
-- 最大应力：7.11 MPa（在合理范围内）
-- 最大弯矩：533.25 kN*m（与理论值一致）
-- 规范校核：通过（应力安全系数 2.51，挠度安全系数 11.21）
-
-**改进历程**：
+**改进历程**（12m跨度简支梁，10kN/m均布荷载）：
 1. 原始设计：0.3m高，C30混凝土 → 严重不合格
 2. 第一次改进：0.5m高，C40混凝土 → 仍不合格
-3. 最终设计：1.5m高，C40混凝土 → 完全合格
+3. 第二次改进：0.8m高，C40混凝土 → 仍不合格
+4. 第三次改进：1.2m高，C40混凝土 → 完全合格
 
 ---
 
-### 🔥 优先任务：阶段 8 - CADDrawingAgent 实现
+### ✅ 已完成：阶段 8 - CADDrawingAgent 实现
 
 **目标**：实现 CAD 绘图 Agent，调用 CADDrawingTool 生成图纸
 
-**子任务**：
-1. [ ] 创建 CADDrawingAgent 类（继承 ToolCallAgent）
-2. [ ] 从上下文提取 DesignProposal
-3. [ ] 调用 CADDrawingTool 生成 DXF 文件
-4. [ ] 返回 DrawingResults（JSON 字符串）
-5. [ ] 编写单元测试
+**完成状态**：已完成 ✅
 
-**预计时间**：1天
+**结果**：
+- 创建 CADDrawingAgent 类（继承 ToolCallAgent）
+- 集成 CADDrawingTool 和 AskHuman 工具
+- 实现从上下文提取 DesignProposal 的功能
+- 返回 DrawingResults（JSON 格式）
+- 支持循环模式（可选）
+- 编写 11 个单元测试，全部通过
+- 修复 cad_drawing_tool.py 相对导入问题
+- 添加结构类型扩展计划文档
 
-**参考文档**：
-- `docs/agent_architecture.md`（第3.5节：CADDrawingAgent）
-- `structural_app/tool/drawers/cad_drawing_tool.py`
+**测试结果**：
+```
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_exists PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_inherits_toolcall_agent PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_has_correct_name PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_has_correct_description PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_has_cad_drawing_tool PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentInitialization::test_agent_has_ask_human_tool PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentSystemPrompt::test_system_prompt_contains_cad_keywords PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentSystemPrompt::test_system_prompt_mentions_cad_drawing_tool PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_drawing_results_with_valid_json PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_drawing_results_with_code_block PASSED
+tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_drawing_results_returns_none_on_error PASSED
+============================== 11 passed ==============================
+```
+
+**改进历程**（12m跨度简支梁，10kN/m均布荷载）：
+1. 原始设计：0.3m高，C30混凝土 → 严重不合格
+2. 第一次改进：0.5m高，C40混凝土 → 仍不合格
+3. 第二次改进：0.8m高，C40混凝土 → 仍不合格
+4. 第三次改进：1.2m高，C40混凝土 → 完全合格
 
 ---
 
-### ⭐ 搁置任务：循环模式最大轮数问题
+### 🔥 优先任务：阶段 8 集成测试
 
-**问题描述**：第3轮后仍可能显示"第2/3轮"提示
-- **原因**：LLM 使用 `terminate` 工具时会跳过循环逻辑
-- **状态**：⭐ 已记录，搁置处理（不影响核心功能）
-- **影响**：仅在极限情况下出现，正常流程不受影响
-
----
-
-### 阶段 4：CAD 绘图工具架构（可选，取决于团队分工）
-
-**目标**：实现 CAD 绘图工具的通用架构
+**目标**：运行 StructuralDesignAgent → FEAnalysisAgent → CADDrawingAgent 端到端集成测试
 
 **子任务**：
-1. [ ] 创建 `StructureDrawer` 抽象基类
-2. [ ] 实现 `BeamDrawer` 原型（简单立面图）
-3. [ ] 创建 `DrawerFactory` 工厂类
-4. [ ] 编写单元测试
-
-**预计时间**：1-2天
-
-**参考文档**：
-- `docs/agent_architecture.md`（第3.5节：CADDrawingAgent）
-- `docs/how_to_add_new_structure_type.md`
-
-**注意事项**：
-- ezdxf 库需要安装：`pip install ezdxf`
-- 绘图逻辑需要根据结构类型区分（梁、框架、桁架等）
+1. [ ] 创建集成测试脚本 `tests/integration/test_stage8_integration.py`
+2. [ ] 测试完整工作流：设计 → 分析 → 绘图
+3. [ ] 验证 DesignProposal 数据传递正确
+4. [ ] 验证 AnalysisResults 数值合理
+5. [ ] 验证 DrawingResults 格式正确
+6. [ ] 验证 DXF 文件生成正常
 
 ## 技术栈
 
@@ -183,11 +193,11 @@
 
 ## 下一步行动
 
-1. 开始阶段 8：CADDrawingAgent 实现（推荐）
+1. 开始阶段 8 集成测试（推荐）
 2. 或开始阶段 9：EvaluationAgent 实现
 3. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
 
 ---
 
-**最后更新**：2026-02-21
+**最后更新**：2026-02-22
 **更新人**：Claude Code
