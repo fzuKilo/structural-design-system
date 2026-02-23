@@ -112,13 +112,23 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
-            # This fixes the issue where AutoCAD displays 600000 instead of 6000
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
-                dimstyle.dxf.dimasz = 100
-                dimstyle.dxf.dimtxt = 150
+            # Create custom dimstyle for mm units to avoid ezdxf's EZDXF issues
+            # ezdxf's default EZDXF has dimlfac=100 which causes 100x multiplication in AutoCAD
+            dimstyle = doc.dimstyles.add(
+                name='MM_UNITS',
+                dxfattribs={
+                    'dimlfac': 1.0,      # Linear factor - 1 for direct mm values
+                    'dimasz': 100,       # Arrow size
+                    'dimtxt': 150,       # Text height
+                    'dimcen': 0,         # Center mark
+                    'dimtsz': 0,         # Ticks size
+                    'dimdle': 0,         # Dimension line extension
+                    'dimexe': 0,         # Extension line extension
+                    'dimexo': 0,         # Extension line offset
+                    'dimdli': 0,         # Dimension line increment
+                    'dimtad': 1,         # Text above dimension line
+                }
+            )
 
             # Draw beam elevation
             self._draw_beam_elevation(
@@ -164,18 +174,28 @@ class BeamDrawer(StructureDrawer):
             width_mm = self._convert_to_mm(geometry.get('width', 0.3), units)
 
             # Create new DXF document
-            doc = ezdxf.new('R2010', setup=True)
+            doc = ezdxf.new('R2010')
             msp = doc.modelspace()
 
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
-                dimstyle.dxf.dimasz = 100
-                dimstyle.dxf.dimtxt = 150
+            # Create custom dimstyle for mm units
+            dimstyle = doc.dimstyles.add(
+                name='MM_UNITS',
+                dxfattribs={
+                    'dimlfac': 1.0,
+                    'dimasz': 100,
+                    'dimtxt': 150,
+                    'dimcen': 0,
+                    'dimtsz': 0,
+                    'dimdle': 0,
+                    'dimexe': 0,
+                    'dimexo': 0,
+                    'dimdli': 0,
+                    'dimtad': 1,
+                }
+            )
 
             # Draw beam plan
             self._draw_beam_plan(
@@ -220,18 +240,28 @@ class BeamDrawer(StructureDrawer):
             height_mm = self._convert_to_mm(geometry.get('height', 0.6), units)
 
             # Create new DXF document
-            doc = ezdxf.new('R2010', setup=True)
+            doc = ezdxf.new('R2010')
             msp = doc.modelspace()
 
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
-                dimstyle.dxf.dimasz = 100
-                dimstyle.dxf.dimtxt = 150
+            # Create custom dimstyle for mm units
+            dimstyle = doc.dimstyles.add(
+                name='MM_UNITS',
+                dxfattribs={
+                    'dimlfac': 1.0,
+                    'dimasz': 100,
+                    'dimtxt': 150,
+                    'dimcen': 0,
+                    'dimtsz': 0,
+                    'dimdle': 0,
+                    'dimexe': 0,
+                    'dimexo': 0,
+                    'dimdli': 0,
+                    'dimtad': 1,
+                }
+            )
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(
@@ -353,9 +383,9 @@ class BeamDrawer(StructureDrawer):
             dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
         )
 
-        # Add dimensions
+        # Add dimensions using MM_UNITS dimstyle
         try:
-            dim_style = doc.dimstyles.get('EZDXF')
+            dim_style = doc.dimstyles.get('MM_UNITS')
             if dim_style:
                 dim_style.dxf.dimtxt = 150
 
@@ -363,7 +393,7 @@ class BeamDrawer(StructureDrawer):
                 base=(length_mm / 2, -200),
                 p1=(0, 0),
                 p2=(length_mm, 0),
-                dimstyle='EZDXF',
+                dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
         except Exception as e:
@@ -499,12 +529,10 @@ class BeamDrawer(StructureDrawer):
     def _add_dimensions(self, msp, length_mm: float, height_mm: float):
         """Add dimensions to elevation view"""
         try:
-            # Get default dimstyle
-            dimstyle = msp.doc.dimstyles.get('EZDXF')
+            # Get or create MM_UNITS dimstyle (created in draw methods)
+            dimstyle = msp.doc.dimstyles.get('MM_UNITS')
             if dimstyle:
-                # Set dimasz to reasonable mm value
                 dimstyle.dxf.dimasz = 100
-                # Set dimtxt to reasonable mm value
                 dimstyle.dxf.dimtxt = 150
 
             # Length dimension
@@ -512,7 +540,7 @@ class BeamDrawer(StructureDrawer):
                 base=(length_mm / 2, -1200),
                 p1=(0, 0),
                 p2=(length_mm, 0),
-                dimstyle='EZDXF',
+                dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
 
@@ -522,7 +550,7 @@ class BeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(0, height_mm),
                 angle=90,
-                dimstyle='EZDXF',
+                dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
         except Exception as e:
@@ -531,7 +559,8 @@ class BeamDrawer(StructureDrawer):
     def _add_section_dimensions(self, msp, doc, width_mm: float, height_mm: float):
         """Add dimensions to section view"""
         try:
-            dimstyle = doc.dimstyles.get('EZDXF')
+            # Get or create MM_UNITS dimstyle (created in draw methods)
+            dimstyle = doc.dimstyles.get('MM_UNITS')
             if dimstyle:
                 dimstyle.dxf.dimtxt = 150
 
@@ -544,7 +573,7 @@ class BeamDrawer(StructureDrawer):
                 base=(start_x + width_mm / 2, start_y - 200),
                 p1=(start_x, start_y),
                 p2=(start_x + width_mm, start_y),
-                dimstyle='EZDXF',
+                dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
 
@@ -554,7 +583,7 @@ class BeamDrawer(StructureDrawer):
                 p1=(start_x + width_mm, start_y),
                 p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
-                dimstyle='EZDXF',
+                dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
         except Exception as e:
