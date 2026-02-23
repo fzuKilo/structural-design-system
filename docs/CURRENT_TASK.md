@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：61eb816 - feat: 实现CADDrawingAgent（阶段8）
+**最新提交**：53f622f - fix: 阶段8集成测试修复（含梁截面详图尺寸标注修复）
 
 ## 开发阶段进度
 
@@ -85,6 +85,13 @@
   - [x] 更新 agent/__init__.py 导出 CADDrawingAgent
   - [x] 添加结构类型扩展计划文档
   - [x] 提交：61eb816, c7033b9
+- [x] **阶段 8 收尾：梁截面详图修复** ✨ 今日完成
+  - [x] 修复 `_draw_beam_detail` 使用实际截面尺寸绘制
+  - [x] 修复 `_add_section_dimensions` 标注坐标偏移问题
+  - [x] 手动测试确认标注正确
+  - [x] 记录单位问题：LLM 可能返回 mm 单位参数
+  - [x] 记录技术方案：添加 `units` 字段支持多单位（待实施）
+  - [x] 提交：待提交
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
 - [ ] **阶段 10.5**：架构验证（添加悬臂梁）
@@ -153,17 +160,16 @@ tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_dra
 
 ---
 
-### 🔥 优先任务：阶段 8 集成测试
+### 🔥 优先任务：阶段 9 - EvaluationAgent 实现
 
-**目标**：运行 StructuralDesignAgent → FEAnalysisAgent → CADDrawingAgent 端到端集成测试
+**目标**：实现 EvaluationAgent 进行设计质量评估
 
 **子任务**：
-1. [ ] 创建集成测试脚本 `tests/integration/test_stage8_integration.py`
-2. [ ] 测试完整工作流：设计 → 分析 → 绘图
-3. [ ] 验证 DesignProposal 数据传递正确
-4. [ ] 验证 AnalysisResults 数值合理
-5. [ ] 验证 DrawingResults 格式正确
-6. [ ] 验证 DXF 文件生成正常
+1. [ ] 创建 EvaluationAgent 类（继承 ToolCallAgent）
+2. [ ] 集成 EvaluationTool 进行设计质量评估
+3. [ ] 返回 EvaluationReport（JSON 字符串）
+4. [ ] 编写单元测试
+5. [ ] 支持循环模式（可选）
 
 ## 技术栈
 
@@ -189,15 +195,24 @@ tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_dra
 - ✅ AskHuman 工具 EOFError 处理
 
 ### 待解决
+- ⭐ 单位不一致问题（LLM 可能返回 mm 单位参数）
+  - 记录技术方案：添加 `units` 字段支持多单位输入
+  - 待在 DesignAgent、FEAnalysisTool、BeamDrawer 中实施
 - ⭐ 循环模式最大轮数问题（已记录，搁置处理）
 
 ## 下一步行动
 
-1. 开始阶段 8 集成测试（推荐）
-2. 或开始阶段 9：EvaluationAgent 实现
+1. **单位支持优化**（优先级1）：添加 `units` 字段支持多单位输入
+   - 在 DesignAgent 的系统提示词中添加 `units` 字段说明
+   - 在 FEAnalysisTool 中添加单位检测和转换逻辑
+   - 在 BeamDrawer 中添加单位检测和转换逻辑
+   - 测试不同单位（m 和 mm）的输入
+
+2. 开始阶段 9：EvaluationAgent 实现（优先级2）
+
 3. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
 
 ---
 
-**最后更新**：2026-02-22
+**最后更新**：2026-02-23
 **更新人**：Claude Code

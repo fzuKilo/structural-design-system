@@ -1,69 +1,62 @@
 # 开发日志
 
-## 2026-02-22
+## 2026-02-23
 
 ### 完成的工作
 
-1. **阶段 7 尾声：循环逻辑优化** - 完全完成 ✅
-   - 移除 `max_loop_count` 参数，改为无限循环模式
-   - 循环直到 design passes code_check 或用户输入 "skip"
-   - 轮次显示从 "第 X/Y 轮" 改为 "第 X 轮"
-   - 添加连续失败检测（5次失败后警告用户）
-   - 更符合工程逻辑：持续优化直到设计合格
-   - 测试通过：12m跨度简支梁，3轮改进后通过规范校核
+1. **梁截面详图尺寸标注修复** - 完全完成 ✅
+   - 问题：梁截面详图宽度标注固定为400，与实际设计不符
+   - 解决：修改 `_draw_beam_detail` 方法，使用实际截面尺寸 `width_mm` 和 `height_mm` 绘制
+   - 修复 `_add_section_dimensions` 方法，修正标注坐标以匹配居中绘制的矩形
+   - 结果：标注的宽度和高度与设计参数完全一致
 
-2. **阶段 8：CADDrawingAgent 实现** - 完全完成 ✅
-   - 创建 `CADDrawingAgent` 类（`structural_app/agent/cad_drawing_agent.py`）
-   - 继承 OpenManus 的 ToolCallAgent
-   - 集成 CADDrawingTool 生成 CAD 图纸
-   - 集成 AskHuman 工具支持参数修正
-   - 实现系统提示词引导 LLM 调用 CADDrawingTool
-   - 实现 DesignProposal 和 DrawingResults 提取方法
-   - 支持循环模式（可选，通过 enable_loop 参数控制）
-   - 编写 11 个单元测试，全部通过 ✓
+2. **单位问题分析与讨论** - 完成 ✅
+   - 问题：用户报告标注数值错误（300mm显示30000，500mm显示50000）
+   - 分析：发现 LLM 返回的设计方案中几何参数单位可能是 mm 而非 meters
+   - 讨论：考虑了多种方案（数值判断、添加 units 字段等）
+   - 结论：按数值判断单位不安全，建议添加 `units` 字段显式声明单位
+   - 状态：待下次工作时 implemented（在 DesignAgent、FEAnalysisTool、BeamDrawer 中支持 units 字段）
 
-3. **CADDrawingTool 导入修复** - 完全完成 ✅
-   - 问题：相对导入导致 ModuleNotFoundError
-   - 解决：cad_drawing_tool.py 改用绝对导入 `from structural_app.tool.drawers...`
-   - 添加 OpenManus 导入兼容性处理
-
-4. **结构类型扩展计划** - 完成 ✅
-   - 创建 `docs/structure_expansion_plan.md`
-   - 规划 CantileverBeam、ContinuousBeam、Truss、Frame 等类型扩展
-   - 为架构验证（阶段10.5）做准备
-
-5. **包导出更新** - 完成 ✅
-   - 更新 `structural_app/agent/__init__.py` 导出 CADDrawingAgent
-   - 确保模块可正确导入
-
-6. **Git 提交**
-   - commit 26a3f60: fix: 优化循环逻辑，无限循环直到设计通过规范校核
-   - commit c7033b9: docs: 添加结构类型扩展计划
-   - commit 61eb816: feat: 实现CADDrawingAgent（阶段8）
-   - 推送到远程 dev 分支
+3. **Git 提交**
+   - commit 53f622f: fix: 阶段8集成测试修复（上次提交）
+   - 本次修改：`structural_app/tool/drawers/beam_drawer.py`
 
 ### 遇到的问题
 
-**问题 1：CADDrawingTool 相对导入失败**
-- **现象**：`from .drawers.drawer_factory import DrawerFactory` 失败
-- **原因**：cad_drawing_tool.py 使用相对导入，在某些导入场景下无法解析
-- **解决**：改用绝对导入 `from structural_app.tool.drawers.drawer_factory import DrawerFactory`
+**问题 1：梁截面详图尺寸标注错误**
+- **现象**：宽度标注总是400mm，高度标注与实际不符
+- **原因**：`_draw_beam_detail` 使用固定宽度400绘制示意图形，但标注时传入的也是400
+- **解决**：
+  1. 修改 `_draw_beam_detail` 使用实际 `width_mm` 和 `height_mm` 绘制
+  2. 修改 `_add_section_dimensions` 考虑居中绘制的偏移量（`start_x = -width_mm/2`）
+- **验证**：手动测试确认标注正确
+
+**问题 2：标注起点位置错误**
+- **现象**：尺寸标注起点位于线段中间
+- **原因**：`_add_section_dimensions` 假设矩形从 (0,0) 开始，但实际上矩形是居中绘制的
+- **解决**：在 `_add_section_dimensions` 中计算实际坐标 `start_x = -width_mm/2`，调整标注的 p1/p2 位置
+
+**问题 3：单位不一致问题（已记录，待解决）**
+- **现象**：标注数值是实际值的100倍（如300mm显示30000）
+- **原因**：设计参数可能以 mm 传入，但代码假设为 meters 并乘以 1000
+- **讨论方案**：
+  - 方案A：按数值大小判断单位（length > 100 认为是 mm）- 不保险，易出错
+  - 方案B：在 JSON 中添加 `units` 字段显式声明单位 - 推荐方案
+- **决定**：采用方案B，下次工作时实施
 
 ### 技术决策
 
-- **循环模式优化**：移除最大轮数限制，改为无限循环直到设计合格或用户跳过
-- **连续失败检测**：添加5次连续失败警告，防止无限循环
-- **导入策略**：绝对导入优先，确保模块可独立导入
-- **工具集成方式**：通过 available_tools 暴露给 LLM，由 LLM 决定何时调用
+- **截面详图绘制策略**：使用实际截面尺寸绘制，确保图形与标注一致
+- **标注坐标计算**：考虑居中绘制的偏移量，确保标注对齐到矩形边缘
+- **单位处理策略**：添加 `units` 字段支持多种单位输入（待实施）
 
 ### 明天计划
 
-**优先级1：阶段 8 集成测试**
-- 运行 StructuralDesignAgent → FEAnalysisAgent → CADDrawingAgent 端到端测试
-- 验证 DesignProposal 数据传递正确
-- 验证 CADDrawingTool 生成 DXF 文件
-- 验证 DrawingResults 格式正确
-- 测试完整工作流
+**优先级1：单位支持优化**
+- 在 DesignAgent 的系统提示词中添加 `units` 字段说明
+- 在 FEAnalysisTool 中添加单位检测和转换逻辑
+- 在 BeamDrawer 中添加单位检测和转换逻辑
+- 测试不同单位（m 和 mm）的输入
 
 **优先级2：阶段 9 - EvaluationAgent 实现**
 - 创建 EvaluationAgent 类（继承 ToolCallAgent）

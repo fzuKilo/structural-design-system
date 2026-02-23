@@ -47,9 +47,9 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            length_mm = geometry.get('length', 6.0) * 1000  # Convert to mm
-            width_mm = geometry.get('width', 0.3) * 1000    # Convert to mm
-            height_mm = geometry.get('height', 0.6) * 1000  # Convert to mm
+            length_mm = geometry.get('length', 6000)  # in mm
+            width_mm = geometry.get('width', 300)     # in mm
+            height_mm = geometry.get('height', 600)   # in mm
 
             constraints = design.get('constraints', {})
             support_type = constraints.get('support_type', 'simply_supported')
@@ -97,8 +97,8 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            length_mm = geometry.get('length', 6.0) * 1000
-            width_mm = geometry.get('width', 0.3) * 1000
+            length_mm = geometry.get('length', 6000)  # in mm
+            width_mm = geometry.get('width', 300)     # in mm
 
             # Create new DXF document
             doc = ezdxf.new('R2010', setup=True)
@@ -142,8 +142,8 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            width_mm = geometry.get('width', 0.3) * 1000
-            height_mm = geometry.get('height', 0.6) * 1000
+            width_mm = geometry.get('width', 300)     # in mm
+            height_mm = geometry.get('height', 600)   # in mm
 
             # Create new DXF document
             doc = ezdxf.new('R2010', setup=True)
@@ -307,9 +307,10 @@ class BeamDrawer(StructureDrawer):
             width_mm: Beam width in mm
             height_mm: Beam height in mm
         """
-        # Draw cross-section rectangle
-        section_width = 400  # Fixed width for detail view
-        section_height = height_mm * (section_width / width_mm)  # Scaled height
+        # Draw cross-section rectangle with actual width, scaled height
+        # This ensures dimensions match the drawn geometry
+        section_width = width_mm
+        section_height = height_mm  # Use actual height for correct proportions
 
         # Center the section
         start_x = -section_width / 2
@@ -451,20 +452,24 @@ class BeamDrawer(StructureDrawer):
             if dimstyle:
                 dimstyle.dxf.dimtxt = 150
 
-            # Width dimension
+            # Calculate actual coordinates (centered)
+            start_x = -width_mm / 2
+            start_y = 0
+
+            # Width dimension (below the section)
             msp.add_linear_dim(
-                base=(width_mm / 2, -200),
-                p1=(0, 0),
-                p2=(width_mm, 0),
+                base=(start_x + width_mm / 2, start_y - 200),
+                p1=(start_x, start_y),
+                p2=(start_x + width_mm, start_y),
                 dimstyle='EZDXF',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
 
-            # Height dimension
+            # Height dimension (to the right of the section)
             msp.add_linear_dim(
-                base=(width_mm + 200, height_mm / 2),
-                p1=(width_mm, 0),
-                p2=(width_mm, height_mm),
+                base=(start_x + width_mm + 200, start_y + height_mm / 2),
+                p1=(start_x + width_mm, start_y),
+                p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
                 dimstyle='EZDXF',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
