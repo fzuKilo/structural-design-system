@@ -389,17 +389,17 @@ class BeamDrawer(StructureDrawer):
             if dim_style:
                 dim_style.dxf.dimtxt = 150
 
-            msp.add_linear_dim(
+            dim = msp.add_linear_dim(
                 base=(length_mm / 2, -200),
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={
-                    'dimtxt': 150,
-                    'dimclrt': colors.RED,
-                    'text': f"{int(length_mm)}"
-                }
+                override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            # Set explicit text (overwrite the dynamic <>)
+            for entity in msp:
+                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
+                    entity.dxf.text = f"{int(length_mm)}"
         except Exception as e:
             print(f"Warning: Could not add plan dimensions: {e}")
 
@@ -539,32 +539,32 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimasz = 100
                 dimstyle.dxf.dimtxt = 150
 
-            # Length dimension - use explicit text instead of dynamic <>
-            msp.add_linear_dim(
+            # Length dimension
+            dim = msp.add_linear_dim(
                 base=(length_mm / 2, -1200),
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={
-                    'dimtxt': 150,
-                    'dimclrt': colors.RED,
-                    'text': f"{int(length_mm)}"  # Explicit text value
-                }
+                override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            # Set explicit text (overwrite the dynamic <>)
+            for entity in msp:
+                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
+                    entity.dxf.text = f"{int(length_mm)}"
 
-            # Height dimension - use explicit text instead of dynamic <>
-            msp.add_linear_dim(
+            # Height dimension
+            dim = msp.add_linear_dim(
                 base=(-800, height_mm / 2),
                 p1=(0, 0),
                 p2=(0, height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={
-                    'dimtxt': 150,
-                    'dimclrt': colors.RED,
-                    'text': f"{int(height_mm)}"  # Explicit text value
-                }
+                override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            # Set explicit text (overwrite the dynamic <>)
+            for entity in msp:
+                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
+                    entity.dxf.text = f"{int(height_mm)}"
         except Exception as e:
             print(f"Warning: Could not add dimensions: {e}")
 
@@ -580,32 +580,32 @@ class BeamDrawer(StructureDrawer):
             start_x = -width_mm / 2
             start_y = 0
 
-            # Width dimension (below the section) - use explicit text
-            msp.add_linear_dim(
+            # Width dimension (below the section)
+            dim = msp.add_linear_dim(
                 base=(start_x + width_mm / 2, start_y - 200),
                 p1=(start_x, start_y),
                 p2=(start_x + width_mm, start_y),
                 dimstyle='MM_UNITS',
-                override={
-                    'dimtxt': 150,
-                    'dimclrt': colors.RED,
-                    'text': f"{int(width_mm)}"
-                }
+                override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            # Set explicit text (overwrite the dynamic <>)
+            for entity in msp:
+                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
+                    entity.dxf.text = f"{int(width_mm)}"
 
-            # Height dimension (to the right of the section) - use explicit text
-            msp.add_linear_dim(
+            # Height dimension (to the right of the section)
+            dim = msp.add_linear_dim(
                 base=(start_x + width_mm + 200, start_y + height_mm / 2),
                 p1=(start_x + width_mm, start_y),
                 p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={
-                    'dimtxt': 150,
-                    'dimclrt': colors.RED,
-                    'text': f"{int(height_mm)}"
-                }
+                override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            # Set explicit text (overwrite the dynamic <>)
+            for entity in msp:
+                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
+                    entity.dxf.text = f"{int(height_mm)}"
         except Exception as e:
             print(f"Warning: Could not add section dimensions: {e}")
 
