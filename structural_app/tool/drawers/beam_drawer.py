@@ -112,6 +112,14 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            # This fixes the issue where AutoCAD displays 600000 instead of 6000
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimtxt = 150
+
             # Draw beam elevation
             self._draw_beam_elevation(
                 msp=msp,
@@ -162,6 +170,13 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimtxt = 150
+
             # Draw beam plan
             self._draw_beam_plan(
                 msp=msp,
@@ -210,6 +225,13 @@ class BeamDrawer(StructureDrawer):
 
             # Setup Chinese font style
             self._setup_chinese_style(doc)
+
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimtxt = 150
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(
@@ -480,12 +502,9 @@ class BeamDrawer(StructureDrawer):
             # Get default dimstyle
             dimstyle = msp.doc.dimstyles.get('EZDXF')
             if dimstyle:
-                # Fix unit conversion: ezdxf default dimlfac=100 causes 100x multiplication
-                # Set dimlfac=1 for direct mm values
-                dimstyle.dxf.dimlfac = 1.0
-                # Set dimasz to reasonable mm value (100 instead of 0.175)
+                # Set dimasz to reasonable mm value
                 dimstyle.dxf.dimasz = 100
-                # Set dimtxt to reasonable mm value (150 instead of 0.25)
+                # Set dimtxt to reasonable mm value
                 dimstyle.dxf.dimtxt = 150
 
             # Length dimension
@@ -514,8 +533,6 @@ class BeamDrawer(StructureDrawer):
         try:
             dimstyle = doc.dimstyles.get('EZDXF')
             if dimstyle:
-                # Fix unit conversion: ezdxf default dimlfac=100 causes 100x multiplication
-                dimstyle.dxf.dimlfac = 1.0
                 dimstyle.dxf.dimtxt = 150
 
             # Calculate actual coordinates (centered)
