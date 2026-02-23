@@ -125,10 +125,11 @@ You MUST output a valid JSON object with the following structure:
 
 {
   "type": "<structure_type>",  // REQUIRED: "beam", "frame", "truss", etc.
+  "units": "<units>",          // REQUIRED: "m" or "mm" (specifies units for geometry)
   "geometry": {
-    "length": <number>,        // in meters
-    "width": <number>,         // in meters (for cross-section)
-    "height": <number>,        // in meters (for cross-section)
+    "length": <number>,        // in specified units (m or mm)
+    "width": <number>,         // in specified units (for cross-section)
+    "height": <number>,        // in specified units (for cross-section)
     "n_elements": <integer>    // number of finite elements (default: 20)
   },
   "material": {
@@ -147,7 +148,7 @@ You MUST output a valid JSON object with the following structure:
     "point": [                 // Point loads (optional)
       {
         "P": <number>,         // Load magnitude in N
-        "location": <number>,  // Position along beam in m
+        "location": <number>,  // Position along beam in same units as geometry
         "direction": "y"       // "x" or "y"
       }
     ]
@@ -156,6 +157,12 @@ You MUST output a valid JSON object with the following structure:
     "support_type": "<type>"   // "simply_supported", "cantilever", "fixed_fixed"
   }
 }
+
+UNITS GUIDELINES:
+- Use "m" for meters (default for most structural engineering calculations)
+- Use "mm" for millimeters (common in CAD drawings)
+- ALL geometry dimensions must use the same units specified in the "units" field
+- Load values have fixed units: q in N/m, P in N (independent of geometry units)
 
 DESIGN GUIDELINES:
 1. For beams:

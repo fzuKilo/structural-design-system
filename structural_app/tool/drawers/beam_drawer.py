@@ -26,6 +26,25 @@ class BeamDrawer(StructureDrawer):
         super().__init__()
         self.output_dir = "output/drawings"
 
+    def _convert_to_mm(self, value: float, units: str) -> float:
+        """
+        Convert value from specified units to millimeters
+
+        Args:
+            value: Value to convert
+            units: Source units ("m" or "mm")
+
+        Returns:
+            Value in millimeters
+        """
+        if units == "m":
+            return value * 1000.0
+        elif units == "mm":
+            return value
+        else:
+            # Default to meters if unknown unit, then convert to mm
+            return value * 1000.0
+
     def _get_structure_type(self) -> str:
         """Return structure type identifier"""
         return "beam"
@@ -40,6 +59,7 @@ class BeamDrawer(StructureDrawer):
                 - material: {E, nu, fy}
                 - loads: {distributed, point}
                 - constraints: {support_type}
+                - units: "m" or "mm" (optional, default "m")
 
         Returns:
             Path to the generated DXF file
@@ -47,9 +67,12 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            length_mm = geometry.get('length', 6000)  # in mm
-            width_mm = geometry.get('width', 300)     # in mm
-            height_mm = geometry.get('height', 600)   # in mm
+            units = design.get('units', 'm')  # Get units, default to "m"
+
+            # Convert to mm for CAD drawing
+            length_mm = self._convert_to_mm(geometry.get('length', 6), units)
+            width_mm = self._convert_to_mm(geometry.get('width', 0.3), units)
+            height_mm = self._convert_to_mm(geometry.get('height', 0.6), units)
 
             constraints = design.get('constraints', {})
             support_type = constraints.get('support_type', 'simply_supported')
@@ -89,7 +112,7 @@ class BeamDrawer(StructureDrawer):
         Draw the plan view (top view) of the beam
 
         Args:
-            design: Design parameters
+            design: Design parameters including units field
 
         Returns:
             Path to the generated DXF file
@@ -97,8 +120,11 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            length_mm = geometry.get('length', 6000)  # in mm
-            width_mm = geometry.get('width', 300)     # in mm
+            units = design.get('units', 'm')  # Get units, default to "m"
+
+            # Convert to mm for CAD drawing
+            length_mm = self._convert_to_mm(geometry.get('length', 6), units)
+            width_mm = self._convert_to_mm(geometry.get('width', 0.3), units)
 
             # Create new DXF document
             doc = ezdxf.new('R2010', setup=True)
@@ -134,7 +160,7 @@ class BeamDrawer(StructureDrawer):
         Draw detailed views (cross-section details) of the beam
 
         Args:
-            design: Design parameters
+            design: Design parameters including units field
 
         Returns:
             Path to the generated DXF file
@@ -142,8 +168,11 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            width_mm = geometry.get('width', 300)     # in mm
-            height_mm = geometry.get('height', 600)   # in mm
+            units = design.get('units', 'm')  # Get units, default to "m"
+
+            # Convert to mm for CAD drawing
+            width_mm = self._convert_to_mm(geometry.get('width', 0.3), units)
+            height_mm = self._convert_to_mm(geometry.get('height', 0.6), units)
 
             # Create new DXF document
             doc = ezdxf.new('R2010', setup=True)

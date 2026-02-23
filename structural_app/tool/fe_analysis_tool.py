@@ -64,9 +64,9 @@ class FEAnalysisTool(BaseTool):
                     "type": "object",
                     "description": "Geometric parameters (length, width, height, etc). Use this OR design_proposal, not both.",
                     "properties": {
-                        "length": {"type": "number", "description": "Length in meters"},
-                        "width": {"type": "number", "description": "Width in meters"},
-                        "height": {"type": "number", "description": "Height in meters"},
+                        "length": {"type": "number", "description": "Length in specified units (m or mm)"},
+                        "width": {"type": "number", "description": "Width in specified units (for cross-section)"},
+                        "height": {"type": "number", "description": "Height in specified units (for cross-section)"},
                         "n_elements": {"type": "integer", "description": "Number of finite elements (optional, default 20)"}
                     },
                     "required": ["length", "width", "height"]
@@ -123,12 +123,36 @@ class FEAnalysisTool(BaseTool):
                         }
                     },
                     "required": ["support_type"]
+                },
+                "units": {
+                    "type": "string",
+                    "description": "Units for geometry values (default: 'm' for meters). Use 'mm' for millimeters.",
+                    "enum": ["m", "mm"]
                 }
             },
             # Make design_proposal mutually exclusive with individual parameters
             # At least one format must be provided
             "required": []
         }
+
+    def _convert_to_meters(self, value: float, units: str) -> float:
+        """
+        Convert value from specified units to meters
+
+        Args:
+            value: Value to convert
+            units: Source units ("m" or "mm")
+
+        Returns:
+            Value in meters
+        """
+        if units == "mm":
+            return value / 1000.0
+        elif units == "m":
+            return value
+        else:
+            # Default to meters if unknown unit
+            return value
 
     async def execute(self, **kwargs) -> ToolResult:
         """
@@ -159,11 +183,14 @@ class FEAnalysisTool(BaseTool):
             # First try design_proposal, then input for backward compatibility
             design_proposal = kwargs.get('design_proposal') or kwargs.get('input')
 
+            units = "m"  # Default to meters
+
             if design_proposal and isinstance(design_proposal, str):
                 # Parse JSON string
                 try:
                     parsed_proposal = json_module.loads(design_proposal)
                     structure_type = parsed_proposal.get('type')
+                    units = parsed_proposal.get('units', "m")  # Get units, default to "m"
                     geometry = parsed_proposal.get('geometry')
                     material = parsed_proposal.get('material')
                     loads = parsed_proposal.get('loads')
@@ -176,6 +203,7 @@ class FEAnalysisTool(BaseTool):
             elif design_proposal and isinstance(design_proposal, dict):
                 # Extract from design_proposal dict
                 structure_type = design_proposal.get('type')
+                units = design_proposal.get('units', "m")  # Get units, default to "m"
                 geometry = design_proposal.get('geometry')
                 material = design_proposal.get('material')
                 loads = design_proposal.get('loads')
@@ -183,6 +211,7 @@ class FEAnalysisTool(BaseTool):
             else:
                 # Format 1: Individual parameters
                 structure_type = kwargs.get('structure_type')
+                units = kwargs.get('units', "m")  # Get units, default to "m"
                 geometry = kwargs.get('geometry')
                 material = kwargs.get('material')
                 loads = kwargs.get('loads')
@@ -201,6 +230,15 @@ class FEAnalysisTool(BaseTool):
 
             # Create analyzer using factory
             analyzer = AnalyzerFactory.create(structure_type)
+
+            # Convert geometry to meters if units is mm
+            if geometry and units == "mm":
+                geometry = {
+                    "length": self._convert_to_meters(geometry.get("length", 0), units),
+                    "width": self._convert_to_meters(geometry.get("width", 0), units),
+                    "height": self._convert_to_meters(geometry.get("height", 0), units),
+                    "n_elements": geometry.get("n_elements", 20)
+                }
 
             # Prepare design parameters
             design = {
