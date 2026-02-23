@@ -181,6 +181,29 @@ DESIGN GUIDELINES:
 
 4. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
 
+CRITICAL: UNITS FIELD IS MANDATORY:
+====================================
+You MUST always include the "units" field in your JSON output. This is REQUIRED.
+- If geometry values are in meters, set "units": "m"
+- If geometry values are in millimeters, set "units": "mm"
+- ALL geometry dimensions (length, width, height) must use the same units
+
+Example 1 (using meters):
+{
+  "type": "beam",
+  "units": "m",
+  "geometry": {"length": 6.0, "width": 0.3, "height": 0.6},
+  ...
+}
+
+Example 2 (using millimeters):
+{
+  "type": "beam",
+  "units": "mm",
+  "geometry": {"length": 6000, "width": 300, "height": 600},
+  ...
+}
+
 CRITICAL RULES FOR PARAMETER COLLECTION:
 =========================================
 
@@ -340,6 +363,13 @@ Remember to output ONLY a valid JSON object following the specified format."""
         # Validate constraints
         if 'support_type' not in proposal['constraints']:
             return False, "Missing required constraint field: support_type"
+
+        # Validate units field (MANDATORY)
+        if 'units' not in proposal:
+            return False, "Missing required 'units' field. You MUST specify 'units': 'm' or 'units': 'mm'"
+
+        if proposal['units'] not in ['m', 'mm']:
+            return False, "Invalid 'units' value. Must be 'm' (meters) or 'mm' (millimeters)"
 
         return True, None
 

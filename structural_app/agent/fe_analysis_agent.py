@@ -127,10 +127,11 @@ INPUT FORMAT:
 You will receive a DesignProposal in JSON format with the following structure:
 {
   "type": "<structure_type>",  // "beam", "frame", "truss", etc.
+  "units": "m" or "mm",        // Units for geometry values (default: "m")
   "geometry": {
-    "length": <number>,        // in meters
-    "width": <number>,         // in meters
-    "height": <number>,        // in meters
+    "length": <number>,        // in specified units (m or mm)
+    "width": <number>,         // in specified units (for cross-section)
+    "height": <number>,        // in specified units (for cross-section)
     "n_elements": <integer>    // number of finite elements
   },
   "material": {
@@ -178,6 +179,7 @@ IMPORTANT:
 - Always use the fe_analysis tool to perform the analysis
 - Do not try to calculate results manually
 - Pass the complete DesignProposal to the fe_analysis tool
+- **CRITICAL: The DesignProposal MUST include the "units" field** ("m" for meters or "mm" for millimeters)
 - Return the AnalysisResults exactly as provided by the fe_analysis tool
 
 ANALYSIS WORKFLOW:

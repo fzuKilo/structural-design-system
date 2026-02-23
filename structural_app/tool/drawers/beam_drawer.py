@@ -49,6 +49,33 @@ class BeamDrawer(StructureDrawer):
         """Return structure type identifier"""
         return "beam"
 
+    def _detect_units(self, geometry: Dict[str, Any], explicit_units: str) -> str:
+        """
+        Detect units from geometry values if not explicitly specified
+
+        Args:
+            geometry: Geometry parameters
+            explicit_units: Explicitly specified units from design["units"]
+
+        Returns:
+            Detected units ("m" or "mm")
+        """
+        if explicit_units != "m":
+            return explicit_units
+
+        # Smart unit detection: if geometry values are very large, they are likely in mm
+        length = geometry.get('length', 0)
+        width = geometry.get('width', 0)
+        height = geometry.get('height', 0)
+
+        # If any dimension is > 100, assume it's in mm (common for structural elements)
+        if length > 100 or width > 100 or height > 100:
+            # Check if values look like mm (divisible by 100 or round numbers)
+            if length >= 1000 or (length > 100 and length % 100 == 0):
+                return "mm"
+
+        return explicit_units
+
     def draw_elevation(self, design: Dict[str, Any]) -> Optional[str]:
         """
         Draw the elevation view (side view) of the beam
@@ -67,7 +94,8 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            units = design.get('units', 'm')  # Get units, default to "m"
+            explicit_units = design.get('units', 'm')  # Get units, default to "m"
+            units = self._detect_units(geometry, explicit_units)  # Smart detection
 
             # Convert to mm for CAD drawing
             length_mm = self._convert_to_mm(geometry.get('length', 6), units)
@@ -120,7 +148,8 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            units = design.get('units', 'm')  # Get units, default to "m"
+            explicit_units = design.get('units', 'm')  # Get units, default to "m"
+            units = self._detect_units(geometry, explicit_units)  # Smart detection
 
             # Convert to mm for CAD drawing
             length_mm = self._convert_to_mm(geometry.get('length', 6), units)
@@ -168,7 +197,8 @@ class BeamDrawer(StructureDrawer):
         try:
             # Extract beam parameters
             geometry = design.get('geometry', {})
-            units = design.get('units', 'm')  # Get units, default to "m"
+            explicit_units = design.get('units', 'm')  # Get units, default to "m"
+            units = self._detect_units(geometry, explicit_units)  # Smart detection
 
             # Convert to mm for CAD drawing
             width_mm = self._convert_to_mm(geometry.get('width', 0.3), units)

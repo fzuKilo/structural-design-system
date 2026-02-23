@@ -217,6 +217,19 @@ class FEAnalysisTool(BaseTool):
                 loads = kwargs.get('loads')
                 constraints = kwargs.get('constraints')
 
+            # Smart unit detection: if geometry values are very large, they are likely in mm
+            # This handles cases where LLM returns mm values without units field
+            if geometry and units == "m":
+                length = geometry.get('length', 0)
+                width = geometry.get('width', 0)
+                height = geometry.get('height', 0)
+                # If any dimension is > 100, assume it's in mm (common for structural elements)
+                if length > 100 or width > 100 or height > 100:
+                    # Check if values look like mm (divisible by 100 or round numbers)
+                    if length >= 1000 or (length > 100 and length % 100 == 0):
+                        units = "mm"
+                        print(f"Smart unit detection: detected mm units (length={length})")
+
             # Validate structure type
             if not AnalyzerFactory.is_registered(structure_type):
                 available_types = AnalyzerFactory.get_available_types()

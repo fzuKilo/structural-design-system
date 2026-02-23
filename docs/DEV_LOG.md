@@ -4,6 +4,77 @@
 
 ### 完成的工作
 
+1. **单位支持优化 - 完全完成** ✅
+   - 在 DesignAgent 系统提示词中添加 `units` 字段说明（m 或 mm）
+   - 在 FEAnalysisTool 中添加单位检测和转换逻辑（mm -> m）
+   - 在 BeamDrawer 中添加单位检测和转换逻辑（m -> mm）
+   - 在 CADDrawingTool 中添加 units 字段传递逻辑
+   - 在 FEAnalysisAgent 和 CADDrawingAgent 系统提示词中添加 `units` 字段说明
+   - 测试验证：使用 m 和 mm 单位得到相同的分析结果
+
+2. **图纸标注问题深入调查** - 进行中 🔍
+   - 问题：用户报告图纸标注数字错误（300mm显示30000，6m显示600000）
+   - 初步分析：发现单位转换逻辑存在，但标注数值仍不正确
+   - 检查了 FEAnalysisTool、BeamDrawer、CADDrawingTool 的单位处理逻辑
+   - 检查了 CADDrawingAgent 调用 cad_drawing tool 时的参数传递
+   - 发现问题：LLM 在调用工具时没有正确传递 `units` 字段
+
+### 遇到的问题
+
+**问题：图纸标注数值错误（单位转换问题）**
+- **现象**：标注数值是实际值的 100 倍（如 300mm 显示 30000，6m 显示 600000）
+- **初步分析**：
+  1. FEAnalysisTool 的 `_convert_to_meters` 方法：mm -> m（除以 1000）✅
+  2. BeamDrawer 的 `_convert_to_mm` 方法：m -> mm（乘以 1000）✅
+  3. 智能单位检测逻辑：当数值 > 100 且符合 mm 特征时自动识别为 mm ✅
+- **当前状态**：
+  1. LLM 返回的设计方案包含 `"units": "m"`
+  2. FEAnalysisTool 接收到的 `design_proposal` 包含 `units` 字段
+  3. CADDrawingAgent 调用 `cad_drawing` tool 时的参数仍然没有 `units` 字段
+  4. 问题可能出在 FEAnalysisTool 的输出中，detailed_results.geometry 是 m 单位
+  5. CADDrawingAgent 从 FEAnalysisTool 的输出中提取 DesignProposal 时丢失了 `units` 字段
+
+**根本原因分析**：
+1. LLM 返回的设计方案：`{"type": "beam", "units": "m", "geometry": {"length": 6.0, "width": 0.3, "height": 0.5}, ...}`
+2. FEAnalysisTool 接收到后，因为 `units="m"`，不进行转换，直接分析
+3. FEAnalysisTool 返回的结果中，`detailed_results.geometry` 仍然是 m 单位（6.0, 0.3, 0.5）
+4. CADDrawingAgent 从 FEAnalysisTool 的输出中提取 DesignProposal 时，只提取了 geometry 等字段，**没有提取 `units` 字段**
+5. CADDrawingAgent 调用 cad_drawing tool 时，参数中没有 `units` 字段
+6. CADDrawingTool 的 execute() 方法中，`units = kwargs.get('units', "m")` 默认为 "m"
+7. BeamDrawer 的 `_detect_units` 方法检测到数值很小（6.0, 0.3, 0.5），判断为 m 单位
+8. `_convert_to_mm` 将 m 转换为 mm：6.0 -> 6000, 0.3 -> 300, 0.5 -> 500 ✅（这应该是正确的）
+9. 但是用户报告的数值是 30000 和 600000，说明转换时乘了 100 而不是 1000
+
+**待验证**：
+- 检查 BeamDrawer 的 `_convert_to_mm` 方法是否正确
+- 检查是否有其他地方进行了额外的单位转换
+- 检查ezdxf的标注代码是否正确使用了转换后的数值
+
+### 技术决策
+
+- **单位支持策略**：添加 `units` 字段显式声明单位，支持 m 和 mm 两种单位
+- **智能检测**：当 `units` 字段缺失时，通过数值大小和特征判断单位（length > 100 且符合 mm 特征）
+- **转换逻辑**：
+  - FEAnalysisTool：mm -> m（分析时统一使用 m）
+  - BeamDrawer：m -> mm（CAD 绘图统一使用 mm）
+
+### 明天计划
+
+**优先级1：解决图纸标注单位问题** 🔴
+- 深入调试图纸生成代码，找到具体的数值错误位置
+- 检查 ezdxf 的标注代码（`_add_annotations` 方法）
+- 验证转换后的数值是否正确传递到标注函数
+- 手动测试图纸生成流程，输出中间数值进行对比
+
+**优先级2：更新文档**
+- 更新 `CURRENT_TASK.md`：标记单位支持优化完成，图纸标注问题进行中
+
+---
+
+## 2026-02-23
+
+### 完成的工作
+
 1. **梁截面详图尺寸标注修复** - 完全完成 ✅
    - 问题：梁截面详图宽度标注固定为400，与实际设计不符
    - 解决：修改 `_draw_beam_detail` 方法，使用实际截面尺寸 `width_mm` 和 `height_mm` 绘制

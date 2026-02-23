@@ -132,6 +132,7 @@ class CADDrawingTool(BaseTool):
             material: Material properties
             loads: Load cases
             constraints: Boundary conditions
+            units: Units for geometry values (optional: "m" or "mm")
 
         Returns:
             ToolResult containing drawing results or error
@@ -143,6 +144,7 @@ class CADDrawingTool(BaseTool):
             material = kwargs.get('material')
             loads = kwargs.get('loads')
             constraints = kwargs.get('constraints')
+            units = kwargs.get('units')  # Get units if provided
 
             # Validate structure type
             if not DrawerFactory.is_registered(structure_type):
@@ -165,6 +167,10 @@ class CADDrawingTool(BaseTool):
                 'loads': loads,
                 'constraints': constraints
             }
+
+            # Add units to design if provided
+            if units:
+                design['units'] = units
 
             # Generate all drawings
             results = drawer.generate_drawings(design)

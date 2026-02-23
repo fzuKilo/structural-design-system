@@ -6,6 +6,21 @@
 **当前分支**：dev
 **最新提交**：7efc027 - feat: 添加单位支持优化（units 字段）
 
+## 图纸标注单位问题追踪 🔴
+
+**问题描述**：用户手动测试报告图纸标注数字错误
+- 300mm 显示 30000
+- 500mm 显示 50000
+- 6m 显示 600000
+- 疑似转换时乘了 100 而不是 1000
+
+**调查状态**：进行中 🔍
+- 已检查 FEAnalysisTool、BeamDrawer、CADDrawingTool 的单位处理逻辑
+- 已检查 CADDrawingAgent 的参数传递
+- 待深入调试图纸生成代码和 ezdxf 标注代码
+
+**优先级**：P0（阻塞性问题，需优先解决）
+
 ## 开发阶段进度
 
 根据 `OpenManus开发规划2.4.md`：
@@ -98,6 +113,7 @@
   - [x] 测试验证不同单位转换正确
   - [x] 提交：7efc027
 - [ ] **阶段 9**：EvaluationAgent 实现
+- [ ] **图纸标注单位问题修复** 🔴 待解决
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
 - [ ] **阶段 10.5**：架构验证（添加悬臂梁）
 - [ ] **阶段 11-13**：增强功能（规范验证、评估、报告、RAG）
@@ -142,6 +158,22 @@
 2. 第一次改进：0.5m高，C40混凝土 → 仍不合格
 3. 第二次改进：0.8m高，C40混凝土 → 仍不合格
 4. 第三次改进：1.2m高，C40混凝土 → 完全合格
+
+---
+
+### 🔴 待解决：图纸标注单位问题
+
+**问题描述**：
+- 用户手动测试报告图纸标注数字错误
+- 300mm 显示 30000，500mm 显示 50000，6m 显示 600000
+- 疑似转换时乘了 100 而不是 1000
+
+**调查状态**：
+- 已检查 FEAnalysisTool、BeamDrawer、CADDrawingTool 的单位处理逻辑
+- 已检查 CADDrawingAgent 的参数传递
+- 待深入调试图纸生成代码和 ezdxf 标注代码
+
+**优先级**：P0（阻塞性问题，需优先解决）
 
 ---
 
@@ -224,9 +256,14 @@ tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_dra
 
 ## 下一步行动
 
-1. 开始阶段 9：EvaluationAgent 实现（优先级1）
+1. **图纸标注单位问题修复**（优先级P0）- 待深入调查
+   - 检查 ezdxf 的标注代码（`_add_annotations` 方法）
+   - 验证转换后的数值是否正确传递到标注函数
+   - 手动测试图纸生成流程，输出中间数值进行对比
 
-2. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
+2. 开始阶段 9：EvaluationAgent 实现（优先级1）
+
+3. 或查看 INTEGRATION_TEST_PLAN.md 了解集成测试计划
 
 ---
 
