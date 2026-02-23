@@ -394,7 +394,11 @@ class BeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={
+                    'dimtxt': 150,
+                    'dimclrt': colors.RED,
+                    'text': f"{int(length_mm)}"
+                }
             )
         except Exception as e:
             print(f"Warning: Could not add plan dimensions: {e}")
@@ -535,23 +539,31 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimasz = 100
                 dimstyle.dxf.dimtxt = 150
 
-            # Length dimension
+            # Length dimension - use explicit text instead of dynamic <>
             msp.add_linear_dim(
                 base=(length_mm / 2, -1200),
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={
+                    'dimtxt': 150,
+                    'dimclrt': colors.RED,
+                    'text': f"{int(length_mm)}"  # Explicit text value
+                }
             )
 
-            # Height dimension
+            # Height dimension - use explicit text instead of dynamic <>
             msp.add_linear_dim(
                 base=(-800, height_mm / 2),
                 p1=(0, 0),
                 p2=(0, height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={
+                    'dimtxt': 150,
+                    'dimclrt': colors.RED,
+                    'text': f"{int(height_mm)}"  # Explicit text value
+                }
             )
         except Exception as e:
             print(f"Warning: Could not add dimensions: {e}")
@@ -568,23 +580,31 @@ class BeamDrawer(StructureDrawer):
             start_x = -width_mm / 2
             start_y = 0
 
-            # Width dimension (below the section)
+            # Width dimension (below the section) - use explicit text
             msp.add_linear_dim(
                 base=(start_x + width_mm / 2, start_y - 200),
                 p1=(start_x, start_y),
                 p2=(start_x + width_mm, start_y),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={
+                    'dimtxt': 150,
+                    'dimclrt': colors.RED,
+                    'text': f"{int(width_mm)}"
+                }
             )
 
-            # Height dimension (to the right of the section)
+            # Height dimension (to the right of the section) - use explicit text
             msp.add_linear_dim(
                 base=(start_x + width_mm + 200, start_y + height_mm / 2),
                 p1=(start_x + width_mm, start_y),
                 p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={
+                    'dimtxt': 150,
+                    'dimclrt': colors.RED,
+                    'text': f"{int(height_mm)}"
+                }
             )
         except Exception as e:
             print(f"Warning: Could not add section dimensions: {e}")
