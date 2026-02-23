@@ -199,8 +199,12 @@ Example inquiry for a beam without span:
 "请补充以下信息：1. 跨度（长度）是多少米？2. 荷载是多少？3. 支座类型是什么？"
 
 OUTPUT FORMAT:
-- If you have all required information: Output ONLY a valid JSON object.
+IMPORTANT: You MUST use the create_chat_completion tool to return your final answer.
+The JSON should be returned as the content of the create_chat_completion tool.
+- If you have all required information: Use create_chat_completion to return a valid JSON object.
 - If you need more information: Use the ask_human tool FIRST.
+
+CRITICAL: Do NOT use the terminate tool. Always use create_chat_completion to return your final answer.
 """
 
     async def run(self, request: str, **kwargs) -> str:

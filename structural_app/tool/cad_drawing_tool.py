@@ -4,23 +4,11 @@ Provides CAD drawing capability to agents through factory pattern
 """
 
 from typing import Dict, Any, Optional
+import json
 
-try:
-    from openmanus.app.tool.base import BaseTool, ToolResult
-except ImportError:
-    # For development without OpenManus installed
-    # This allows testing the tool logic independently
-    class BaseTool:
-        """Mock BaseTool for development"""
-        def __init__(self, name: str = "", description: str = ""):
-            self.name = name
-            self.description = description
-
-    class ToolResult:
-        """Mock ToolResult for development"""
-        def __init__(self, output: str = "", error: str = ""):
-            self.output = output
-            self.error = error
+# Always import from structural_app.tool.base where we have our BaseTool
+# This ensures consistency across all tools
+from structural_app.tool.base import BaseTool, ToolResult
 
 
 # Use absolute imports for drawer modules
@@ -48,6 +36,8 @@ class CADDrawingTool(BaseTool):
                 "Returns DXF files for plan view, elevation view, and detail views."
             )
         )
+        # Manually set parameters for Pydantic v2 compatibility
+        object.__setattr__(self, 'parameters', self._define_parameters())
 
     def _define_parameters(self) -> Dict[str, Any]:
         """
@@ -193,7 +183,7 @@ class CADDrawingTool(BaseTool):
                 'notes': results.notes
             }
 
-            return ToolResult(output=str(output_data))
+            return ToolResult(output=json.dumps(output_data, ensure_ascii=False))
 
         except Exception as e:
             return ToolResult(error=f"Tool execution error: {str(e)}")
