@@ -480,8 +480,13 @@ class BeamDrawer(StructureDrawer):
             # Get default dimstyle
             dimstyle = msp.doc.dimstyles.get('EZDXF')
             if dimstyle:
-                dimstyle.dxf.dimtxt = 150
+                # Fix unit conversion: ezdxf default dimlfac=100 causes 100x multiplication
+                # Set dimlfac=1 for direct mm values
+                dimstyle.dxf.dimlfac = 1.0
+                # Set dimasz to reasonable mm value (100 instead of 0.175)
                 dimstyle.dxf.dimasz = 100
+                # Set dimtxt to reasonable mm value (150 instead of 0.25)
+                dimstyle.dxf.dimtxt = 150
 
             # Length dimension
             msp.add_linear_dim(
@@ -509,6 +514,8 @@ class BeamDrawer(StructureDrawer):
         try:
             dimstyle = doc.dimstyles.get('EZDXF')
             if dimstyle:
+                # Fix unit conversion: ezdxf default dimlfac=100 causes 100x multiplication
+                dimstyle.dxf.dimlfac = 1.0
                 dimstyle.dxf.dimtxt = 150
 
             # Calculate actual coordinates (centered)
