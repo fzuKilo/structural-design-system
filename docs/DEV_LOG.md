@@ -1,5 +1,49 @@
 # 开发日志
 
+## 2026-02-25
+
+### 完成的工作
+
+1. **标注显示 100 倍问题修复** - 完全完成 ✅
+   - 问题：标注显示值是实际值的 100 倍（6000 显示为 600000），但图形线段长度正确
+   - 根源分析：通过手动测试发现 ezdxf 默认 EZDXF 标注样式的 dimlfac=100 导致显示值被放大
+   - 解决方案：在三个 draw 方法中添加代码修改 EZDXF 样式的 dimlfac 从 100 改为 1.0
+   - 测试验证：手动测试通过，标注显示正确（6000 显示 6000）
+
+2. **代码回滚与修复**
+   - 滚回到 commit 3c7e3b7（单位支持优化完成版）保持代码干净
+   - 在 draw_elevation、draw_plan、draw_details 中添加 dimlfac=1.0 修改
+   - 提交：f3bace6
+
+3. **清理临时测试文件**
+   - 删除 test_beam_dim_debug.py、test_dim_debug.py、test_dim_override.py、test_dim_text.py
+
+### 遇到的问题
+
+**问题：标注显示值 100 倍放大**
+
+- **现象**：AutoCAD 中打开生成的 DXF 图纸，标注显示 600000 而不是 6000，但线段长度正确
+- **初步分析**：尝试了多种方案
+  - 方案 A：MTEXT 替代 DIMENSION - 标注数字不显示
+  - 方案 B：数值除以 100 - 标注线长度错误
+  - 方案 C：创建 MM_UNITS 样式 dimlfac=1.0 + 手动设置 text - 标注数字不显示
+- **根本原因**：通过手动修改 AutoCAD 标注属性发现，ezdxf 默认 EZDXF 样式的 dimlfac=100
+  - 标注显示 = 几何距离 × dimlfac = 6000 × 100 = 600000
+- **最终解决**：在创建图纸后修改 EZDXF 样式的 dimlfac = 1.0
+  ```python
+  dimstyle = doc.dimstyles.get('EZDXF')
+  if dimstyle:
+      dimstyle.dxf.dimlfac = 1.0
+  ```
+
+### 技术决策
+
+- **标注样式修改策略**：在三个 draw 方法中统一修改 EZDXF 样式的 dimlfac
+- **回滚策略**：遇到问题时回滚到干净版本重新分析
+- **手动调试方法**：通过 AutoCAD 手动修改标注属性定位问题根源
+
+---
+
 ## 2026-02-23
 
 ### 完成的工作

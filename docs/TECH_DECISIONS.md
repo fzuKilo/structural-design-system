@@ -480,6 +480,63 @@ if design_proposal.get('type') not in supported_types:
 
 ---
 
+## TD-023: 标注显示 100 倍问题修复
+
+**日期**：2026-02-25
+**决策者**：Lin-0408-Yiran
+**状态**：✅ 已实施
+
+### 背景
+
+用户报告标注显示值是实际值的 100 倍：
+- 6000mm 显示为 600000
+- 但图形线段长度正确
+
+### 问题分析
+
+**初步尝试的方案**：
+1. **MTEXT 替代 DIMENSION**：标注数字不显示
+2. **数值除以 100**：标注线长度错误（p2 从 length_mm 变成 length_mm/100）
+3. **创建 MM_UNITS 样式 + 手动设置 text**：标注数字不显示
+
+**根本原因**：
+- 通过手动修改 AutoCAD 标注属性发现，ezdxf 默认 EZDXF 样式的 dimlfac=100
+- ezdxf 内部用 mm 单位，AutoCAD 默认用 m，所以 dimlfac=100 是为了自动转换
+- 标注显示 = 几何距离 × dimlfac = 6000 × 100 = 600000
+
+### 决策
+
+在三个 draw 方法中修改 EZDXF 样式的 dimlfac 从 100 改为 1.0：
+
+```python
+# Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+dimstyle = doc.dimstyles.get('EZDXF')
+if dimstyle:
+    dimstyle.dxf.dimlfac = 1.0
+```
+
+### 理由
+
+- **简单直接**：只需修改一个属性，无需重写标注逻辑
+- **图形正确**：几何点不变，图形和标注线长度都正确
+- **显示正确**：dimlfac=1.0 后，标注显示 = 6000 × 1.0 = 6000
+- **代码干净**：回滚到干净版本后重新修复，避免代码混乱
+
+### 实施
+
+- `structural_app/tool/drawers/beam_drawer.py`：
+  - `draw_elevation()`：添加 dimlfac 修改（第 87-91 行）
+  - `draw_plan()`：添加 dimlfac 修改（第 142-145 行）
+  - `draw_details()`：添加 dimlfac 修改（第 195-198 行）
+
+### 影响
+
+- 标注显示值正确（6000 显示 6000）
+- 图形绘制不受影响（几何点还是 6000）
+- 代码回滚到 commit 3c7e3b7 后重新修复
+
+---
+
 ## TD-022: 多单位支持方案
 
 **日期**：2026-02-23
