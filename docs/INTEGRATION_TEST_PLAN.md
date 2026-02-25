@@ -250,18 +250,79 @@
 - 执行时间：约12秒 (基础测试) / 约2分钟 (含AskHuman交互)
 
 ### 阶段7集成测试
-- 日期：____
-- 执行人：____
-- 结果：通过 / 失败
-- 问题记录：____
-- 修复措施：____
+- 日期：2026-02-21 - 2026-02-22
+- 执行人：Lin-0408-Yiran
+- 结果：通过
+- LLM：DeepSeek (deepseek-chat)
+- 测试用例：6米简支梁，10kN/m均布荷载，C30混凝土
+
+**测试流程**：
+1. StructuralDesignAgent生成设计方案
+2. FEAnalysisAgent接收方案并进行有限元分析
+3. 支持循环模式：code_check不通过时自动询问用户改进
+
+**测试结果**：
+- AnalysisResults包含：max_displacement, max_stress, max_moment, max_shear
+- code_check显示：compliant = True/False
+- 12m跨度简支梁测试：3轮改进后通过规范校核
+
+**问题记录**：
+1. extract_analysis_results正则无法匹配多行JSON - 已修复（Pattern 4）
+2. LLM调用fe_analysis工具时参数传递格式不匹配 - 已修复（添加design_proposal参数）
+3. 循环模式轮次显示错误（第2轮显示第1/3轮）- 已修复（添加start_loop_count参数）
+4. analysis_prompt双重嵌套 - 已修复（简化prompt）
+5. validate_analysis_results显示原始方案 - 已修复（从detailed_results提取最终方案）
+
+**修复措施**：
+1. fe_analysis_agent.py：添加Pattern 4处理错误JSON，增强JSON完整性检查
+2. fe_analysis_tool.py：添加design_proposal参数支持，统一使用json.dumps输出
+3. fe_analysis_agent.py：添加start_loop_count参数传递轮次信息
+4. fe_analysis_agent.py：简化analysis_prompt
+5. fe_analysis_agent.py：从analysis_results.detailed_results提取最终设计方案
+
+**Token使用**：约2000-4000 tokens/测试（含循环改进）
+**执行时间**：约15-30秒（单次分析）/ 纳秒-2分钟（含循环改进）
+
+---
 
 ### 阶段8集成测试
-- 日期：____
-- 执行人：____
-- 结果：通过 / 失败
-- 问题记录：____
-- 修复措施：____
+- 日期：2026-02-23
+- 执行人：Lin-0408-Yiran
+- 结果：通过
+- LLM：DeepSeek (deepseek-chat)
+- 测试用例：6米简支梁，10kN/m均布荷载，C30混凝土
+
+**测试流程**：
+1. StructuralDesignAgent生成设计方案
+2. FEAnalysisAgent进行有限元分析
+3. CADDrawingAgent生成CAD图纸（立面图、平面图、详图）
+
+**测试结果**：
+- 生成DXF文件成功
+- 图纸包含：梁几何、支座符号、尺寸标注、中文标注
+- 可在AutoCAD/DraftSight中正常打开
+
+**问题记录**：
+1. StructuralDesignAgent无法提取JSON - 已修复（修改系统提示词）
+2. CADDrawingTool缺少to_param()方法 - 已修复（创建base.py统一BaseTool导入）
+3. CADDrawingTool返回格式错误 - 已修复（使用json.dumps替代str()）
+4. 相对导入导致ModuleNotFoundError - 已修复（改用绝对导入）
+5. 标注显示值100倍放大（6000显示600000）- 已修复（修改EZDXF dimlfac=1.0）
+
+**修复措施**：
+1. structural_design_agent.py：修改系统提示词强制LLM使用create_chat_completion
+2. structural_app/tool/base.py：创建统一BaseTool基类
+3. cad_drawing_tool.py：使用json.dumps输出标准JSON格式
+4. cad_drawing_tool.py：改用绝对导入
+5. beam_drawer.py：在三个draw方法中修改EZDXF dimlfac从100改为1.0
+
+**Git提交**：53f622f (阶段8集成测试修复), f3bace6 (标注显示修复)
+**输出文件**：
+- beam_plan_*.dxf
+- beam_elevation_*.dxf
+- beam_detail_*.dxf
+
+---
 
 ### 阶段9集成测试
 - 日期：____
@@ -310,5 +371,5 @@
 
 ---
 
-最后更新：2026-02-11
+最后更新：2026-02-25
 更新人：Claude Code
