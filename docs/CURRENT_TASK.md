@@ -4,7 +4,7 @@
 
 **项目名称**：OpenManus 结构设计系统
 **当前分支**：dev
-**最新提交**：7efc027 - feat: 添加单位支持优化（units 字段）
+**最新提交**：f3bace6 - fix: 修复标注显示值为实际值100倍的问题
 
 ## 图纸标注单位问题追踪 🔴
 
@@ -112,6 +112,13 @@
   - [x] 支持设计参数以米（m）或毫米（mm）为单位输入
   - [x] 测试验证不同单位转换正确
   - [x] 提交：7efc027
+- [x] **标注显示 100 倍问题修复** ✨ 今日完成
+  - [x] 分析问题：标注显示值是实际值的 100 倍（6000 显示为 600000）
+  - [x] 根源定位：ezdxf 默认 EZDXF 样式的 dimlfac=100
+  - [x] 解决方案：在 draw_elevation/draw_plan/draw_details 中修改 dimlfac=1.0
+  - [x] 手动测试验证通过
+  - [x] 回滚到干净版本（3c7e3b7）后重新修复
+  - [x] 提交：f3bace6
 - [ ] **阶段 9**：EvaluationAgent 实现
 - [ ] **图纸标注单位问题修复** 🔴 待解决
 - [ ] **阶段 10**：ReportGenerationAgent + PlanningFlow 编排
@@ -137,6 +144,36 @@
 - FEAnalysisTool._convert_to_meters(): 将 mm 转换为 m
 - BeamDrawer._convert_to_mm(): 将 m 转换为 mm
 - 单位信息通过 design proposal 传递（design["units"]）
+
+---
+
+### ✅ 已完成：标注显示 100 倍问题修复
+
+**目标**：修复标注显示值为实际值 100 倍的问题
+
+**完成状态**：已完成 ✅
+
+**问题描述**：
+- AutoCAD 中打开生成的 DXF 图纸，标注显示 600000 而不是 6000
+- 但图形线段长度正确（6000mm）
+
+**根源分析**：
+- ezdxf 默认的 EZDXF 标注样式的 dimlfac=100
+- 标注显示 = 几何距离 × dimlfac = 6000 × 100 = 600000
+
+**解决方法**：
+- 在 draw_elevation/draw_plan/draw_details 中修改 EZDXF 样式的 dimlfac = 1.0
+  ```python
+  dimstyle = doc.dimstyles.get('EZDXF')
+  if dimstyle:
+      dimstyle.dxf.dimlfac = 1.0
+  ```
+
+**验证**：
+- 手动测试通过，标注显示正确（6000 显示 6000）
+
+**技术实现**：
+- `structural_app/tool/drawers/beam_drawer.py`：三个 draw 方法中添加 dimlfac 修改
 
 ---
 
@@ -267,5 +304,5 @@ tests/test_cad_drawing_agent.py::TestCADDrawingAgentExtraction::test_extract_dra
 
 ---
 
-**最后更新**：2026-02-23
+**最后更新**：2026-02-25
 **更新人**：Claude Code

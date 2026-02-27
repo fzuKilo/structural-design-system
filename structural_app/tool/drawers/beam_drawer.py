@@ -112,23 +112,12 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Create custom dimstyle for mm units to avoid ezdxf's EZDXF issues
-            # ezdxf's default EZDXF has dimlfac=100 which causes 100x multiplication in AutoCAD
-            dimstyle = doc.dimstyles.add(
-                name='MM_UNITS',
-                dxfattribs={
-                    'dimlfac': 1.0,      # Linear factor - 1 for direct mm values
-                    'dimasz': 100,       # Arrow size
-                    'dimtxt': 150,       # Text height
-                    'dimcen': 0,         # Center mark
-                    'dimtsz': 0,         # Ticks size
-                    'dimdle': 0,         # Dimension line extension
-                    'dimexe': 0,         # Extension line extension
-                    'dimexo': 0,         # Extension line offset
-                    'dimdli': 0,         # Dimension line increment
-                    'dimtad': 1,         # Text above dimension line
-                }
-            )
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            # This fixes the issue where AutoCAD displays 600000 instead of 6000
+            # Reference: TD-023 标注显示 100 倍问题修复
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
 
             # Draw beam elevation
             self._draw_beam_elevation(
@@ -180,22 +169,11 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Create custom dimstyle for mm units
-            dimstyle = doc.dimstyles.add(
-                name='MM_UNITS',
-                dxfattribs={
-                    'dimlfac': 1.0,
-                    'dimasz': 100,
-                    'dimtxt': 150,
-                    'dimcen': 0,
-                    'dimtsz': 0,
-                    'dimdle': 0,
-                    'dimexe': 0,
-                    'dimexo': 0,
-                    'dimdli': 0,
-                    'dimtad': 1,
-                }
-            )
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            # This fixes the issue where AutoCAD displays 600000 instead of 6000
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
 
             # Draw beam plan
             self._draw_beam_plan(
@@ -246,22 +224,11 @@ class BeamDrawer(StructureDrawer):
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
-            # Create custom dimstyle for mm units
-            dimstyle = doc.dimstyles.add(
-                name='MM_UNITS',
-                dxfattribs={
-                    'dimlfac': 1.0,
-                    'dimasz': 100,
-                    'dimtxt': 150,
-                    'dimcen': 0,
-                    'dimtsz': 0,
-                    'dimdle': 0,
-                    'dimexe': 0,
-                    'dimexo': 0,
-                    'dimdli': 0,
-                    'dimtad': 1,
-                }
-            )
+            # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
+            # This fixes the issue where AutoCAD displays 600000 instead of 6000
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(
