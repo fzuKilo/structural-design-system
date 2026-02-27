@@ -259,6 +259,26 @@ cp config.toml.example config.toml
 3. Register in `analyzer_factory.py`
 4. Update `how_to_add_new_structure_type.md`
 
+### Adding New Evaluators
+
+1. Create `structural_app/tool/evaluators/<name>_evaluator.py`
+2. Implement `DesignEvaluator` abstract base class
+3. Implement 4 evaluation methods: `evaluate_economy()`, `evaluate_efficiency()`, `evaluate_safety()`, `evaluate_sustainability()`
+4. Register in `evaluator_factory.py`
+5. Update `how_to_add_new_structure_type.md`
+
+### 4-Dimensional Evaluation System
+
+**EvaluationDimensions**:
+- **Economy** (25%): Material usage, cost efficiency, construction complexity
+- **Structural Efficiency** (25%): Stress utilization, uniformity, redundancy
+- **Safety** (30%): Safety factors, deflection margin, code compliance
+- **Sustainability** (20%): Carbon emissions, recyclability
+
+**Scoring Scale**: A+ (≥95), A (90-94), B+ (85-89), B (80-84), C+ (75-79), C (70-74), D (<70)
+
+**Recommendations**: Auto-generated when comprehensive score < 75
+
 ---
 
 ## Development Stages (开发阶段)
@@ -278,7 +298,7 @@ This project follows a 18-stage development plan from the OpenManus framework:
 | 10 | 端到端测试 (简支梁) | ✅ |
 | 10.5 | 架构验证 (添加悬臂梁) | ⏳ |
 | 11 | 规范验证 | ✅ |
-| 11.5 | 设计评估系统 (4维度量化评分) | ⏳ |
+| 11.5 | 设计评估系统 (4维度量化评分) | ✅ |
 | 12-13 | 增强功能 (可视化 + RAG知识库) | ⏳ |
 
 ### Web Interface (阶段14-18)

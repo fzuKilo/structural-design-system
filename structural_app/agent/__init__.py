@@ -12,6 +12,12 @@ __all__ = [
     'create_fe_analysis_agent',
     'CADDrawingAgent',
     'create_cad_drawing_agent',
+    'EvaluationAgent',
+    'create_evaluation_agent',
+    'ReportGenerationAgent',
+    'create_report_generation_agent',
+    'PlanningFlow',
+    'create_planning_flow',
 ]
 
 def __getattr__(name):
@@ -34,4 +40,22 @@ def __getattr__(name):
     elif name == 'create_cad_drawing_agent':
         from .cad_drawing_agent import create_cad_drawing_agent
         return create_cad_drawing_agent
+    elif name == 'EvaluationAgent':
+        from .evaluation_agent import EvaluationAgent
+        return EvaluationAgent
+    elif name == 'create_evaluation_agent':
+        from .evaluation_agent import create_evaluation_agent
+        return create_evaluation_agent
+    elif name == 'ReportGenerationAgent':
+        from .report_generation_agent import ReportGenerationAgent
+        return ReportGenerationAgent
+    elif name == 'create_report_generation_agent':
+        from .report_generation_agent import create_report_generation_agent
+        return create_report_generation_agent
+    elif name == 'PlanningFlow':
+        from ..planning_flow import PlanningFlow
+        return PlanningFlow
+    elif name == 'create_planning_flow':
+        from ..planning_flow import create_planning_flow
+        return create_planning_flow
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
