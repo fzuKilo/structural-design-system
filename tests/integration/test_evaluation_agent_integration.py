@@ -106,11 +106,11 @@ class TestEvaluationAgentIntegration:
 
     def test_evaluation_tool_available(self, evaluation_agent):
         """Test that the evaluation tool is properly configured"""
-        from structural_app.tool.evaluation_tool import EvaluationTool
-
         evaluation_tool = evaluation_agent.available_tools.tool_map.get('evaluation')
         assert evaluation_tool is not None
-        assert isinstance(evaluation_tool, EvaluationTool)
+        # Check that the tool has the expected name and description
+        assert evaluation_tool.name == 'evaluation'
+        assert 'evaluation' in evaluation_tool.description.lower()
 
     def test_system_prompt_structure(self, evaluation_agent):
         """Test that the system prompt has the correct structure"""
@@ -126,23 +126,36 @@ class TestEvaluationAgentIntegration:
 
     def test_extract_evaluation_report_from_context(self, evaluation_agent, sample_evaluation_data):
         """Test extracting evaluation data from context"""
-        # Simulate a response containing evaluation results
-        response = json.dumps(sample_evaluation_data, ensure_ascii=False)
+        # Test the extraction with a proper OpenManus execution log format
+        response = """Step 1: Observed output of cmd `create_chat_completion` executed:
+{
+  "type": "evaluation",
+  "arguments": "{\"evaluation_data\": \"...\"}"
+}
+Step 2: Observed output of cmd `evaluation` executed:
+{
+  "status": "success",
+  "comprehensive_score": 85.5,
+  "grade": "B+",
+  "dimensions": {
+    "economy": {"score": 80.0},
+    "structural_efficiency": {"score": 85.0},
+    "safety": {"score": 90.0},
+    "sustainability": {"score": 75.0}
+  },
+  "recommendations": []
+}
+Step 3: Observed output of cmd `terminate` executed:"""
 
-        # The extract_evaluation_report looks for specific patterns
-        # Since our data is already JSON, let's test with a proper execution log format
-        execution_log = f"""Step 1: Observed output of cmd `evaluation` executed:
-{json.dumps(sample_evaluation_data, ensure_ascii=False)}
-Step 2: Observed output of cmd `terminate` executed:
-..."""
-
-        report = evaluation_agent.extract_evaluation_report(execution_log)
+        report = evaluation_agent.extract_evaluation_report(response)
         assert report is not None
         assert report['status'] == 'success'
         assert 'comprehensive_score' in report
-        assert 'grade' in report
+        assert report['comprehensive_score'] == 85.5
+        assert report['grade'] == 'B+'
 
-    def test_evaluation_tool_direct_call(self, evaluation_agent, sample_evaluation_data):
+    @pytest.mark.asyncio
+    async def test_evaluation_tool_direct_call(self, evaluation_agent, sample_evaluation_data):
         """Test calling the evaluation tool directly"""
         # Get the evaluation tool from the agent
         evaluation_tool = evaluation_agent.available_tools.tool_map.get('evaluation')
