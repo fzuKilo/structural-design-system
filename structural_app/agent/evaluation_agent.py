@@ -11,24 +11,31 @@ from app.tool.ask_human import AskHuman
 from app.schema import Message
 from app.tool import ToolCollection, CreateChatCompletion, Terminate
 
-# Import EvaluationTool with path handling
+# Import EvaluationTool with dynamic path detection
 import importlib.util
 import os
+import sys
 
-# Add structural_app to path if needed
-_structural_app_path = r'D:\structural-design-system\structural_app'
-if _structural_app_path not in __import__('sys').path:
-    __import__('sys').path.insert(0, _structural_app_path)
+# Get the directory where this file is located
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_structural_app_path = os.path.dirname(_current_dir)
+
+# Add structural_app to path if not already present
+if _structural_app_path not in sys.path:
+    sys.path.insert(0, _structural_app_path)
 
 # Load EvaluationTool module directly
 _evaluation_tool_path = os.path.join(_structural_app_path, 'tool', 'evaluation_tool.py')
-_spec = importlib.util.spec_from_file_location("evaluation_tool", _evaluation_tool_path)
-evaluation_module = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(evaluation_module)
-EvaluationTool = evaluation_module.EvaluationTool
-
-# Get EvaluatorFactory from already-loaded EvaluationTool module
-EvaluatorFactory = evaluation_module.EvaluatorFactory
+if os.path.exists(_evaluation_tool_path):
+    _spec = importlib.util.spec_from_file_location("evaluation_tool", _evaluation_tool_path)
+    evaluation_module = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(evaluation_module)
+    EvaluationTool = evaluation_module.EvaluationTool
+    EvaluatorFactory = evaluation_module.EvaluatorFactory
+else:
+    # Fallback: import directly if module is available in path
+    from structural_app.tool.evaluation_tool import EvaluationTool
+    from structural_app.tool.evaluators.evaluator_factory import EvaluatorFactory
 
 
 class EvaluationAgent(ToolCallAgent):
