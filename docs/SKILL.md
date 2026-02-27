@@ -267,6 +267,23 @@ cp config.toml.example config.toml
 4. Register in `evaluator_factory.py`
 5. Update `how_to_add_new_structure_type.md`
 
+### Adding New Reporters
+
+1. Create `structural_app/tool/reports/<name>_reporter.py`
+2. Implement `BaseReporter` subclass with report template
+3. Implement report sections: engineering info, design proposal, FEA results, evaluation, recommendations
+4. Register in `reporter_factory.py`
+5. Update `how_to_add_new_structure_type.md`
+
+### Adding New Visualizers
+
+1. Create `structural_app/tool/visualizations/<name>_visualizer.py`
+2. Implement `BaseVisualizer` subclass
+3. Implement visualization methods: moment diagram, shear diagram, deflection diagram
+4. Support both static (PNG) and interactive (HTML) output
+5. Register in `visualizer_factory.py`
+6. Update `how_to_add_new_structure_type.md`
+
 ### 4-Dimensional Evaluation System
 
 **EvaluationDimensions**:
@@ -299,7 +316,9 @@ This project follows a 18-stage development plan from the OpenManus framework:
 | 10.5 | 架构验证 (添加悬臂梁) | ⏳ |
 | 11 | 规范验证 | ✅ |
 | 11.5 | 设计评估系统 (4维度量化评分) | ✅ |
-| 12-13 | 增强功能 (可视化 + RAG知识库) | ⏳ |
+| 12 | 报告生成系统 | ✅ |
+| 12.5 | 可视化系统 (PNG/HTML) | ✅ |
+| 13 | 增强功能 (RAG知识库) | ⏳ |
 
 ### Web Interface (阶段14-18)
 
