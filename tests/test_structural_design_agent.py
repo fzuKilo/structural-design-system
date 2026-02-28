@@ -186,7 +186,8 @@ class TestDesignProposalValidation:
             },
             "constraints": {
                 "support_type": "simply_supported"
-            }
+            },
+            "units": "mm"
         }
 
     def test_validate_valid_proposal(self, valid_proposal):

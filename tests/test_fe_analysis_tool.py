@@ -25,7 +25,7 @@ class TestAnalyzerFactory:
 
     def test_create_unknown_type_raises_error(self):
         """Test that creating unknown type raises ValueError"""
-        with pytest.raises(ValueError, match="Unknown structure type"):
+        with pytest.raises(ValueError, match="当前未支持的结构类型"):
             AnalyzerFactory.create("unknown_type")
 
     def test_get_available_types(self):
