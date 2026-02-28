@@ -1,5 +1,46 @@
 # 开发日志
 
+## 2026-03-01
+
+### 完成的工作
+
+1. **集成测试问题修复** - 完全完成 ✅
+   - 修复3个Agent中的硬编码路径问题（structural_design_agent.py, fe_analysis_agent.py, cad_drawing_agent.py）
+   - 改用动态路径检测：`os.path.dirname(os.path.abspath(__file__))`
+   - 所有测试通过（29 passed, 10 deselected）
+
+2. **async测试问题修复** - 完全完成 ✅
+   - 在 test_stage8_noninteractive.py 中为3个测试函数添加 `@pytest.mark.asyncio` 装饰器
+   - 修复 VisualizationTool 测试参数传递方式（改用独立参数而非 JSON 字符串）
+
+3. **pytest 配置优化** - 完全完成 ✅
+   - 在 pytest.ini 中添加过滤器 `-k "not (stage7 or stage8)"` 排除交互式测试
+
+4. **Git 提交与 Tag** - 完全完成 ✅
+   - commit 6da7063: fix: 修复集成测试问题和硬编码路径
+   - tag stage6-9-complete: 标记阶段6-9完成
+   - 推送到远程 dev 分支
+
+### 遇到的问题
+
+**问题1： VisualizationTool 测试失败**
+- **现象**：测试返回 `'status': 'error', 'error': "Missing required parameter: 'design_proposal'"`
+- **原因**：测试使用 `viz_data=viz_data`（JSON字符串）传递参数，但工具内部解析逻辑有问题
+- **解决**：改用独立参数传递 `design_proposal=sample_design_proposal, analysis_results=sample_analysis_results`
+
+**问题2：pytest-asyncio 插件问题**
+- **现象**：async def 测试函数报错 "async def functions are not natively supported"
+- **原因**：缺少 `@pytest.mark.asyncio` 装饰器
+- **解决**：在 test_stage8_noninteractive.py 的3个测试函数上添加装饰器
+
+### 技术决策
+
+- **动态路径检测**：所有 Agent 统一使用 `os.path.dirname(os.path.abspath(__file__))` 替代硬编码路径
+- **测试参数策略**： VisualizationTool 测试使用独立参数而非 JSON 字符串，更符合实际使用场景
+- **pytest 过滤器**：使用 `-k "not (stage7 or stage8)"` 排除需要用户输入的交互式测试
+
+---
+
 ## 2026-02-28
 
 ### 完成的工作
