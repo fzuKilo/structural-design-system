@@ -235,21 +235,23 @@ Step 3: Observed output of cmd `terminate` executed:"""
         # Get the visualization tool from the agent
         viz_tool = report_generation_agent.available_tools.tool_map.get('visualization')
 
-        # Convert data to JSON string
-        viz_data = json.dumps({
-            'design_proposal': sample_design_proposal,
-            'analysis_results': sample_analysis_results
-        }, ensure_ascii=False)
-
-        # Execute the tool
-        result = await viz_tool.execute(viz_data=viz_data)
+        # Execute the tool with design_proposal and analysis_results as separate parameters
+        # This matches the expected signature in VisualizationTool.execute()
+        result = await viz_tool.execute(
+            design_proposal=sample_design_proposal,
+            analysis_results=sample_analysis_results
+        )
 
         assert result is not None
         assert hasattr(result, 'output')
 
         # Parse the result
         result_data = json.loads(result.output)
-        assert result_data['status'] == 'success'
+
+        # Debug output
+        print(f"\n[DEBUG] Raw result: {result_data}")
+
+        assert result_data['status'] == 'success', f"Expected success, got {result_data.get('error', 'unknown error')}"
         assert 'visualizations' in result_data
         assert 'static' in result_data['visualizations']
         assert 'interactive' in result_data['visualizations']

@@ -15,10 +15,9 @@ from app.tool import ToolCollection, CreateChatCompletion, Terminate
 import importlib.util
 import os
 
-# Add structural_app to path if needed
-_structural_app_path = r'D:\structural-design-system\structural_app'
-if _structural_app_path not in __import__('sys').path:
-    __import__('sys').path.insert(0, _structural_app_path)
+# Get the directory where this file is located
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_structural_app_path = os.path.dirname(_current_dir)
 
 # Load CADDrawingTool module directly
 _cad_tool_path = os.path.join(_structural_app_path, 'tool', 'cad_drawing_tool.py')

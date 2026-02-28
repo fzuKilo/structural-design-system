@@ -14,12 +14,18 @@ from app.tool import ToolCollection, CreateChatCompletion, Terminate
 
 # Import validators directly to avoid full package import chain
 import importlib.util
+import os
+import sys
+
+# Get the directory where this file is located
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_structural_app_path = os.path.dirname(_current_dir)
+
+# Build path to validators module
+_validators_path = os.path.join(_structural_app_path, 'tool', 'validators', '__init__.py')
 
 # Load validators module without triggering structural_app.tool.__init__
-_spec = importlib.util.spec_from_file_location(
-    "validators",
-    "D:\\structural-design-system\\structural_app\\tool\\validators\\__init__.py"
-)
+_spec = importlib.util.spec_from_file_location("validators", _validators_path)
 validators_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(validators_module)
 

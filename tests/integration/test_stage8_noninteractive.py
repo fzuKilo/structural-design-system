@@ -7,9 +7,10 @@ import sys
 import os
 import asyncio
 import json
+import pytest
 
 # Add OpenManus to path
-_openmanus_path = 'D:\\openmanus'
+_openmanus_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'OpenManus')
 if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
     sys.path.insert(0, _openmanus_path)
 
@@ -23,6 +24,7 @@ from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
 from structural_app.agent.cad_drawing_agent import CADDrawingAgent
 
 
+@pytest.mark.asyncio
 async def test_design_agent():
     """测试 StructuralDesignAgent 能否正确返回 JSON"""
     print("\n" + "="*80)
@@ -68,6 +70,7 @@ async def test_design_agent():
         return False
 
 
+@pytest.mark.asyncio
 async def test_fe_analysis_agent():
     """测试 FEAnalysisAgent 能否正确返回分析结果"""
     print("\n" + "="*80)
@@ -140,6 +143,7 @@ async def test_fe_analysis_agent():
         return False
 
 
+@pytest.mark.asyncio
 async def test_cad_drawing_agent():
     """测试 CADDrawingAgent 能否正确返回绘图结果"""
     print("\n" + "="*80)
