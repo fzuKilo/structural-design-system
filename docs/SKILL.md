@@ -32,12 +32,17 @@ structural-design-system/
 │   │   ├── __init__.py
 │   │   ├── structural_design_agent.py    # Phase 6: LLM-based design proposal
 │   │   ├── fe_analysis_agent.py          # Phase 7: Finite element analysis
-│   │   └── cad_drawing_agent.py          # Phase 8: CAD drawing generation
+│   │   ├── cad_drawing_agent.py          # Phase 8: CAD drawing generation
+│   │   ├── evaluation_agent.py           # Phase 9: Design quality evaluation
+│   │   └── report_generation_agent.py    # Phase 10: Report generation
 │   ├── tool/                    # Tools and utilities
 │   │   ├── __init__.py
 │   │   ├── base.py
 │   │   ├── fe_analysis_tool.py           # FEA integration with Ansys MAPDL
 │   │   ├── cad_drawing_tool.py           # CAD drawing with ezdxf
+│   │   ├── evaluation_tool.py            # Design evaluation (Phase 9)
+│   │   ├── report_tool.py                # Report generation (Phase 10)
+│   │   ├── visualization_tool.py         # PNG/HTML visualization (Phase 10)
 │   │   ├── analyzers/                    # Structure analysis logic
 │   │   │   ├── __init__.py
 │   │   │   ├── base_analyzer.py
@@ -52,11 +57,24 @@ structural-design-system/
 │   │   │   ├── __init__.py
 │   │   │   ├── base_validator.py
 │   │   │   └── beam_validator.py
-│   │   └── evaluators/                   # Design quality evaluation
-│   │       └── __init__.py
+│   │   ├── evaluators/                   # Design quality evaluation
+│   │   │   ├── __init__.py
+│   │   │   ├── base_evaluator.py
+│   │   │   ├── beam_evaluator.py
+│   │   │   └── evaluator_factory.py
+│   │   ├── reporters/                    # Report generation
+│   │   │   ├── __init__.py
+│   │   │   ├── base_reporter.py
+│   │   │   ├── beam_reporter.py
+│   │   │   └── reporter_factory.py
+│   │   └── visualizations/               # Visualization generation
+│   │       ├── __init__.py
+│   │       ├── base_visualizer.py
+│   │       ├── beam_visualizer.py
+│   │       └── visualizer_factory.py
 │   ├── utils/                              # Utility functions
 │   │   └── __init__.py
-│   └── __init__.py
+│   └── planning_flow.py                  # Phase 10: Agent workflow orchestration
 ├── tests/                       # Test suite
 │   ├── __init__.py
 │   ├── conftest.py
@@ -319,16 +337,17 @@ This project follows a 18-stage development plan from the OpenManus framework:
 | 12 | 报告生成系统 | ✅ |
 | 12.5 | 可视化系统 (PNG/HTML) | ✅ |
 | 13 | 增强功能 (RAG知识库) | ⏳ |
+| 14 | PlanningFlow JSON提取优化 | ✅ |
 
 ### Web Interface (阶段14-18)
 
 | Stage | Name |
 |-------|------|
-| 14 | Web界面设计 |
-| 15 | 后端API (FastAPI) |
-| 16 | 前端开发 |
-| 17 | 实时通信 (WebSocket) |
-| 18 | Web端到端测试 |
+| 14 | Web界面设计 | ⏳ |
+| 15 | 后端API (FastAPI) | ⏳ |
+| 16 | 前端开发 | ⏳ |
+| 17 | 实时通信 (WebSocket) | ⏳ |
+| 18 | Web端到端测试 | ⏳ |
 
 ---
 

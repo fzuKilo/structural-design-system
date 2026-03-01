@@ -33,3 +33,45 @@
 - **units 字段强制**：DesignProposal 必须包含 'units' 字段支持多单位输入
 
 ---
+
+## 2026-03-02
+
+### 完成的工作
+
+1. **PlanningFlow JSON 提取优化** - 完全完成 ✅
+   - 优化 `_extract_design_proposal()` 方法，添加3种JSON提取模式
+   - 优化 `_extract_analysis_results()` 方法，添加2种JSON提取模式
+   - 优化 `_extract_drawing_results()` 方法，添加2种JSON提取模式
+   - 优化 `_extract_evaluation_report()` 方法，添加2种JSON提取模式
+   - 优化 `_extract_report_results()` 方法，添加2种JSON提取模式
+   - 增强错误处理，添加 JSONDecodeError 捕获和详细错误信息
+   - 测试验证：完整工作流成功执行，所有数据正确提取
+
+2. **测试脚本创建** - 完全完成 ✅
+   - 创建 `test_evaluation_with_output.py`：评估代理输出生成测试
+   - 创建 `test_full_integration.py`：全工作流集成测试（5个Agent）
+   - 创建 `test_generate_files.py`：可视化和报告文件生成测试
+   - 所有测试脚本验证通过
+
+3. **输出可视化改进** - 完全完成 ✅
+   - 将打印符号 "✓" 改为 "[OK]" 以提高兼容性
+   - 优化测试脚本输出格式，使用清晰的分隔符和编号
+   - 添加详细的文件路径输出
+
+4. **新文件创建** - 完全完成 ✅
+   - 创建 `.env.example`：环境变量模板
+   - 整理测试文件到项目根目录
+
+### 遇到的问题
+
+**无** - 所有功能正常工作
+
+### 技术决策
+
+- **多模式JSON提取**：为每个提取方法添加多种正则模式，提高鲁棒性
+  - Pattern 1: 从 `tool executed:` 输出中提取
+  - Pattern 2: 从 ```json 代码块中提取
+- **增强错误处理**：添加 JSONDecodeError 捕获，输出详细错误信息
+- **符号兼容性**：使用 "[OK]" 替代 "✓" 符号，避免编码问题
+
+---
