@@ -24,7 +24,6 @@ class BeamDrawer(StructureDrawer):
     def __init__(self):
         """Initialize beam drawer"""
         super().__init__()
-        self.output_dir = "output/drawings"
 
     def _convert_to_mm(self, value: float, units: str) -> float:
         """
@@ -115,9 +114,29 @@ class BeamDrawer(StructureDrawer):
             # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
             # This fixes the issue where AutoCAD displays 600000 instead of 6000
             # Reference: TD-023 标注显示 100 倍问题修复
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
+            try:
+                dimstyle = doc.dimstyles.get('EZDXF')
+                if dimstyle:
+                    dimstyle.dxf.dimlfac = 1.0
+            except Exception:
+                pass  # EZDXF dimstyle not found, skip
+
+            # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
+            if 'MM_UNITS' not in doc.dimstyles:
+                doc.dimstyles.new('MM_UNITS', dxfattribs={
+                    'dimtxt': 150,
+                    'dimasz': 100,
+                    'dimcen': 0,
+                    'dimtsz': 0,
+                    'dimaltf': 1.0,
+                    'dimlfac': 1.0,
+                    'dimtp': 0,
+                    'dimtm': 0,
+                    'dimtol': 0,
+                    'dimlim': 0,
+                    'dimthi': 0,
+                    'dimclrt': colors.RED,
+                })
 
             # Draw beam elevation
             self._draw_beam_elevation(
@@ -171,9 +190,29 @@ class BeamDrawer(StructureDrawer):
 
             # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
             # This fixes the issue where AutoCAD displays 600000 instead of 6000
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
+            try:
+                dimstyle = doc.dimstyles.get('EZDXF')
+                if dimstyle:
+                    dimstyle.dxf.dimlfac = 1.0
+            except Exception:
+                pass  # EZDXF dimstyle not found, skip
+
+            # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
+            if 'MM_UNITS' not in doc.dimstyles:
+                doc.dimstyles.new('MM_UNITS', dxfattribs={
+                    'dimtxt': 150,
+                    'dimasz': 100,
+                    'dimcen': 0,
+                    'dimtsz': 0,
+                    'dimaltf': 1.0,
+                    'dimlfac': 1.0,
+                    'dimtp': 0,
+                    'dimtm': 0,
+                    'dimtol': 0,
+                    'dimlim': 0,
+                    'dimthi': 0,
+                    'dimclrt': colors.RED,
+                })
 
             # Draw beam plan
             self._draw_beam_plan(
@@ -226,9 +265,29 @@ class BeamDrawer(StructureDrawer):
 
             # Fix EZDXF dimstyle: change dimlfac from 100 to 1 for correct mm units
             # This fixes the issue where AutoCAD displays 600000 instead of 6000
-            dimstyle = doc.dimstyles.get('EZDXF')
-            if dimstyle:
-                dimstyle.dxf.dimlfac = 1.0
+            try:
+                dimstyle = doc.dimstyles.get('EZDXF')
+                if dimstyle:
+                    dimstyle.dxf.dimlfac = 1.0
+            except Exception:
+                pass  # EZDXF dimstyle not found, skip
+
+            # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
+            if 'MM_UNITS' not in doc.dimstyles:
+                doc.dimstyles.new('MM_UNITS', dxfattribs={
+                    'dimtxt': 150,
+                    'dimasz': 100,
+                    'dimcen': 0,
+                    'dimtsz': 0,
+                    'dimaltf': 1.0,
+                    'dimlfac': 1.0,
+                    'dimtp': 0,
+                    'dimtm': 0,
+                    'dimtol': 0,
+                    'dimlim': 0,
+                    'dimthi': 0,
+                    'dimclrt': colors.RED,
+                })
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(
@@ -352,10 +411,6 @@ class BeamDrawer(StructureDrawer):
 
         # Add dimensions using MM_UNITS dimstyle
         try:
-            dim_style = doc.dimstyles.get('MM_UNITS')
-            if dim_style:
-                dim_style.dxf.dimtxt = 150
-
             dim = msp.add_linear_dim(
                 base=(length_mm / 2, -200),
                 p1=(0, 0),
@@ -501,10 +556,13 @@ class BeamDrawer(StructureDrawer):
         """Add dimensions to elevation view"""
         try:
             # Get or create MM_UNITS dimstyle (created in draw methods)
-            dimstyle = msp.doc.dimstyles.get('MM_UNITS')
-            if dimstyle:
-                dimstyle.dxf.dimasz = 100
-                dimstyle.dxf.dimtxt = 150
+            try:
+                dimstyle = msp.doc.dimstyles.get('MM_UNITS')
+                if dimstyle:
+                    dimstyle.dxf.dimasz = 100
+                    dimstyle.dxf.dimtxt = 150
+            except Exception:
+                pass  # MM_UNITS dimstyle not found, skip
 
             # Length dimension
             dim = msp.add_linear_dim(
@@ -539,9 +597,12 @@ class BeamDrawer(StructureDrawer):
         """Add dimensions to section view"""
         try:
             # Get or create MM_UNITS dimstyle (created in draw methods)
-            dimstyle = doc.dimstyles.get('MM_UNITS')
-            if dimstyle:
-                dimstyle.dxf.dimtxt = 150
+            try:
+                dimstyle = doc.dimstyles.get('MM_UNITS')
+                if dimstyle:
+                    dimstyle.dxf.dimtxt = 150
+            except Exception:
+                pass  # MM_UNITS dimstyle not found, skip
 
             # Calculate actual coordinates (centered)
             start_x = -width_mm / 2

@@ -6,6 +6,7 @@ Defines the abstract interface for all structure type visualizers
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Tuple
 import os
+from pathlib import Path
 
 
 class BaseVisualizer(ABC):
@@ -19,8 +20,44 @@ class BaseVisualizer(ABC):
     def __init__(self):
         """Initialize the visualizer"""
         self.structure_type = self._get_structure_type()
-        self.output_dir = "output/visualizations"
+        # Use project root relative path for output_dir
+        # Find project root by looking for common marker files/folders
+        _project_root = self._find_project_root()
+        self.output_dir = _project_root / "output" / "visualizations"
         os.makedirs(self.output_dir, exist_ok=True)
+
+    def _find_project_root(self) -> Path:
+        """
+        Find the project root directory by searching for common markers.
+
+        Walks up the directory tree from the current file location until
+        it finds a marker file/folder indicating the project root.
+
+        Returns:
+            Path to the project root directory
+        """
+        _current_file = Path(__file__).resolve()
+        _project_root = _current_file.parent
+
+        # Walk up the directory tree
+        while _project_root.parent != _project_root:  # Not at root yet
+            # Check for common project markers
+            if (_current_file.parent.parent.parent.parent == _project_root and
+                (_project_root / "structural_app").exists()):
+                # Found structural_app at parent of parent of parent of current file
+                return _project_root
+
+            # Alternative: check for config.toml or other project markers
+            if (_project_root / "config.toml").exists():
+                return _project_root
+
+            if (_project_root / "README.md").exists() and (_project_root / "structural_app").exists():
+                return _project_root
+
+            _project_root = _project_root.parent
+
+        # Fallback to structural_app parent if we can't find a better root
+        return _current_file.parent.parent.parent.parent
 
     def _get_structure_type(self) -> str:
         """

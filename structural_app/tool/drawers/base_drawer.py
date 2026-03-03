@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 import os
+from pathlib import Path
 from datetime import datetime
 
 
@@ -71,7 +72,9 @@ class StructureDrawer(ABC):
     def __init__(self):
         """Initialize the drawer"""
         self.structure_type = self._get_structure_type()
-        self.output_dir = "output/drawings"
+        # Find project root dynamically to avoid hardcoding
+        _project_root = self._find_project_root()
+        self.output_dir = _project_root / "output" / "drawings"
         self.drawing_standard = "GB/T 50001-2017"
         self.scale = "1:50"
         self.units = "mm"
@@ -84,6 +87,31 @@ class StructureDrawer(ABC):
             Structure type string (e.g., "beam", "frame", "truss")
         """
         return self.__class__.__name__.replace('Drawer', '').lower()
+
+    def _find_project_root(self) -> Path:
+        """
+        Find the project root directory by searching for common markers.
+
+        Returns:
+            Path to the project root directory
+        """
+        _current_file = Path(__file__).resolve()
+        _project_root = _current_file.parent
+
+        while _project_root.parent != _project_root:
+            if (_current_file.parent.parent.parent == _project_root and
+                (_project_root / "structural_app").exists()):
+                return _project_root
+
+            if (_project_root / "config.toml").exists():
+                return _project_root
+
+            if (_project_root / "README.md").exists() and (_project_root / "structural_app").exists():
+                return _project_root
+
+            _project_root = _project_root.parent
+
+        return _current_file.parent.parent.parent
 
     @abstractmethod
     def draw_plan(self, design: Dict[str, Any]) -> Optional[str]:

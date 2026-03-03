@@ -6,6 +6,7 @@ Defines the abstract interface for all structure type reporters
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import os
+from pathlib import Path
 
 
 class BaseReporter(ABC):
@@ -18,8 +19,11 @@ class BaseReporter(ABC):
 
     def __init__(self):
         """Initialize the reporter"""
+        # Set structure type first (must be done before _find_project_root if needed)
         self.structure_type = self._get_structure_type()
-        self.output_dir = "output/reports"
+        # Find project root dynamically to avoid hardcoding
+        _project_root = self._find_project_root()
+        self.output_dir = _project_root / "output" / "reports"
         os.makedirs(self.output_dir, exist_ok=True)
 
     def _get_structure_type(self) -> str:
@@ -31,29 +35,27 @@ class BaseReporter(ABC):
         """
         return self.__class__.__name__.replace('Reporter', '').lower()
 
-    @abstractmethod
-    def generate_report(self, design: Dict[str, Any], results: Dict[str, Any],
-                       evaluation: Dict[str, Any] = None, drawings: Dict[str, Any] = None) -> str:
+    def _find_project_root(self) -> Path:
         """
-        Generate a structured report
-
-        Args:
-            design: Design proposal
-            results: Analysis results
-            evaluation: Evaluation report (optional)
-            drawings: Drawing results (optional)
+        Find the project root directory by searching for common markers.
 
         Returns:
-            Path to the generated report file
+            Path to the project root directory
         """
-        pass
+        _current_file = Path(__file__).resolve()
+        _project_root = _current_file.parent
 
-    def set_output_directory(self, directory: str) -> None:
-        """
-        Set the output directory for generated reports
+        while _project_root.parent != _project_root:
+            if (_current_file.parent.parent.parent == _project_root and
+                (_project_root / "structural_app").exists()):
+                return _project_root
 
-        Args:
-            directory: Path to output directory
-        """
-        self.output_dir = directory
-        os.makedirs(self.output_dir, exist_ok=True)
+            if (_project_root / "config.toml").exists():
+                return _project_root
+
+            if (_project_root / "README.md").exists() and (_project_root / "structural_app").exists():
+                return _project_root
+
+            _project_root = _project_root.parent
+
+        return _current_file.parent.parent.parent
