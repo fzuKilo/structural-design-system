@@ -4,8 +4,8 @@ PlanningFlow - Main Orchestration Class for OpenManus Structural Design System
 This module orchestrates the multi-agent workflow for structural design:
 1. StructuralDesignAgent - Collects parameters and creates design proposal
 2. FEAnalysisAgent - Performs finite element analysis
-3. CADDrawingAgent - Generates CAD drawings
-4. EvaluationAgent - Evaluates design quality
+3. EvaluationAgent - Evaluates design quality (在绘图之前)
+4. CADDrawingAgent - Generates CAD drawings
 5. ReportGenerationAgent - Generates comprehensive reports
 """
 
@@ -50,7 +50,7 @@ class PlanningFlow:
     each step completes successfully before proceeding to the next.
 
     Workflow:
-    DesignProposal → FEAnalysis → Drawing → Evaluation → Report
+    DesignProposal → FEAnalysis → Evaluation → Drawing → Report
     """
 
     def __init__(
@@ -122,7 +122,7 @@ class PlanningFlow:
         self.results["design_proposal"] = self._extract_design_proposal(design_result)
 
         if verbose and self.results["design_proposal"]:
-            print(f"✓ Design proposal created: {self.results['design_proposal'].get('type')}")
+            print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
 
         # Step 2: FE Analysis
         if verbose:
@@ -136,29 +136,12 @@ class PlanningFlow:
 
         if verbose and self.results["analysis_results"]:
             status = self.results['analysis_results'].get('status', 'unknown')
-            print(f"✓ FE analysis completed: {status}")
+            print(f"[OK] FE analysis completed: {status}")
 
-        # Step 3: CAD Drawing
+        # Step 3: Evaluation (在绘图之前先评估)
         if verbose:
             print()
-            print("Step 3: Generating CAD drawings...")
-            print("-" * 40)
-
-        drawing_request = self._build_drawing_request(
-            self.results["design_proposal"],
-            self.results["analysis_results"]
-        )
-        drawing_result = await self.drawing_agent.run(drawing_request)
-        self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
-
-        if verbose and self.results["drawing_results"]:
-            status = self.results['drawing_results'].get('status', 'unknown')
-            print(f"✓ CAD drawings generated: {status}")
-
-        # Step 4: Evaluation
-        if verbose:
-            print()
-            print("Step 4: Evaluating design quality...")
+            print("Step 3: Evaluating design quality...")
             print("-" * 40)
 
         evaluation_request = self._build_evaluation_request(
@@ -172,7 +155,24 @@ class PlanningFlow:
             status = self.results['evaluation_report'].get('status', 'unknown')
             grade = self.results['evaluation_report'].get('grade', 'N/A')
             score = self.results['evaluation_report'].get('comprehensive_score', 0)
-            print(f"✓ Evaluation completed: {status}, Grade: {grade}, Score: {score}")
+            print(f"[OK] Evaluation completed: {status}, Grade: {grade}, Score: {score}")
+
+        # Step 4: CAD Drawing
+        if verbose:
+            print()
+            print("Step 4: Generating CAD drawings...")
+            print("-" * 40)
+
+        drawing_request = self._build_drawing_request(
+            self.results["design_proposal"],
+            self.results["analysis_results"]
+        )
+        drawing_result = await self.drawing_agent.run(drawing_request)
+        self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
+
+        if verbose and self.results["drawing_results"]:
+            status = self.results['drawing_results'].get('status', 'unknown')
+            print(f"[OK] CAD drawings generated: {status}")
 
         # Step 5: Report Generation
         if verbose:
@@ -191,7 +191,7 @@ class PlanningFlow:
 
         if verbose and self.results["report_results"]:
             status = self.results['report_results'].get('status', 'unknown')
-            print(f"✓ Report generated: {status}")
+            print(f"[OK] Report generated: {status}")
 
         if verbose:
             print()
@@ -201,17 +201,96 @@ class PlanningFlow:
 
         return self.results
 
+    def _find_balanced_json_with_status(self, response: str) -> Optional[str]:
+        """
+        Find balanced JSON object containing status field
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Balanced JSON string, or None if not found
+        """
+        i = 0
+        while i < len(response):
+            if response[i] == '{':
+                # Found opening brace, find matching closing brace
+                brace_count = 0
+                start = i
+                for j in range(i, len(response)):
+                    if response[j] == '{':
+                        brace_count += 1
+                    elif response[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = response[start:j+1]
+                            if '"status"' in json_str:
+                                return json_str
+                            break
+                i = j + 1
+            else:
+                i += 1
+        return None
+
     def _extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract design proposal from response."""
         try:
-            # Try to find JSON in the response
             import re
-            json_match = re.search(r'\{[^}]*"type"[^}]*\}', response, re.DOTALL)
+            import json
+
+            # Pattern 1: Extract from create_chat_completion tool output (preferred)
+            # Match the JSON object after "create_chat_completion ... executed:"
+            pattern = r'create_chat_completion.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
+            matches = re.findall(pattern, response, re.DOTALL)
+
+            if matches:
+                # Get the last match (most recent execution)
+                json_str = matches[-1]
+                return json.loads(json_str)
+
+            # Pattern 2: Find balanced JSON containing "type" field
+            json_match = re.search(r'\{[\s\S]*?"type":[\s\S]*?\n\}', response, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())
+
+            # Pattern 3: Fallback - find any balanced JSON with type field
+            balanced_json = self._find_balanced_json_with_status_for_type(response)
+            if balanced_json:
+                return json.loads(balanced_json)
+
             return None
         except Exception:
             return None
+
+    def _find_balanced_json_with_status_for_type(self, response: str) -> Optional[str]:
+        """
+        Find balanced JSON object containing type field (for design proposal)
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Balanced JSON string, or None if not found
+        """
+        i = 0
+        while i < len(response):
+            if response[i] == '{':
+                brace_count = 0
+                start = i
+                for j in range(i, len(response)):
+                    if response[j] == '{':
+                        brace_count += 1
+                    elif response[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = response[start:j+1]
+                            if '"type"' in json_str:
+                                return json_str
+                            break
+                i = j + 1
+            else:
+                i += 1
+        return None
 
     def _build_analysis_request(self, design_proposal: Optional[Dict]) -> str:
         """Build request for FE analysis agent."""
@@ -223,11 +302,19 @@ class PlanningFlow:
         """Extract analysis results from response."""
         try:
             import re
-            # Pattern: extract from analysis tool output
-            pattern = r'analysis.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            import json
+
+            # Pattern 1: Extract from fe_analysis tool output
+            pattern = r'fe_analysis.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
+
+            # Pattern 2: Find balanced JSON containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
+
             return None
         except Exception:
             return None
@@ -248,10 +335,19 @@ class PlanningFlow:
         """Extract drawing results from response."""
         try:
             import re
-            pattern = r'drawing.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            import json
+
+            # Pattern 1: Extract from cad_drawing tool output
+            pattern = r'cad_drawing.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
+
+            # Pattern 2: Find balanced JSON containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
+
             return None
         except Exception:
             return None
@@ -272,10 +368,19 @@ class PlanningFlow:
         """Extract evaluation report from response."""
         try:
             import re
-            pattern = r'evaluation.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            import json
+
+            # Pattern 1: Extract from evaluation tool output
+            pattern = r'evaluation.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
+
+            # Pattern 2: Find balanced JSON containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
+
             return None
         except Exception:
             return None
@@ -300,10 +405,19 @@ class PlanningFlow:
         """Extract report results from response."""
         try:
             import re
-            pattern = r'report.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            import json
+
+            # Pattern 1: Extract from report tool output
+            pattern = r'report.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
+
+            # Pattern 2: Find balanced JSON containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
+
             return None
         except Exception:
             return None

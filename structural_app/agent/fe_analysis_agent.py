@@ -177,14 +177,22 @@ The fe_analysis tool will return AnalysisResults in this format:
 IMPORTANT:
 - Always use the fe_analysis tool to perform the analysis
 - Do not try to calculate results manually
-- Pass the complete DesignProposal to the fe_analysis tool
+- **CRITICAL: The input request IS the DesignProposal in JSON format**
+- **CRITICAL: You must pass the ENTIRE DesignProposal to the fe_analysis tool**
 - **CRITICAL: The DesignProposal MUST include the "units" field** ("m" for meters or "mm" for millimeters)
 - Return the AnalysisResults exactly as provided by the fe_analysis tool
 
 ANALYSIS WORKFLOW:
-1. Extract the DesignProposal from the input
-2. Call the fe_analysis tool with the DesignProposal
+1. Read the input request - IT IS the DesignProposal in JSON format
+2. Call the fe_analysis tool with the DesignProposal from the request
 3. Return the AnalysisResults to the user
+
+EXAMPLE:
+If the input is:
+{"type": "beam", "units": "m", "geometry": {...}, "material": {...}, "loads": {...}, "constraints": {...}}
+
+Then call:
+fe_analysis(design_proposal='{"type": "beam", "units": "m", ...}')
 """
 
     async def run(self, request: str, **kwargs) -> str:
@@ -231,9 +239,39 @@ Please update the design based on these improvements and re-analyze."""
 {json_module.dumps(error_result, ensure_ascii=False)}
 """
 
-        # Prepare the analysis prompt
-        # Use the request directly as the analysis prompt to avoid nested instructions
-        analysis_prompt = f"""{request}
+        # 新增：如果 request 中没有包含完整的 DesignProposal，从上下文（memory）中提取
+        # 这处理了 PlanningFlow 调用时，request 是 JSON 字符串但可能被包装的情况
+        if not design_proposal:
+            # 尝试从整个对话历史中提取 DesignProposal
+            import re
+            import json
+            # Look for DesignProposal in the request - handle both direct JSON and wrapped formats
+            # Pattern: match JSON with type field that has "beam", "frame", etc.
+            type_pattern = r'(\{[\s\S]*?"type"\s*:\s*"(beam|frame|truss|arch)"[\s\S]*?\n\})'
+            type_match = re.search(type_pattern, request)
+            if type_match:
+                try:
+                    design_proposal = json.loads(type_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+
+        # Prepare the analysis prompt with explicit instructions
+        # 新增：明确告诉 LLM DesignProposal 的位置，并提供提取后的数据
+        if design_proposal:
+            # 将提取的 DesignProposal 明确写入 prompt
+            request_with_proposal = f"""DesignProposal found in input:
+```json
+{json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+```
+
+Use the fe_analysis tool to perform the finite element analysis.
+Pass the DesignProposal above to the fe_analysis tool.
+Return the complete AnalysisResults."""
+        else:
+            # 没有提取到 DesignProposal，使用原请求
+            request_with_proposal = request
+
+        analysis_prompt = f"""{request_with_proposal}
 
 Use the fe_analysis tool to perform the finite element analysis.
 Return the complete AnalysisResults."""
@@ -448,6 +486,37 @@ Please update the design and re-analyze."""
             print(f"Failed to parse JSON: {e}")
             return None
 
+    def _find_balanced_json_with_status(self, response: str) -> Optional[str]:
+        """
+        Find balanced JSON object containing status field
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Balanced JSON string, or None if not found
+        """
+        i = 0
+        while i < len(response):
+            if response[i] == '{':
+                # Found opening brace, find matching closing brace
+                brace_count = 0
+                start = i
+                for j in range(i, len(response)):
+                    if response[j] == '{':
+                        brace_count += 1
+                    elif response[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = response[start:j+1]
+                            if '"status"' in json_str:
+                                return json_str
+                            break
+                i = j + 1
+            else:
+                i += 1
+        return None
+
     def extract_analysis_results(self, response: str) -> Optional[Dict[str, Any]]:
         """
         Extract AnalysisResults JSON from LLM response
@@ -480,12 +549,11 @@ Please update the design and re-analyze."""
                 return json.loads(json_str)
 
             # Pattern 3: Direct JSON object with status field (fallback)
-            # Match JSON objects containing "status"
-            # Use a more specific pattern to avoid matching other JSON
-            matches = re.findall(r'\{[^}]*"status"[^}]*\}', response, re.DOTALL)
-            if matches:
-                json_str = matches[-1]  # Get last match
-                return json.loads(json_str)
+            # Find balanced JSON objects containing "status" field
+            # Use a more robust approach to handle nested JSON
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
 
             # Pattern 4: Extract the entire JSON object from error message
             # This handles cases where the response is just an error JSON

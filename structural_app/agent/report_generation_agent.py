@@ -5,9 +5,9 @@ Generates comprehensive design reports with visualizations
 
 from typing import Dict, Any, Optional, List
 import json
+import json
 
 from app.agent.toolcall import ToolCallAgent
-from app.tool.ask_human import AskHuman
 from app.schema import Message
 from app.tool import ToolCollection, CreateChatCompletion, Terminate
 
@@ -91,9 +91,10 @@ class ReportGenerationAgent(ToolCallAgent):
                 "as input and return a complete report package."
             )
 
-        # Initialize with ReportTool, VisualizationTool, and AskHuman if not provided
+        # Initialize with ReportTool and VisualizationTool if not provided
+        # 移除 AskHuman：ReportGenerationAgent 应该直接从上下文提取数据，不需要询问用户
         if tools is None:
-            tools = [ReportTool(), VisualizationTool(), AskHuman()]
+            tools = [ReportTool(), VisualizationTool()]
         else:
             # Add ReportTool if not present
             has_report = any(isinstance(tool, ReportTool) for tool in tools)
@@ -104,11 +105,6 @@ class ReportGenerationAgent(ToolCallAgent):
             has_visualization = any(isinstance(tool, VisualizationTool) for tool in tools)
             if not has_visualization:
                 tools.append(VisualizationTool())
-
-            # Add AskHuman if not present
-            has_ask_human = any(isinstance(tool, AskHuman) for tool in tools)
-            if not has_ask_human:
-                tools.append(AskHuman())
 
         super().__init__(
             name=name,
@@ -220,13 +216,30 @@ IMPORTANT:
 - Always use the visualization tool first to generate plots
 - Then use the report tool to generate the Markdown report
 - Return the complete ReportResults with all file paths
-- If evaluation score < 75, consider asking the user for design improvements
+- NEVER call ask_human - always extract data from the conversation history
+- If required data is missing or invalid, return an error ReportResults
+
+INPUT STRUCTURE:
+The input request is a JSON object containing:
+- "design_proposal": The design proposal object
+- "analysis_results": The analysis results object
+- "evaluation_report": The evaluation report object
+- "drawing_results": The drawing results object
+
+EXAMPLE CALL:
+If the input is:
+{"design_proposal": {...}, "analysis_results": {...}, "evaluation_report": {...}, "drawing_results": {...}}
+
+Then call:
+visualization(design_proposal=..., analysis_results=..., drawing_results=...)
+report(design_proposal=..., analysis_results=..., evaluation_report=..., drawing_results=...)
 
 REPORT GENERATION WORKFLOW:
-1. Extract DesignProposal, AnalysisResults, EvaluationReport, DrawingResults from the input
-2. Call the visualization tool with the extracted data
-3. Call the report tool with all results
-4. Return the ReportResults to the user
+1. Read the input request - it is a JSON object with design_proposal, analysis_results, evaluation_report, drawing_results
+2. Extract all four objects from the JSON
+3. Call the visualization tool with design_proposal, analysis_results, and drawing_results
+4. Call the report tool with all four objects
+5. Return the ReportResults to the user
 """
 
     async def run(self, request: str, **kwargs) -> str:
@@ -240,8 +253,11 @@ REPORT GENERATION WORKFLOW:
         Returns:
             String containing the report results
         """
-        # Prepare the report generation prompt
+        # Prepare the report generation prompt with clear instructions
         report_prompt = f"""{request}
+
+IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
+Extract each object from the JSON and pass them to the visualization and report tools.
 
 Use the visualization tool to generate visualizations first,
 then use the report tool to generate the comprehensive report.
@@ -251,6 +267,46 @@ Return the complete ReportResults."""
         result = await super().run(request=report_prompt, **kwargs)
 
         return result
+
+    def _extract_json_by_pattern(self, response: str, field_pattern: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract JSON object containing a specific field pattern
+
+        Args:
+            response: Response string to search in
+            field_pattern: Field pattern to look for (e.g., '"type"', '"status"')
+
+        Returns:
+            Extracted JSON dict, or None if not found
+        """
+        try:
+            import re
+
+            # Find balanced JSON containing the pattern
+            i = 0
+            while i < len(response):
+                if response[i] == '{':
+                    brace_count = 0
+                    start = i
+                    for j in range(i, len(response)):
+                        if response[j] == '{':
+                            brace_count += 1
+                        elif response[j] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                json_str = response[start:j+1]
+                                if field_pattern and field_pattern in json_str:
+                                    try:
+                                        return json.loads(json_str)
+                                    except json.JSONDecodeError:
+                                        pass
+                                break
+                    i = j + 1
+                else:
+                    i += 1
+            return None
+        except Exception:
+            return None
 
     def _find_balanced_json(self, response: str) -> Optional[str]:
         """
@@ -299,7 +355,8 @@ Return the complete ReportResults."""
 
             # Pattern 1: Extract from report tool output
             # Find the JSON block after "report" tool execution
-            pattern = r'report.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
+            # Modified to handle JSON without trailing newline
+            pattern = r'report.*?executed:\s*(\{[\s\S]*?\n?\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response)
 
             if matches:

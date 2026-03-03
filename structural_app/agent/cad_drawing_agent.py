@@ -223,16 +223,47 @@ Return the complete DrawingResults."""
                 return json.loads(json_str)
 
             # Pattern 3: Direct JSON object with status field (fallback)
-            matches = re.findall(r'\{[^}]*"status"[^}]*\}', response, re.DOTALL)
-            if matches:
-                json_str = matches[-1]
-                return json.loads(json_str)
+            # Find balanced JSON objects containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
 
             return None
 
         except json.JSONDecodeError as e:
             print(f"Failed to parse drawing results JSON: {e}")
             return None
+
+    def _find_balanced_json_with_status(self, response: str) -> Optional[str]:
+        """
+        Find balanced JSON object containing status field
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Balanced JSON string, or None if not found
+        """
+        i = 0
+        while i < len(response):
+            if response[i] == '{':
+                # Found opening brace, find matching closing brace
+                brace_count = 0
+                start = i
+                for j in range(i, len(response)):
+                    if response[j] == '{':
+                        brace_count += 1
+                    elif response[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = response[start:j+1]
+                            if '"status"' in json_str:
+                                return json_str
+                            break
+                i = j + 1
+            else:
+                i += 1
+        return None
 
 
 # Register the agent for use in PlanningFlow

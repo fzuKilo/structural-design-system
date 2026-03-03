@@ -132,6 +132,9 @@ class FEAnalysisTool(BaseTool):
             },
             # Make design_proposal mutually exclusive with individual parameters
             # At least one format must be provided
+            # 将 required 改为包含至少一个参数格式
+            # 由于 design_proposal 和 individual parameters 互斥，这里留空让 LLM 自由选择
+            # 但通过系统提示词强调必须传入有效数据
             "required": []
         }
 

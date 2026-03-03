@@ -208,10 +208,23 @@ IMPORTANT:
   * A+: >= 95, A: 90-94, B+: 85-89, B: 80-84
   * C+: 75-79, C: 70-74, D: < 70
 
+INPUT STRUCTURE:
+The input request is a JSON object with two keys:
+- "design_proposal": The design proposal object
+- "analysis_results": The analysis results object
+
+EXAMPLE CALL:
+If the input is:
+{"design_proposal": {"type": "beam", ...}, "analysis_results": {"status": "success", ...}}
+
+Then call:
+evaluation(design_proposal={"type": "beam", ...}, analysis_results={"status": "success", ...})
+
 EVALUATION WORKFLOW:
-1. Extract DesignProposal and AnalysisResults from the input
-2. Call the evaluation tool with the extracted data
-3. Return the EvaluationReport to the user
+1. Read the input request - it is a JSON object with design_proposal and analysis_results
+2. Extract design_proposal and analysis_results from the JSON
+3. Call the evaluation tool with both objects
+4. Return the EvaluationReport to the user
 """
 
     async def run(self, request: str, **kwargs) -> str:
@@ -266,16 +279,47 @@ Return the complete EvaluationReport."""
                 return json.loads(json_str)
 
             # Pattern 3: Direct JSON object with status field (fallback)
-            matches = re.findall(r'\{[^}]*"status"[^}]*\}', response, re.DOTALL)
-            if matches:
-                json_str = matches[-1]
-                return json.loads(json_str)
+            # Find balanced JSON objects containing "status" field
+            balanced_json = self._find_balanced_json_with_status(response)
+            if balanced_json:
+                return json.loads(balanced_json)
 
             return None
 
         except json.JSONDecodeError as e:
             print(f"Failed to parse evaluation report JSON: {e}")
             return None
+
+    def _find_balanced_json_with_status(self, response: str) -> Optional[str]:
+        """
+        Find balanced JSON object containing status field
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Balanced JSON string, or None if not found
+        """
+        i = 0
+        while i < len(response):
+            if response[i] == '{':
+                # Found opening brace, find matching closing brace
+                brace_count = 0
+                start = i
+                for j in range(i, len(response)):
+                    if response[j] == '{':
+                        brace_count += 1
+                    elif response[j] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = response[start:j+1]
+                            if '"status"' in json_str:
+                                return json_str
+                            break
+                i = j + 1
+            else:
+                i += 1
+        return None
 
 
 # Register the agent for use in PlanningFlow
