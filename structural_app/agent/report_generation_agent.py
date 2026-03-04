@@ -186,8 +186,14 @@ DrawingResults format:
 OUTPUT FORMAT:
 You MUST use the tools to generate the report.
 
-Step 1: Use visualization tool to generate visualizations
-Step 2: Use report tool to generate the report
+CRITICAL WORKFLOW:
+Step 1: ALWAYS call visualization tool first to generate NEW visualizations
+        - NEVER skip this step
+        - NEVER assume visualizations already exist
+        - ALWAYS generate fresh visualizations for each report
+        - Pass design_proposal and analysis_results to the tool
+Step 2: Call report tool to generate the comprehensive Markdown report
+        - Pass all four objects: design_proposal, analysis_results, evaluation_report, drawing_results
 Step 3: Return ReportResults in this format:
 {
   "status": "success",
@@ -213,12 +219,13 @@ Step 3: Return ReportResults in this format:
 }
 
 IMPORTANT:
-- MUST use the visualization tool first to generate plots before calling report tool
-- MUST use the report tool to generate the Markdown report
+- MUST call the visualization tool first to generate NEW plots before calling report tool
+- MUST call the report tool to generate the Markdown report
 - MUST return the complete ReportResults with all file paths for both visualizations and report
 - NEVER call ask_human - always extract data from the conversation history
 - If visualization tool is not called, the report will be incomplete
 - If required data is missing or invalid, return an error ReportResults
+- DO NOT use old visualization files - always generate new ones
 
 INPUT STRUCTURE:
 The input request is a JSON object containing:
@@ -232,13 +239,13 @@ If the input is:
 {"design_proposal": {...}, "analysis_results": {...}, "evaluation_report": {...}, "drawing_results": {...}}
 
 Then call:
-visualization(design_proposal=..., analysis_results=..., drawing_results=...)
+visualization(design_proposal=..., analysis_results=...)
 report(design_proposal=..., analysis_results=..., evaluation_report=..., drawing_results=...)
 
 REPORT GENERATION WORKFLOW:
 1. Read the input request - it is a JSON object with design_proposal, analysis_results, evaluation_report, drawing_results
 2. Extract all four objects from the JSON
-3. Call the visualization tool with design_proposal, analysis_results, and drawing_results
+3. CRITICAL: Call the visualization tool with design_proposal and analysis_results to generate NEW visualizations
 4. Call the report tool with all four objects
 5. Return the ReportResults to the user
 """
@@ -256,6 +263,10 @@ REPORT GENERATION WORKFLOW:
         """
         # First, call visualization tool to generate visualizations
         # This ensures visualizations are always generated
+        visualization_output = None
+        visualization_success = False
+        visualization_error = None
+
         try:
             import re
             import json
@@ -273,36 +284,63 @@ REPORT GENERATION WORKFLOW:
                 pass
 
             # Call visualization tool directly if data available
-            visualization_output = None
             if design_proposal and analysis_results:
                 viz_tool = next((t for t in self.available_tools.tool_map.values()
                                if hasattr(t, '__class__') and 'visualization' in t.__class__.__name__.lower()), None)
                 if viz_tool:
                     try:
+                        print(f"[ReportGenerationAgent] Pre-executing visualization tool...")
                         viz_result = await viz_tool.execute(design_proposal=design_proposal,
                                                            analysis_results=analysis_results)
                         visualization_output = str(viz_result)
+                        visualization_success = True
+                        print(f"[ReportGenerationAgent] Visualization tool pre-execution SUCCESS")
                     except Exception as e:
-                        print(f"Visualization tool execution failed: {e}")
+                        visualization_error = str(e)
+                        print(f"[ReportGenerationAgent] Visualization tool pre-execution FAILED: {e}")
+                else:
+                    visualization_error = "Visualization tool not found"
+                    print(f"[ReportGenerationAgent] Visualization tool not found in available tools")
+            else:
+                visualization_error = "Missing design_proposal or analysis_results"
+                print(f"[ReportGenerationAgent] Cannot pre-execute visualization: missing data")
         except Exception as e:
-            print(f"Visualization pre-execution failed: {e}")
+            visualization_error = str(e)
+            print(f"[ReportGenerationAgent] Visualization pre-execution exception: {e}")
 
         # Prepare the report generation prompt with clear instructions
         # Include visualization output if available
-        if visualization_output:
+        if visualization_success and visualization_output:
             report_prompt = f"""{request}
 
-VISUALIZATION RESULTS (already generated):
+VISUALIZATION RESULTS (already generated by pre-execution):
 {visualization_output}
 
 IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
 Extract each object from the JSON and pass them to the report tool.
 
-Step 1: Use the visualization results above (already generated)
+Step 1: Visualizations have been generated successfully (see above)
 Step 2: Call report tool to generate the comprehensive report
 Step 3: Return the complete ReportResults with both visualization and report file paths
 
 IMPORTANT: Use the visualization files from the results above.
+"""
+        elif visualization_error:
+            report_prompt = f"""{request}
+
+WARNING: Visualization pre-execution FAILED with error: {visualization_error}
+
+IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
+Extract each object from the JSON and pass them to the visualization and report tools.
+
+CRITICAL RECOVERY STEPS:
+Step 1: You MUST call visualization tool with design_proposal and analysis_results to generate NEW visualizations
+        - Do NOT skip this step even if old files exist
+        - The pre-execution failed, so you need to retry
+Step 2: MUST call report tool with design_proposal, analysis_results, evaluation_report, and drawing_results
+Step 3: Return the complete ReportResults with both visualization and report file paths
+
+CRITICAL: You MUST call both the visualization tool and the report tool. Do not skip either step.
 """
         else:
             report_prompt = f"""{request}
@@ -310,11 +348,15 @@ IMPORTANT: Use the visualization files from the results above.
 IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
 Extract each object from the JSON and pass them to the visualization and report tools.
 
-Step 1: MUST call visualization tool with design_proposal and analysis_results to generate visualizations
+CRITICAL STEPS:
+Step 1: You MUST call visualization tool with design_proposal and analysis_results to generate NEW visualizations
+        - Do NOT use old visualization files
+        - Always generate fresh visualizations for each test run
 Step 2: MUST call report tool with design_proposal, analysis_results, evaluation_report, and drawing_results
 Step 3: Return the complete ReportResults with both visualization and report file paths
 
-CRITICAL: You MUST call both the visualization tool and the report tool. Do not skip either step."""
+CRITICAL: You MUST call both the visualization tool and the report tool. Do not skip either step.
+"""
 
         # Call the parent run method (system_prompt is already set in __init__)
         result = await super().run(request=report_prompt, **kwargs)
@@ -474,19 +516,32 @@ CRITICAL: You MUST call both the visualization tool and the report tool. Do not 
             # Pattern 3: If no visualization output found in response,
             # try to find the latest visualization files in the output directory
             # This handles the case where LLM didn't call visualization tool
+            # WARNING: This is a fallback mechanism and should not be the primary path
+            print("[ReportGenerationAgent] WARNING: Visualization tool output not found in response")
+            print("[ReportGenerationAgent] Attempting to use existing files as fallback (NOT RECOMMENDED)")
+
             _current_dir = os.path.dirname(os.path.abspath(__file__))
             _structural_app_path = os.path.dirname(_current_dir)
             _project_root = os.path.dirname(_structural_app_path)
             viz_dir = os.path.join(_project_root, 'output', 'visualizations')
 
             if os.path.exists(viz_dir):
+                from datetime import datetime, timedelta
+
                 # Find latest PNG and HTML files
                 files = os.listdir(viz_dir)
                 static_files = {}
                 interactive_files = {}
+                oldest_file_time = None
 
-                # Group files by type
+                # Group files by type and track timestamps
                 for f in files:
+                    file_path = os.path.join(viz_dir, f)
+                    file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
+
+                    if oldest_file_time is None or file_mtime < oldest_file_time:
+                        oldest_file_time = file_mtime
+
                     if f.endswith('.png'):
                         if 'moment' in f.lower():
                             static_files['moment_diagram'] = f"visualizations/{f}"
@@ -501,6 +556,16 @@ CRITICAL: You MUST call both the visualization tool and the report tool. Do not 
                             interactive_files['shear_html'] = f"visualizations/{f}"
                         elif 'deflection' in f.lower():
                             interactive_files['deflection_html'] = f"visualizations/{f}"
+
+                # Check if files are too old (more than 5 minutes)
+                if oldest_file_time:
+                    age = datetime.now() - oldest_file_time
+                    if age > timedelta(minutes=5):
+                        print(f"[ReportGenerationAgent] WARNING: Using OLD visualization files (age: {age})")
+                        print(f"[ReportGenerationAgent] Files were last modified at: {oldest_file_time}")
+                        print(f"[ReportGenerationAgent] This indicates the visualization tool was NOT called in this run")
+                    else:
+                        print(f"[ReportGenerationAgent] Using recent visualization files (age: {age})")
 
                 # If we found files, return paths
                 if static_files or interactive_files:
