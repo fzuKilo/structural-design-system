@@ -513,70 +513,13 @@ CRITICAL: You MUST call both the visualization tool and the report tool. Do not 
                 result = json.loads(json_str)
                 return result.get('visualizations', result)
 
-            # Pattern 3: If no visualization output found in response,
-            # try to find the latest visualization files in the output directory
-            # This handles the case where LLM didn't call visualization tool
-            # WARNING: This is a fallback mechanism and should not be the primary path
-            print("[ReportGenerationAgent] WARNING: Visualization tool output not found in response")
-            print("[ReportGenerationAgent] Attempting to use existing files as fallback (NOT RECOMMENDED)")
-
-            _current_dir = os.path.dirname(os.path.abspath(__file__))
-            _structural_app_path = os.path.dirname(_current_dir)
-            _project_root = os.path.dirname(_structural_app_path)
-            viz_dir = os.path.join(_project_root, 'output', 'visualizations')
-
-            if os.path.exists(viz_dir):
-                from datetime import datetime, timedelta
-
-                # Find latest PNG and HTML files
-                files = os.listdir(viz_dir)
-                static_files = {}
-                interactive_files = {}
-                oldest_file_time = None
-
-                # Group files by type and track timestamps
-                for f in files:
-                    file_path = os.path.join(viz_dir, f)
-                    file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
-
-                    if oldest_file_time is None or file_mtime < oldest_file_time:
-                        oldest_file_time = file_mtime
-
-                    if f.endswith('.png'):
-                        if 'moment' in f.lower():
-                            static_files['moment_diagram'] = f"visualizations/{f}"
-                        elif 'shear' in f.lower():
-                            static_files['shear_diagram'] = f"visualizations/{f}"
-                        elif 'deflection' in f.lower():
-                            static_files['deflection_curve'] = f"visualizations/{f}"
-                    elif f.endswith('.html'):
-                        if 'moment' in f.lower():
-                            interactive_files['moment_html'] = f"visualizations/{f}"
-                        elif 'shear' in f.lower():
-                            interactive_files['shear_html'] = f"visualizations/{f}"
-                        elif 'deflection' in f.lower():
-                            interactive_files['deflection_html'] = f"visualizations/{f}"
-
-                # Check if files are too old (more than 5 minutes)
-                if oldest_file_time:
-                    age = datetime.now() - oldest_file_time
-                    if age > timedelta(minutes=5):
-                        print(f"[ReportGenerationAgent] WARNING: Using OLD visualization files (age: {age})")
-                        print(f"[ReportGenerationAgent] Files were last modified at: {oldest_file_time}")
-                        print(f"[ReportGenerationAgent] This indicates the visualization tool was NOT called in this run")
-                    else:
-                        print(f"[ReportGenerationAgent] Using recent visualization files (age: {age})")
-
-                # If we found files, return paths
-                if static_files or interactive_files:
-                    return {
-                        'static': static_files,
-                        'interactive': interactive_files
-                    }
-
+            # No visualization results found - this is an error condition
+            print(f"[ReportGenerationAgent] ERROR: No visualization results found in response")
+            print(f"[ReportGenerationAgent] This indicates the visualization tool was not called or failed")
             return None
 
-        except Exception:
+        except Exception as e:
+            print(f"[ReportGenerationAgent] ERROR: Failed to extract visualization results: {e}")
             return None
 
     def _extract_report_file_results(self, response: str) -> Optional[Dict[str, Any]]:

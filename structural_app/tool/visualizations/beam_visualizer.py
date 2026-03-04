@@ -40,7 +40,17 @@ class BeamVisualizer(BaseVisualizer):
         Returns:
             Dictionary mapping visualization type to file path
         """
-        os.makedirs(self.output_dir, exist_ok=True)
+        print(f"[BeamVisualizer] Starting static visualization generation...")
+        print(f"[BeamVisualizer] Output directory: {self.output_dir}")
+
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            print(f"[BeamVisualizer] Output directory created/verified")
+        except Exception as e:
+            print(f"[BeamVisualizer] ERROR: Failed to create output directory: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
 
         # Extract data from results
         detailed_results = results.get('detailed_results', {})
@@ -49,31 +59,78 @@ class BeamVisualizer(BaseVisualizer):
         length = design.get('geometry', {}).get('length', 1.0)
         n_elements = design.get('geometry', {}).get('n_elements', 10)
 
+        print(f"[BeamVisualizer] Data extracted:")
+        print(f"  - Moments: {len(moments)} points")
+        print(f"  - Shears: {len(shears)} points")
+        print(f"  - Length: {length} m")
+        print(f"  - Elements: {n_elements}")
+
         # Generate x-axis positions
         x = np.linspace(0, length, len(moments) if moments else n_elements + 1)
 
         # File paths
         base_path = os.path.join(self.output_dir, "beam")
         timestamp = self._get_timestamp()
+        print(f"[BeamVisualizer] Timestamp: {timestamp}")
 
         files = {}
 
         # Generate moment diagram
         if moments:
             files['moment_diagram'] = f"{base_path}_moment_{timestamp}.png"
-            self._plot_moment_diagram(x, moments, files['moment_diagram'])
+            print(f"[BeamVisualizer] Generating moment diagram: {files['moment_diagram']}")
+            try:
+                self._plot_moment_diagram(x, moments, files['moment_diagram'])
+                if os.path.exists(files['moment_diagram']):
+                    print(f"[BeamVisualizer] SUCCESS: Moment diagram created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Moment diagram file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate moment diagram: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['moment_diagram']
+        else:
+            print(f"[BeamVisualizer] SKIP: No moment data available")
 
         # Generate shear diagram
         if shears:
             files['shear_diagram'] = f"{base_path}_shear_{timestamp}.png"
-            self._plot_shear_diagram(x, shears, files['shear_diagram'])
+            print(f"[BeamVisualizer] Generating shear diagram: {files['shear_diagram']}")
+            try:
+                self._plot_shear_diagram(x, shears, files['shear_diagram'])
+                if os.path.exists(files['shear_diagram']):
+                    print(f"[BeamVisualizer] SUCCESS: Shear diagram created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Shear diagram file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate shear diagram: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['shear_diagram']
+        else:
+            print(f"[BeamVisualizer] SKIP: No shear data available")
 
         # Generate deflection curve if available
         max_displacement = results.get('max_displacement_mm', 0)
         if max_displacement > 0:
             files['deflection_curve'] = f"{base_path}_deflection_{timestamp}.png"
-            self._plot_deflection_curve(x, moments, files['deflection_curve'], length)
+            print(f"[BeamVisualizer] Generating deflection curve: {files['deflection_curve']}")
+            try:
+                self._plot_deflection_curve(x, moments, files['deflection_curve'], length)
+                if os.path.exists(files['deflection_curve']):
+                    print(f"[BeamVisualizer] SUCCESS: Deflection curve created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Deflection curve file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate deflection curve: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['deflection_curve']
+        else:
+            print(f"[BeamVisualizer] SKIP: No displacement data available")
 
+        print(f"[BeamVisualizer] Static visualization complete. Generated {len(files)} files")
         return files
 
     def generate_interactive_visualizations(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, str]:
@@ -88,9 +145,18 @@ class BeamVisualizer(BaseVisualizer):
             Dictionary mapping visualization type to file path
         """
         if not PLOTLY_AVAILABLE:
+            print(f"[BeamVisualizer] WARNING: Plotly not available, skipping interactive visualizations")
             return {}
 
-        os.makedirs(self.output_dir, exist_ok=True)
+        print(f"[BeamVisualizer] Starting interactive visualization generation...")
+
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+        except Exception as e:
+            print(f"[BeamVisualizer] ERROR: Failed to create output directory: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
 
         # Extract data from results
         detailed_results = results.get('detailed_results', {})
@@ -111,19 +177,53 @@ class BeamVisualizer(BaseVisualizer):
         # Generate interactive moment diagram
         if moments:
             files['moment_html'] = f"{base_path}_moment_{timestamp}.html"
-            self._plot_interactive_moment(x, moments, files['moment_html'])
+            print(f"[BeamVisualizer] Generating interactive moment diagram: {files['moment_html']}")
+            try:
+                self._plot_interactive_moment(x, moments, files['moment_html'])
+                if os.path.exists(files['moment_html']):
+                    print(f"[BeamVisualizer] SUCCESS: Interactive moment diagram created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Interactive moment diagram file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate interactive moment diagram: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['moment_html']
 
         # Generate interactive shear diagram
         if shears:
             files['shear_html'] = f"{base_path}_shear_{timestamp}.html"
-            self._plot_interactive_shear(x, shears, files['shear_html'])
+            print(f"[BeamVisualizer] Generating interactive shear diagram: {files['shear_html']}")
+            try:
+                self._plot_interactive_shear(x, shears, files['shear_html'])
+                if os.path.exists(files['shear_html']):
+                    print(f"[BeamVisualizer] SUCCESS: Interactive shear diagram created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Interactive shear diagram file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate interactive shear diagram: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['shear_html']
 
         # Generate interactive deflection curve
         max_displacement = results.get('max_displacement_mm', 0)
         if max_displacement > 0:
             files['deflection_html'] = f"{base_path}_deflection_{timestamp}.html"
-            self._plot_interactive_deflection(x, moments, files['deflection_html'], length)
+            print(f"[BeamVisualizer] Generating interactive deflection curve: {files['deflection_html']}")
+            try:
+                self._plot_interactive_deflection(x, moments, files['deflection_html'], length)
+                if os.path.exists(files['deflection_html']):
+                    print(f"[BeamVisualizer] SUCCESS: Interactive deflection curve created")
+                else:
+                    print(f"[BeamVisualizer] WARNING: Interactive deflection curve file not found after plotting")
+            except Exception as e:
+                print(f"[BeamVisualizer] ERROR: Failed to generate interactive deflection curve: {e}")
+                import traceback
+                traceback.print_exc()
+                del files['deflection_html']
 
+        print(f"[BeamVisualizer] Interactive visualization complete. Generated {len(files)} files")
         return files
 
     def _get_timestamp(self) -> str:
