@@ -338,7 +338,8 @@ class PlanningFlow:
             import json
 
             # Pattern 1: Extract from cad_drawing tool output
-            pattern = r'cad_drawing.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
+            # Modified to handle JSON that may or may not have trailing newline
+            pattern = r'cad_drawing.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
@@ -407,16 +408,108 @@ class PlanningFlow:
             import re
             import json
 
+            # Extract visualization results
+            visualization_results = self._extract_visualization_results(response)
+
+            # Extract report file results
+            report_results = self._extract_report_file_results(response)
+
+            # If no results found, return None
+            if not report_results and not visualization_results:
+                return None
+
+            # Build combined ReportResults
+            # visualization_results is already the visualizations object (static/interactive)
+            combined_results = {
+                'status': 'success',
+                'report_file': report_results.get('report_file') if report_results else None,
+                'visualizations': visualization_results if visualization_results else {},
+                'summary': {}
+            }
+
+            return combined_results
+
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse report results JSON: {e}")
+            return None
+
+    def _extract_visualization_results(self, response: str) -> Optional[Dict[str, Any]]:
+        """Extract visualization results from response or from output directory."""
+        try:
+            import re
+            import json
+            import os
+
+            # Pattern 1: Extract from visualization tool output
+            pattern = r'visualization.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
+            matches = re.findall(pattern, response, re.DOTALL)
+            if matches:
+                json_str = matches[-1]
+                result = json.loads(json_str)
+                return result.get('visualizations', result)
+
+            # Pattern 2: Extract from code block
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                result = json.loads(json_str)
+                return result.get('visualizations', result)
+
+            # Pattern 3: If no visualization output found in response,
+            # try to find the latest visualization files in the output directory
+            viz_dir = self.output_dir / "visualizations"
+
+            if viz_dir.exists():
+                # Find latest PNG and HTML files
+                static_files = {}
+                interactive_files = {}
+
+                # Get all visualization files and convert to relative paths
+                for f in viz_dir.glob('*'):
+                    f_rel = f.relative_to(viz_dir.parent)  # Get path relative to output directory
+                    f_str = str(f_rel).replace('\\', '/')  # Use forward slashes
+                    if f_str.endswith('.png'):
+                        if 'moment' in f_str.lower():
+                            static_files['moment_diagram'] = f_str
+                        elif 'shear' in f_str.lower():
+                            static_files['shear_diagram'] = f_str
+                        elif 'deflection' in f_str.lower():
+                            static_files['deflection_curve'] = f_str
+                    elif f_str.endswith('.html'):
+                        if 'moment' in f_str.lower():
+                            interactive_files['moment_html'] = f_str
+                        elif 'shear' in f_str.lower():
+                            interactive_files['shear_html'] = f_str
+                        elif 'deflection' in f_str.lower():
+                            interactive_files['deflection_html'] = f_str
+
+                if static_files or interactive_files:
+                    return {
+                        'static': static_files,
+                        'interactive': interactive_files
+                    }
+
+            return None
+        except Exception:
+            return None
+
+    def _extract_report_file_results(self, response: str) -> Optional[Dict[str, Any]]:
+        """Extract report file results from response."""
+        try:
+            import re
+            import json
+
             # Pattern 1: Extract from report tool output
-            pattern = r'report.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
+            pattern = r'report.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
                 return json.loads(matches[-1])
 
-            # Pattern 2: Find balanced JSON containing "status" field
-            balanced_json = self._find_balanced_json_with_status(response)
-            if balanced_json:
-                return json.loads(balanced_json)
+            # Pattern 2: Extract from code block
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                return json.loads(json_str)
 
             return None
         except Exception:

@@ -28,7 +28,7 @@ import json
 import tempfile
 
 # Add OpenManus to path
-_openmanus_path = 'D:\\openmanus'
+_openmanus_path = 'C:\\Users\\86177\\Desktop\\OpenManus'
 if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
     sys.path.insert(0, _openmanus_path)
 

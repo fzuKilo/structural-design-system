@@ -213,10 +213,11 @@ Step 3: Return ReportResults in this format:
 }
 
 IMPORTANT:
-- Always use the visualization tool first to generate plots
-- Then use the report tool to generate the Markdown report
-- Return the complete ReportResults with all file paths
+- MUST use the visualization tool first to generate plots before calling report tool
+- MUST use the report tool to generate the Markdown report
+- MUST return the complete ReportResults with all file paths for both visualizations and report
 - NEVER call ask_human - always extract data from the conversation history
+- If visualization tool is not called, the report will be incomplete
 - If required data is missing or invalid, return an error ReportResults
 
 INPUT STRUCTURE:
@@ -253,15 +254,67 @@ REPORT GENERATION WORKFLOW:
         Returns:
             String containing the report results
         """
+        # First, call visualization tool to generate visualizations
+        # This ensures visualizations are always generated
+        try:
+            import re
+            import json
+
+            # Extract design_proposal and analysis_results from request
+            design_proposal = None
+            analysis_results = None
+
+            # Try to extract from JSON
+            try:
+                request_obj = json.loads(request)
+                design_proposal = request_obj.get('design_proposal')
+                analysis_results = request_obj.get('analysis_results')
+            except json.JSONDecodeError:
+                pass
+
+            # Call visualization tool directly if data available
+            visualization_output = None
+            if design_proposal and analysis_results:
+                viz_tool = next((t for t in self.available_tools.tool_map.values()
+                               if hasattr(t, '__class__') and 'visualization' in t.__class__.__name__.lower()), None)
+                if viz_tool:
+                    try:
+                        viz_result = await viz_tool.execute(design_proposal=design_proposal,
+                                                           analysis_results=analysis_results)
+                        visualization_output = str(viz_result)
+                    except Exception as e:
+                        print(f"Visualization tool execution failed: {e}")
+        except Exception as e:
+            print(f"Visualization pre-execution failed: {e}")
+
         # Prepare the report generation prompt with clear instructions
-        report_prompt = f"""{request}
+        # Include visualization output if available
+        if visualization_output:
+            report_prompt = f"""{request}
+
+VISUALIZATION RESULTS (already generated):
+{visualization_output}
+
+IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
+Extract each object from the JSON and pass them to the report tool.
+
+Step 1: Use the visualization results above (already generated)
+Step 2: Call report tool to generate the comprehensive report
+Step 3: Return the complete ReportResults with both visualization and report file paths
+
+IMPORTANT: Use the visualization files from the results above.
+"""
+        else:
+            report_prompt = f"""{request}
 
 IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_results, evaluation_report, drawing_results.
 Extract each object from the JSON and pass them to the visualization and report tools.
 
-Use the visualization tool to generate visualizations first,
-then use the report tool to generate the comprehensive report.
-Return the complete ReportResults."""
+Step 1: MUST call visualization tool with design_proposal and analysis_results to generate visualizations
+Step 2: MUST call report tool with design_proposal, analysis_results, evaluation_report, and drawing_results
+Step 3: Return the complete ReportResults with both visualization and report file paths
+
+CRITICAL: You MUST call both the visualization tool and the report tool. Do not skip either step."""
 
         # Call the parent run method (system_prompt is already set in __init__)
         result = await super().run(request=report_prompt, **kwargs)
@@ -344,7 +397,7 @@ Return the complete ReportResults."""
         Extract ReportResults JSON from LLM response
 
         Args:
-            response: LLM response text (may contain report tool output)
+            response: LLM response text (may contain visualization and report tool outputs)
 
         Returns:
             Parsed report results dict, or None if extraction fails
@@ -353,36 +406,145 @@ Return the complete ReportResults."""
             import re
             import json
 
-            # Pattern 1: Extract from report tool output
-            # Find the JSON block after "report" tool execution
-            # Modified to handle JSON without trailing newline
-            pattern = r'report.*?executed:\s*(\{[\s\S]*?\n?\})\s*(?:Step|\Z)'
-            matches = re.findall(pattern, response)
+            # Extract visualization results (static and interactive files)
+            visualization_results = self._extract_visualization_results(response)
+
+            # Extract report results (report file path)
+            report_results = self._extract_report_file_results(response)
+
+            # If no results found, return None
+            if not report_results and not visualization_results:
+                return None
+
+            # Build combined ReportResults
+            # visualization_results is already the visualizations object (static/interactive),
+            # not wrapped in another 'visualizations' key
+            combined_results = {
+                'status': 'success',
+                'report_file': report_results.get('report_file') if report_results else None,
+                'visualizations': visualization_results if visualization_results else {},
+                'summary': {}
+            }
+
+            # Add summary information from report_results if available
+            if report_results:
+                # Try to extract summary-like information
+                if 'report_file' in report_results:
+                    # The report file path is available
+                    combined_results['report_file'] = report_results['report_file']
+
+            return combined_results
+
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse report results JSON: {e}")
+            return None
+
+    def _extract_visualization_results(self, response: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract visualization results from LLM response or from output directory
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Visualization results dict with static and interactive file paths
+        """
+        try:
+            import re
+            import json
+            import os
+
+            # Pattern 1: Extract from visualization tool output
+            pattern = r'visualization.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
+            matches = re.findall(pattern, response, re.DOTALL)
 
             if matches:
-                # Get the last match (most recent execution)
+                json_str = matches[-1]
+                result = json.loads(json_str)
+                # Return the visualizations object if it exists
+                return result.get('visualizations', result)
+
+            # Pattern 2: Extract from code block
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                result = json.loads(json_str)
+                return result.get('visualizations', result)
+
+            # Pattern 3: If no visualization output found in response,
+            # try to find the latest visualization files in the output directory
+            # This handles the case where LLM didn't call visualization tool
+            _current_dir = os.path.dirname(os.path.abspath(__file__))
+            _structural_app_path = os.path.dirname(_current_dir)
+            _project_root = os.path.dirname(_structural_app_path)
+            viz_dir = os.path.join(_project_root, 'output', 'visualizations')
+
+            if os.path.exists(viz_dir):
+                # Find latest PNG and HTML files
+                files = os.listdir(viz_dir)
+                static_files = {}
+                interactive_files = {}
+
+                # Group files by type
+                for f in files:
+                    if f.endswith('.png'):
+                        if 'moment' in f.lower():
+                            static_files['moment_diagram'] = f"visualizations/{f}"
+                        elif 'shear' in f.lower():
+                            static_files['shear_diagram'] = f"visualizations/{f}"
+                        elif 'deflection' in f.lower():
+                            static_files['deflection_curve'] = f"visualizations/{f}"
+                    elif f.endswith('.html'):
+                        if 'moment' in f.lower():
+                            interactive_files['moment_html'] = f"visualizations/{f}"
+                        elif 'shear' in f.lower():
+                            interactive_files['shear_html'] = f"visualizations/{f}"
+                        elif 'deflection' in f.lower():
+                            interactive_files['deflection_html'] = f"visualizations/{f}"
+
+                # If we found files, return paths
+                if static_files or interactive_files:
+                    return {
+                        'static': static_files,
+                        'interactive': interactive_files
+                    }
+
+            return None
+
+        except Exception:
+            return None
+
+    def _extract_report_file_results(self, response: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract report file results from LLM response
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Report results dict with report_file path
+        """
+        try:
+            import re
+            import json
+
+            # Pattern 1: Extract from report tool output
+            pattern = r'report.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
+            matches = re.findall(pattern, response, re.DOTALL)
+
+            if matches:
                 json_str = matches[-1]
                 return json.loads(json_str)
 
             # Pattern 2: Extract from code block
-            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
                 return json.loads(json_str)
 
-            # Pattern 3: Direct JSON object with status field (fallback)
-            # Find balanced JSON containing status
-            balanced_json = self._find_balanced_json(response)
-            if balanced_json:
-                try:
-                    return json.loads(balanced_json)
-                except json.JSONDecodeError:
-                    pass
-
             return None
 
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse report results JSON: {e}")
+        except Exception:
             return None
 
     def extract_comprehensive_score(self, response: str) -> Optional[float]:

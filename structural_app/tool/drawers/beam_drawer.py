@@ -123,20 +123,18 @@ class BeamDrawer(StructureDrawer):
 
             # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
             if 'MM_UNITS' not in doc.dimstyles:
-                doc.dimstyles.new('MM_UNITS', dxfattribs={
-                    'dimtxt': 150,
-                    'dimasz': 100,
-                    'dimcen': 0,
-                    'dimtsz': 0,
-                    'dimaltf': 1.0,
-                    'dimlfac': 1.0,
-                    'dimtp': 0,
-                    'dimtm': 0,
-                    'dimtol': 0,
-                    'dimlim': 0,
-                    'dimthi': 0,
-                    'dimclrt': colors.RED,
-                })
+                dimstyle = doc.dimstyles.new('MM_UNITS')
+                dimstyle.dxf.dimtxt = 150
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimcen = 0
+                dimstyle.dxf.dimtsz = 0
+                dimstyle.dxf.dimaltf = 1.0
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimtp = 0
+                dimstyle.dxf.dimtm = 0
+                dimstyle.dxf.dimtol = 0
+                dimstyle.dxf.dimlim = 0
+                dimstyle.dxf.dimclrt = colors.RED
 
             # Draw beam elevation
             self._draw_beam_elevation(
@@ -199,20 +197,18 @@ class BeamDrawer(StructureDrawer):
 
             # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
             if 'MM_UNITS' not in doc.dimstyles:
-                doc.dimstyles.new('MM_UNITS', dxfattribs={
-                    'dimtxt': 150,
-                    'dimasz': 100,
-                    'dimcen': 0,
-                    'dimtsz': 0,
-                    'dimaltf': 1.0,
-                    'dimlfac': 1.0,
-                    'dimtp': 0,
-                    'dimtm': 0,
-                    'dimtol': 0,
-                    'dimlim': 0,
-                    'dimthi': 0,
-                    'dimclrt': colors.RED,
-                })
+                dimstyle = doc.dimstyles.new('MM_UNITS')
+                dimstyle.dxf.dimtxt = 150
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimcen = 0
+                dimstyle.dxf.dimtsz = 0
+                dimstyle.dxf.dimaltf = 1.0
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimtp = 0
+                dimstyle.dxf.dimtm = 0
+                dimstyle.dxf.dimtol = 0
+                dimstyle.dxf.dimlim = 0
+                dimstyle.dxf.dimclrt = colors.RED
 
             # Draw beam plan
             self._draw_beam_plan(
@@ -274,20 +270,18 @@ class BeamDrawer(StructureDrawer):
 
             # Create MM_UNITS dimstyle if it doesn't exist (required for dimensions)
             if 'MM_UNITS' not in doc.dimstyles:
-                doc.dimstyles.new('MM_UNITS', dxfattribs={
-                    'dimtxt': 150,
-                    'dimasz': 100,
-                    'dimcen': 0,
-                    'dimtsz': 0,
-                    'dimaltf': 1.0,
-                    'dimlfac': 1.0,
-                    'dimtp': 0,
-                    'dimtm': 0,
-                    'dimtol': 0,
-                    'dimlim': 0,
-                    'dimthi': 0,
-                    'dimclrt': colors.RED,
-                })
+                dimstyle = doc.dimstyles.new('MM_UNITS')
+                dimstyle.dxf.dimtxt = 150
+                dimstyle.dxf.dimasz = 100
+                dimstyle.dxf.dimcen = 0
+                dimstyle.dxf.dimtsz = 0
+                dimstyle.dxf.dimaltf = 1.0
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimtp = 0
+                dimstyle.dxf.dimtm = 0
+                dimstyle.dxf.dimtol = 0
+                dimstyle.dxf.dimlim = 0
+                dimstyle.dxf.dimclrt = colors.RED
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(

@@ -208,7 +208,8 @@ Return the complete DrawingResults."""
             import json
 
             # Pattern 1: Extract from cad_drawing tool output
-            pattern = r'cad_drawing.*?executed:\s*(\{.*?\})\s*(?:Step|\Z)'
+            # Modified to handle JSON that may or may not have trailing newline
+            pattern = r'cad_drawing.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
 
             if matches:
@@ -217,7 +218,7 @@ Return the complete DrawingResults."""
                 return json.loads(json_str)
 
             # Pattern 2: Extract from code block
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
                 return json.loads(json_str)
