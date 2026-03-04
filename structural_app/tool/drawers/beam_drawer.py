@@ -108,6 +108,10 @@ class BeamDrawer(StructureDrawer):
             doc = ezdxf.new('R2010', setup=True)
             msp = doc.modelspace()
 
+            # Ensure STANDARD text style exists (required for dimensions)
+            if 'STANDARD' not in doc.styles:
+                doc.styles.new('STANDARD', dxfattribs={'font': 'txt.shx'})
+
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
@@ -118,6 +122,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle = doc.dimstyles.get('EZDXF')
                 if dimstyle:
                     dimstyle.dxf.dimlfac = 1.0
+                    dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style
             except Exception:
                 pass  # EZDXF dimstyle not found, skip
 
@@ -135,6 +140,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
                 dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam elevation
             self._draw_beam_elevation(
@@ -183,6 +189,10 @@ class BeamDrawer(StructureDrawer):
             doc = ezdxf.new('R2010')
             msp = doc.modelspace()
 
+            # Ensure STANDARD text style exists (required for dimensions)
+            if 'STANDARD' not in doc.styles:
+                doc.styles.new('STANDARD', dxfattribs={'font': 'txt.shx'})
+
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
@@ -192,6 +202,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle = doc.dimstyles.get('EZDXF')
                 if dimstyle:
                     dimstyle.dxf.dimlfac = 1.0
+                    dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style
             except Exception:
                 pass  # EZDXF dimstyle not found, skip
 
@@ -209,6 +220,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
                 dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam plan
             self._draw_beam_plan(
@@ -256,6 +268,10 @@ class BeamDrawer(StructureDrawer):
             doc = ezdxf.new('R2010')
             msp = doc.modelspace()
 
+            # Ensure STANDARD text style exists (required for dimensions)
+            if 'STANDARD' not in doc.styles:
+                doc.styles.new('STANDARD', dxfattribs={'font': 'txt.shx'})
+
             # Setup Chinese font style
             self._setup_chinese_style(doc)
 
@@ -265,6 +281,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle = doc.dimstyles.get('EZDXF')
                 if dimstyle:
                     dimstyle.dxf.dimlfac = 1.0
+                    dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style
             except Exception:
                 pass  # EZDXF dimstyle not found, skip
 
@@ -282,6 +299,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
                 dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam detail (cross-section)
             self._draw_beam_detail(
@@ -566,10 +584,6 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
-            # Set explicit text (overwrite the dynamic <>)
-            for entity in msp:
-                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
-                    entity.dxf.text = f"{int(length_mm)}"
 
             # Height dimension
             dim = msp.add_linear_dim(
@@ -580,10 +594,6 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
-            # Set explicit text (overwrite the dynamic <>)
-            for entity in msp:
-                if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
-                    entity.dxf.text = f"{int(height_mm)}"
         except Exception as e:
             print(f"Warning: Could not add dimensions: {e}")
 
