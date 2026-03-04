@@ -52,8 +52,17 @@ class BeamVisualizer(BaseVisualizer):
             traceback.print_exc()
             return {}
 
-        # Extract data from results
-        detailed_results = results.get('detailed_results', {})
+        # Extract data from results - handle two possible formats
+        # Format 1: {"status": "success", "results": {"detailed_results": {...}}}
+        # Format 2: {"max_displacement_mm": ..., "detailed_results": {...}}
+        if 'results' in results:
+            print(f"[BeamVisualizer] Detected Format 1: analysis_results with 'results' wrapper")
+            actual_results = results['results']
+        else:
+            print(f"[BeamVisualizer] Detected Format 2: direct results object")
+            actual_results = results
+
+        detailed_results = actual_results.get('detailed_results', {})
         moments = detailed_results.get('moments', [])
         shears = detailed_results.get('shears', [])
         length = design.get('geometry', {}).get('length', 1.0)
@@ -112,7 +121,7 @@ class BeamVisualizer(BaseVisualizer):
             print(f"[BeamVisualizer] SKIP: No shear data available")
 
         # Generate deflection curve if available
-        max_displacement = results.get('max_displacement_mm', 0)
+        max_displacement = actual_results.get('max_displacement_mm', 0)
         if max_displacement > 0:
             files['deflection_curve'] = f"{base_path}_deflection_{timestamp}.png"
             print(f"[BeamVisualizer] Generating deflection curve: {files['deflection_curve']}")
@@ -158,8 +167,17 @@ class BeamVisualizer(BaseVisualizer):
             traceback.print_exc()
             return {}
 
-        # Extract data from results
-        detailed_results = results.get('detailed_results', {})
+        # Extract data from results - handle two possible formats
+        # Format 1: {"status": "success", "results": {"detailed_results": {...}}}
+        # Format 2: {"max_displacement_mm": ..., "detailed_results": {...}}
+        if 'results' in results:
+            print(f"[BeamVisualizer] Detected Format 1: analysis_results with 'results' wrapper")
+            actual_results = results['results']
+        else:
+            print(f"[BeamVisualizer] Detected Format 2: direct results object")
+            actual_results = results
+
+        detailed_results = actual_results.get('detailed_results', {})
         moments = detailed_results.get('moments', [])
         shears = detailed_results.get('shears', [])
         length = design.get('geometry', {}).get('length', 1.0)
@@ -207,7 +225,7 @@ class BeamVisualizer(BaseVisualizer):
                 del files['shear_html']
 
         # Generate interactive deflection curve
-        max_displacement = results.get('max_displacement_mm', 0)
+        max_displacement = actual_results.get('max_displacement_mm', 0)
         if max_displacement > 0:
             files['deflection_html'] = f"{base_path}_deflection_{timestamp}.html"
             print(f"[BeamVisualizer] Generating interactive deflection curve: {files['deflection_html']}")
