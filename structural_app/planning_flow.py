@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, List
 import json
 import os
 from pathlib import Path
+import toml
 
 # Import agents directly to avoid agent module __init__ issues
 # This avoids the hard-coded path issue in structural_design_agent.py
@@ -92,6 +93,56 @@ class PlanningFlow:
             "report_results": None,
         }
 
+        # Load API configuration for LLM calls
+        self.api_key, self.api_provider, self.api_base_url, self.api_model = self._load_api_config()
+
+    def _load_api_config(self) -> tuple:
+        """
+        Load API configuration from OpenManus config.toml or project config.toml.
+
+        Returns:
+            Tuple of (api_key, provider, base_url, model)
+        """
+        # First try OpenManus config
+        openmanus_config_path = Path("C:/Users/86177/Desktop/OpenManus/config/config.toml")
+        if openmanus_config_path.exists():
+            try:
+                config = toml.load(openmanus_config_path)
+                llm_config = config.get('llm', {})
+                api_key = llm_config.get('api_key', '')
+                provider = llm_config.get('model', 'deepseek-chat')  # Use model as provider identifier
+                base_url = llm_config.get('base_url', '')
+                model = llm_config.get('model', 'deepseek-chat')
+
+                if api_key and api_key != 'your-api-key-here':
+                    return api_key, provider, base_url, model
+            except Exception as e:
+                print(f"[WARNING] Failed to load OpenManus config.toml: {e}")
+
+        # Fallback to project config.toml
+        config_path = Path("config.toml")
+        if config_path.exists():
+            try:
+                config = toml.load(config_path)
+                llm_config = config.get('llm', {})
+                api_key = llm_config.get('api_key', '')
+                provider = llm_config.get('provider', 'anthropic')
+                base_url = llm_config.get('base_url', '')
+                model = llm_config.get('model', 'claude-sonnet-4-6')
+
+                if api_key and api_key != 'your-api-key-here':
+                    return api_key, provider, base_url, model
+            except Exception as e:
+                print(f"[WARNING] Failed to load config.toml: {e}")
+
+        # Fallback to environment variables
+        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
+        provider = "anthropic" if os.getenv("ANTHROPIC_API_KEY") else "openai"
+        base_url = ""
+        model = "claude-sonnet-4-6" if provider == "anthropic" else "gpt-4"
+
+        return api_key, provider, base_url, model
+
     async def run_full_design(
         self,
         request: str,
@@ -137,6 +188,60 @@ class PlanningFlow:
         if verbose and self.results["analysis_results"]:
             status = self.results['analysis_results'].get('status', 'unknown')
             print(f"[OK] FE analysis completed: {status}")
+
+        # Check code_check compliance
+        if self.results["analysis_results"]:
+            code_check = self.results["analysis_results"].get('code_check', {})
+            if not code_check.get('compliant', True):
+                # Code check failed - ask user for action
+                user_choice = self._ask_code_check_failure_action(code_check, verbose)
+
+                if user_choice == "manual":
+                    # Option 1: Manual improvement loop with LLM suggestions
+                    if verbose:
+                        print()
+                        print("[PlanningFlow] 启动手动改进模式...")
+
+                    improved_results = await self._manual_improvement_loop(
+                        self.results["design_proposal"],
+                        self.results["analysis_results"],
+                        verbose
+                    )
+                    self.results["analysis_results"] = improved_results
+
+                    # Check final status
+                    final_code_check = improved_results.get('code_check', {})
+                    if not final_code_check.get('compliant', False):
+                        if verbose:
+                            print()
+                            print("[WARNING] 手动改进结束，但设计仍未满足规范要求")
+                            print("[PlanningFlow] 继续执行后续步骤...")
+
+                elif user_choice == "auto":
+                    # Option 2: Enable automatic iterative optimization
+                    if verbose:
+                        print()
+                        print("[PlanningFlow] 启动自动迭代优化模式...")
+
+                    # Create new FEAnalysisAgent with loop enabled
+                    loop_agent = FEAnalysisAgent(enable_loop=True) if FEAnalysisAgent else None
+                    if loop_agent:
+                        improved_result = await loop_agent.run(analysis_request)
+                        self.results["analysis_results"] = self._extract_analysis_results(improved_result)
+
+                        if verbose:
+                            final_code_check = self.results["analysis_results"].get('code_check', {})
+                            if final_code_check.get('compliant', False):
+                                print("[OK] 自动优化完成，设计已满足规范要求")
+                            else:
+                                print("[WARNING] 自动优化结束，但设计仍未满足规范要求")
+
+                elif user_choice == "terminate":
+                    # Option 3: Terminate workflow
+                    if verbose:
+                        print()
+                        print("[PlanningFlow] 用户选择终止工作流")
+                    return {"status": "terminated", "reason": "user_terminated"}
 
         # Step 3: Evaluation (在绘图之前先评估)
         if verbose:
@@ -297,6 +402,271 @@ class PlanningFlow:
         if not design_proposal:
             return "No design proposal available for analysis."
         return json.dumps(design_proposal, ensure_ascii=False)
+
+    def _ask_code_check_failure_action(self, code_check: dict, verbose: bool = True) -> str:
+        """
+        Ask user how to handle code_check failure.
+
+        Args:
+            code_check: Code check results dictionary
+            verbose: Whether to print detailed information
+
+        Returns:
+            User's choice: "manual", "auto", or "terminate"
+        """
+        violations = code_check.get('violations', [])
+        summary = code_check.get('summary', 'Unknown')
+
+        if verbose:
+            print()
+            print("=" * 60)
+            print("规范检查未通过")
+            print("=" * 60)
+            print(f"检查结果: {summary}")
+            print(f"违规项数: {len(violations)}")
+            print()
+            print("请选择处理方式：")
+            print("  1 - manual    : 查看改进建议，手动修改后重新运行")
+            print("  2 - auto      : 自动迭代优化直至满足规范")
+            print("  3 - terminate : 终止工作流")
+            print("=" * 60)
+
+        while True:
+            try:
+                choice = input("请输入选项 (1/2/3 或 manual/auto/terminate): ").strip().lower()
+
+                # Map numeric choices to string choices
+                choice_map = {
+                    "1": "manual",
+                    "2": "auto",
+                    "3": "terminate",
+                    "manual": "manual",
+                    "auto": "auto",
+                    "terminate": "terminate"
+                }
+
+                if choice in choice_map:
+                    return choice_map[choice]
+                else:
+                    print("无效选项，请重新输入")
+            except (EOFError, KeyboardInterrupt):
+                print("\n用户中断，默认选择 terminate")
+                return "terminate"
+
+    def _generate_improvement_suggestions(self, code_check: dict) -> str:
+        """
+        Generate improvement suggestions based on code_check results.
+
+        Args:
+            code_check: Code check results dictionary
+
+        Returns:
+            Formatted suggestions string
+        """
+        violations = code_check.get('violations', [])
+        suggestions = []
+
+        for i, v in enumerate(violations, 1):
+            rule = v.get('rule', 'Unknown rule')
+            actual = v.get('actual_value', 'N/A')
+            limit = v.get('limit_value', 'N/A')
+            location = v.get('location', 'N/A')
+
+            suggestion = f"{i}. {rule}\n"
+            suggestion += f"   位置: {location}\n"
+            suggestion += f"   当前值: {actual}\n"
+            suggestion += f"   限值: {limit}\n"
+            suggestion += f"   建议: 调整结构参数以满足规范要求"
+            suggestions.append(suggestion)
+
+        if not suggestions:
+            return "未找到具体违规项，请检查整体设计参数"
+
+        return "\n\n".join(suggestions)
+
+    async def _generate_llm_suggestions(
+        self,
+        design_proposal: Dict,
+        analysis_results: Dict,
+        code_check: Dict
+    ) -> str:
+        """
+        Use LLM API to generate improvement suggestions based on code_check violations.
+        Supports OpenAI-compatible APIs (DeepSeek, OpenAI, etc.) and Anthropic.
+
+        Args:
+            design_proposal: Design proposal dictionary
+            analysis_results: Analysis results dictionary
+            code_check: Code check results dictionary
+
+        Returns:
+            LLM-generated improvement suggestions
+        """
+        if not self.api_key or self.api_key == 'your-api-key-here':
+            return "错误：未配置 API key，请在 OpenManus config.toml 或项目 config.toml 中配置"
+
+        # Extract violation details
+        violations = code_check.get('violations', [])
+        summary = code_check.get('summary', 'Unknown')
+
+        # Get design parameters from results
+        results = analysis_results.get('results', {})
+        detailed_results = results.get('detailed_results', {})
+
+        # Build prompt for LLM
+        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出具体的改进建议。
+
+设计类型：{design_proposal.get('type', 'Unknown')}
+
+当前设计参数：
+{json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+
+分析结果摘要：
+{json.dumps(detailed_results, ensure_ascii=False, indent=2)}
+
+规范检查结果：{summary}
+
+违规项详情：
+{json.dumps(violations, ensure_ascii=False, indent=2)}
+
+请给出具体的改进建议，包括：
+1. 每个违规项的原因分析
+2. 应该调整哪些参数（如梁高度、宽度、配筋等）
+3. 建议的参数值或调整方向
+4. 调整的优先级
+
+请用中文回答，格式清晰。"""
+
+        try:
+            # Use OpenAI-compatible API (supports DeepSeek, OpenAI, etc.)
+            from openai import OpenAI
+
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base_url if self.api_base_url else None
+            )
+
+            response = client.chat.completions.create(
+                model=self.api_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2000,
+                temperature=0.7
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            return f"错误：调用 LLM API 失败 - {str(e)}"
+
+    async def _manual_improvement_loop(
+        self,
+        design_proposal: Dict,
+        initial_analysis_results: Dict,
+        verbose: bool = True
+    ) -> Dict:
+        """
+        Manual improvement loop with LLM-generated suggestions.
+
+        Workflow:
+        1. LLM analyzes code_check violations and generates suggestions
+        2. User inputs improvements
+        3. Re-run FEAnalysisAgent with user improvements
+        4. Loop until compliant or user types "skip"
+
+        Args:
+            design_proposal: Design proposal dictionary
+            initial_analysis_results: Initial analysis results
+            verbose: Whether to print progress
+
+        Returns:
+            Final analysis results (either compliant or user skipped)
+        """
+        loop_count = 0
+        current_results = initial_analysis_results
+
+        while True:
+            loop_count += 1
+            code_check = current_results.get('code_check', {})
+
+            if verbose:
+                print()
+                print("=" * 60)
+                print(f"[循环 {loop_count}] 正在生成 LLM 改进建议...")
+                print("=" * 60)
+
+            # Generate LLM-based improvement suggestions
+            suggestions = await self._generate_llm_suggestions(
+                design_proposal,
+                current_results,
+                code_check
+            )
+
+            if verbose:
+                print(suggestions)
+                print("=" * 60)
+
+            # Ask user for improvements
+            print()
+            user_input = input("请输入改进方案（或输入 'skip' 跳过）: ").strip()
+
+            if user_input.lower() == 'skip':
+                if verbose:
+                    print("[PlanningFlow] 用户跳过改进，使用当前结果")
+                return current_results
+
+            # Re-run analysis with user improvements
+            if verbose:
+                print()
+                print(f"[PlanningFlow] 根据用户改进重新分析...")
+
+            # Build analysis request with improvements
+            improved_request = self._build_analysis_request_with_improvements(
+                design_proposal,
+                user_input
+            )
+
+            analysis_result = await self.analysis_agent.run(improved_request)
+            current_results = self._extract_analysis_results(analysis_result)
+
+            if not current_results:
+                if verbose:
+                    print("[ERROR] 无法提取分析结果，终止循环")
+                return initial_analysis_results
+
+            # Check if now compliant
+            new_code_check = current_results.get('code_check', {})
+            if new_code_check.get('compliant', False):
+                if verbose:
+                    print()
+                    print("[OK] 设计已满足规范要求！")
+                return current_results
+            else:
+                violations_count = len(new_code_check.get('violations', []))
+                if verbose:
+                    print()
+                    print(f"[WARNING] 仍有 {violations_count} 个违规项，继续改进...")
+
+    def _build_analysis_request_with_improvements(
+        self,
+        design_proposal: Dict,
+        user_improvements: str
+    ) -> str:
+        """
+        Build analysis request with user improvements.
+
+        Args:
+            design_proposal: Original design proposal
+            user_improvements: User's improvement suggestions
+
+        Returns:
+            JSON string for analysis request
+        """
+        request = {
+            "design_proposal": design_proposal,
+            "user_improvements": user_improvements,
+            "instruction": "请根据用户的改进建议更新设计参数，然后重新进行有限元分析。"
+        }
+        return json.dumps(request, ensure_ascii=False)
 
     def _extract_analysis_results(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract analysis results from response."""
