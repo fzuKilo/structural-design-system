@@ -73,7 +73,8 @@ class CADDrawingTool(BaseTool):
                     "properties": {
                         "E": {"type": "number", "description": "Young's modulus in Pa"},
                         "nu": {"type": "number", "description": "Poisson's ratio"},
-                        "fy": {"type": "number", "description": "Yield strength in Pa (optional)"}
+                        "fy": {"type": "number", "description": "Yield strength in Pa (optional)"},
+                        "material_name": {"type": "string", "description": "Material name (e.g., C30, C40, Q235)"}
                     },
                     "required": ["E", "nu"]
                 },
