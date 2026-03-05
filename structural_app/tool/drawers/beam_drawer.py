@@ -692,7 +692,13 @@ class BeamDrawer(StructureDrawer):
                 align=ezdxf.enums.TextEntityAlignment.LEFT
             )
 
-    def set_output_directory(self, directory: str) -> None:
-        """Set output directory for generated drawings"""
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
+        """
+        Set output directory for generated drawings
+
+        Args:
+            directory: Path to output directory
+            subdirectory: Optional subdirectory (ignored for compatibility with base class)
+        """
         self.output_dir = directory
         os.makedirs(self.output_dir, exist_ok=True)
