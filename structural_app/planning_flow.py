@@ -98,42 +98,28 @@ class PlanningFlow:
 
     def _load_api_config(self) -> tuple:
         """
-        Load API configuration from OpenManus config.toml or project config.toml.
+        Load API configuration from project config.toml.
 
         Returns:
             Tuple of (api_key, provider, base_url, model)
         """
-        # First try OpenManus config
-        openmanus_config_path = Path("C:/Users/86177/Desktop/OpenManus/config/config.toml")
-        if openmanus_config_path.exists():
+        # Read project config.toml (relative to this file's location)
+        current_dir = Path(__file__).resolve().parent
+        config_path = current_dir.parent / "config.toml"
+
+        if config_path.exists():
             try:
-                config = toml.load(openmanus_config_path)
+                config = toml.load(config_path)
                 llm_config = config.get('llm', {})
                 api_key = llm_config.get('api_key', '')
-                provider = llm_config.get('model', 'deepseek-chat')  # Use model as provider identifier
+                provider = llm_config.get('provider', 'deepseek')
                 base_url = llm_config.get('base_url', '')
                 model = llm_config.get('model', 'deepseek-chat')
 
                 if api_key and api_key != 'your-api-key-here':
                     return api_key, provider, base_url, model
             except Exception as e:
-                print(f"[WARNING] Failed to load OpenManus config.toml: {e}")
-
-        # Fallback to project config.toml
-        config_path = Path("config.toml")
-        if config_path.exists():
-            try:
-                config = toml.load(config_path)
-                llm_config = config.get('llm', {})
-                api_key = llm_config.get('api_key', '')
-                provider = llm_config.get('provider', 'anthropic')
-                base_url = llm_config.get('base_url', '')
-                model = llm_config.get('model', 'claude-sonnet-4-6')
-
-                if api_key and api_key != 'your-api-key-here':
-                    return api_key, provider, base_url, model
-            except Exception as e:
-                print(f"[WARNING] Failed to load config.toml: {e}")
+                print(f"[WARNING] Failed to load {config_path}: {e}")
 
         # Fallback to environment variables
         api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
