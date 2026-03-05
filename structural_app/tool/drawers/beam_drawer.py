@@ -104,6 +104,10 @@ class BeamDrawer(StructureDrawer):
             constraints = design.get('constraints', {})
             support_type = constraints.get('support_type', 'simply_supported')
 
+            # Extract material information
+            material = design.get('material', {})
+            material_name = material.get('material_name', 'Unknown')
+
             # Create new DXF document
             doc = ezdxf.new('R2010', setup=True)
             msp = doc.modelspace()
@@ -148,7 +152,8 @@ class BeamDrawer(StructureDrawer):
                 length_mm=length_mm,
                 width_mm=width_mm,
                 height_mm=height_mm,
-                support_type=support_type
+                support_type=support_type,
+                material_name=material_name
             )
 
             # Save file
@@ -348,7 +353,8 @@ class BeamDrawer(StructureDrawer):
         length_mm: float,
         width_mm: float,
         height_mm: float,
-        support_type: str
+        support_type: str,
+        material_name: str
     ):
         """
         Draw beam elevation view
@@ -359,6 +365,7 @@ class BeamDrawer(StructureDrawer):
             width_mm: Beam width in mm
             height_mm: Beam height in mm
             support_type: Type of support (simply_supported, cantilever, fixed_fixed)
+            material_name: Material name (e.g., C30, C40)
         """
         # Setup drawing parameters
         beam_start_x = 0
@@ -396,7 +403,7 @@ class BeamDrawer(StructureDrawer):
         self._add_dimensions(msp, length_mm, height_mm)
 
         # 4. Add text annotations
-        self._add_annotations(msp, length_mm, width_mm, height_mm, support_type)
+        self._add_annotations(msp, length_mm, width_mm, height_mm, support_type, material_name)
 
     def _draw_beam_plan(self, msp, doc, length_mm: float, width_mm: float):
         """
@@ -641,7 +648,7 @@ class BeamDrawer(StructureDrawer):
         except Exception as e:
             print(f"Warning: Could not add section dimensions: {e}")
 
-    def _add_annotations(self, msp, length_mm: float, width_mm: float, height_mm: float, support_type: str):
+    def _add_annotations(self, msp, length_mm: float, width_mm: float, height_mm: float, support_type: str, material_name: str):
         """Add text annotations to drawing"""
         # Title
         msp.add_text(
@@ -679,7 +686,7 @@ class BeamDrawer(StructureDrawer):
             f"跨度 L = {length_mm} mm",
             f"截面宽度 b = {width_mm} mm",
             f"截面高度 h = {height_mm} mm",
-            "材料: C30混凝土",
+            f"材料: {material_name}",
             f"支座类型: {support_type}"
         ]
 
