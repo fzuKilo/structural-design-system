@@ -175,6 +175,25 @@ class PlanningFlow:
             status = self.results['analysis_results'].get('status', 'unknown')
             print(f"[OK] FE analysis completed: {status}")
 
+        # Check if analysis failed (e.g., unsupported structure type)
+        if self.results["analysis_results"]:
+            status = self.results['analysis_results'].get('status')
+            if status == 'error':
+                error_msg = self.results['analysis_results'].get('error', 'Unknown error')
+                if verbose:
+                    print()
+                    print("=" * 60)
+                    print("[ERROR] 有限元分析失败")
+                    print("=" * 60)
+                    print(f"错误信息: {error_msg}")
+                    print("=" * 60)
+                # Return early with error
+                return {
+                    "status": "failed",
+                    "error": error_msg,
+                    "design_proposal": self.results["design_proposal"]
+                }
+
         # Check code_check compliance
         if self.results["analysis_results"]:
             code_check = self.results["analysis_results"].get('code_check', {})
