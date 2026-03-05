@@ -188,12 +188,13 @@ class PlanningFlow:
                         print()
                         print("[PlanningFlow] 启动手动改进模式...")
 
-                    improved_results = await self._manual_improvement_loop(
+                    improved_results, updated_design_proposal = await self._manual_improvement_loop(
                         self.results["design_proposal"],
                         self.results["analysis_results"],
                         verbose
                     )
                     self.results["analysis_results"] = improved_results
+                    self.results["design_proposal"] = updated_design_proposal
 
                     # Check final status
                     final_code_check = improved_results.get('code_check', {})
@@ -544,20 +545,123 @@ class PlanningFlow:
         except Exception as e:
             return f"错误：调用 LLM API 失败 - {str(e)}"
 
+    async def _update_design_proposal_with_improvements(
+        self,
+        design_proposal: Dict,
+        user_improvements: str,
+        current_results: Dict
+    ) -> Dict:
+        """
+        Update design proposal based on user's improvements using LLM.
+
+        Uses LLM to parse natural language improvements and generate
+        a new design proposal JSON with updated parameters.
+
+        Args:
+            design_proposal: Current design proposal dictionary
+            user_improvements: User's improvement input (natural language)
+            current_results: Current analysis results for reference
+
+        Returns:
+            Updated design proposal dictionary
+        """
+        if not self.api_key or self.api_key == 'your-api-key-here':
+            print("[WARNING] 未配置 API key，使用原始设计")
+            return design_proposal
+
+        # Extract current design parameters for prompt
+        design_type = design_proposal.get('type', 'Unknown')
+        current_geometry = design_proposal.get('geometry', {})
+        current_material = design_proposal.get('material', {})
+        current_loads = design_proposal.get('loads', {})
+        current_constraints = design_proposal.get('constraints', {})
+
+        # Get current analysis results for reference
+        results = current_results.get('results', {})
+        detailed_results = results.get('detailed_results', {})
+        code_check = current_results.get('code_check', {})
+        violations = code_check.get('violations', [])
+
+        prompt = f"""你是一位结构工程专家。请根据用户的改进要求，生成更新后的设计 proposal。
+
+当前设计参数：
+```json
+{json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+```
+
+用户改进方案：
+{user_improvements}
+
+当前分析结果（供参考）：
+- 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
+- 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
+- 最大弯矩: {results.get('max_moment_kNm', 'N/A')} kN*m
+
+规范检查结果：
+{json.dumps(code_check, ensure_ascii=False, indent=2)}
+
+请生成更新后的完整设计 proposal，要求：
+1. 保持 JSON 格式与原始设计一致
+2. 只修改用户指定的参数（如截面尺寸、材料等级、配筋等）
+3. 保持其他参数不变
+4. 输出完整的 JSON 对象
+
+重要：只返回 JSON 对象，不要包含其他文本。"""
+
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base_url if self.api_base_url else None
+            )
+
+            response = client.chat.completions.create(
+                model=self.api_model,
+                messages=[
+                    {"role": "system", "content": "你是一个结构工程专家，负责根据用户改进要求更新设计参数。请只返回JSON格式的设计proposal。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.3  # 低温度确保输出稳定
+            )
+
+            content = response.choices[0].message.content
+
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                return json.loads(json_str)
+
+            # Try direct JSON parsing
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                # Fallback to original design
+                print(f"[WARNING] 无法解析改进后的设计，使用原始设计")
+                return design_proposal
+
+        except Exception as e:
+            print(f"[ERROR] 调用 LLM 更新设计失败 - {str(e)}，使用原始设计")
+            return design_proposal
+
     async def _manual_improvement_loop(
         self,
         design_proposal: Dict,
         initial_analysis_results: Dict,
         verbose: bool = True
-    ) -> Dict:
+    ) -> tuple:
         """
         Manual improvement loop with LLM-generated suggestions.
 
         Workflow:
         1. LLM analyzes code_check violations and generates suggestions
         2. User inputs improvements
-        3. Re-run FEAnalysisAgent with user improvements
-        4. Loop until compliant or user types "skip"
+        3. Use LLM to update design proposal based on improvements
+        4. Re-run FEAnalysisAgent with updated design proposal
+        5. Loop until compliant or user types "skip"
 
         Args:
             design_proposal: Design proposal dictionary
@@ -565,10 +669,11 @@ class PlanningFlow:
             verbose: Whether to print progress
 
         Returns:
-            Final analysis results (either compliant or user skipped)
+            Tuple of (final_analysis_results, updated_design_proposal)
         """
         loop_count = 0
         current_results = initial_analysis_results
+        current_design_proposal = design_proposal.copy()  # Create a copy to update
 
         while True:
             loop_count += 1
@@ -582,7 +687,7 @@ class PlanningFlow:
 
             # Generate LLM-based improvement suggestions
             suggestions = await self._generate_llm_suggestions(
-                design_proposal,
+                current_design_proposal,
                 current_results,
                 code_check
             )
@@ -598,26 +703,38 @@ class PlanningFlow:
             if user_input.lower() == 'skip':
                 if verbose:
                     print("[PlanningFlow] 用户跳过改进，使用当前结果")
-                return current_results
+                return (current_results, current_design_proposal)
 
-            # Re-run analysis with user improvements
+            # Update design proposal based on user improvements
             if verbose:
                 print()
-                print(f"[PlanningFlow] 根据用户改进重新分析...")
+                print(f"[PlanningFlow] 根据用户改进更新设计提案...")
 
-            # Build analysis request with improvements
-            improved_request = self._build_analysis_request_with_improvements(
-                design_proposal,
-                user_input
+            updated_design_proposal = await self._update_design_proposal_with_improvements(
+                current_design_proposal,
+                user_input,
+                current_results
             )
 
-            analysis_result = await self.analysis_agent.run(improved_request)
+            # Check if design actually changed
+            if updated_design_proposal == current_design_proposal:
+                if verbose:
+                    print("[WARNING] 设计未发生变化，继续使用当前设计")
+
+            current_design_proposal = updated_design_proposal
+
+            # Re-run analysis with updated design proposal
+            if verbose:
+                print(f"[PlanningFlow] 使用更新后的设计重新分析...")
+
+            analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
+            analysis_result = await self.analysis_agent.run(analysis_request)
             current_results = self._extract_analysis_results(analysis_result)
 
             if not current_results:
                 if verbose:
                     print("[ERROR] 无法提取分析结果，终止循环")
-                return initial_analysis_results
+                return (initial_analysis_results, design_proposal)
 
             # Check if now compliant
             new_code_check = current_results.get('code_check', {})
@@ -625,34 +742,12 @@ class PlanningFlow:
                 if verbose:
                     print()
                     print("[OK] 设计已满足规范要求！")
-                return current_results
+                return (current_results, current_design_proposal)
             else:
                 violations_count = len(new_code_check.get('violations', []))
                 if verbose:
                     print()
                     print(f"[WARNING] 仍有 {violations_count} 个违规项，继续改进...")
-
-    def _build_analysis_request_with_improvements(
-        self,
-        design_proposal: Dict,
-        user_improvements: str
-    ) -> str:
-        """
-        Build analysis request with user improvements.
-
-        Args:
-            design_proposal: Original design proposal
-            user_improvements: User's improvement suggestions
-
-        Returns:
-            JSON string for analysis request
-        """
-        request = {
-            "design_proposal": design_proposal,
-            "user_improvements": user_improvements,
-            "instruction": "请根据用户的改进建议更新设计参数，然后重新进行有限元分析。"
-        }
-        return json.dumps(request, ensure_ascii=False)
 
     def _extract_analysis_results(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract analysis results from response."""
