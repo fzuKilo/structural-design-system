@@ -59,3 +59,17 @@ class BaseReporter(ABC):
             _project_root = _project_root.parent
 
         return _current_file.parent.parent.parent
+
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
+        """
+        Set the output directory for generated reports
+
+        Args:
+            directory: Path to output directory
+            subdirectory: Optional subdirectory to append to directory
+        """
+        if subdirectory:
+            self.output_dir = os.path.join(directory, subdirectory)
+        else:
+            self.output_dir = directory
+        os.makedirs(self.output_dir, exist_ok=True)

@@ -298,7 +298,14 @@ async def main():
 
     # 保存结果到文件
     if results:
-        output_dir = os.path.join(_project_root, 'output', 'test_results')
+        # Use PlanningFlow's main_output_dir if available, otherwise default to output/test_results
+        output_dir = getattr(flow, 'main_output_dir', None)
+        if output_dir:
+            output_dir = str(output_dir)
+        else:
+            output_dir = os.path.join(_project_root, 'output', 'test_results')
+
+        # Save test result JSON to the main output directory
         os.makedirs(output_dir, exist_ok=True)
         timestamp = asyncio.get_event_loop().time()
         result_file = os.path.join(output_dir, f'e2e_test_result_{int(timestamp)}.json')

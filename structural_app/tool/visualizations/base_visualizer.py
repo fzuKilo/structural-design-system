@@ -122,12 +122,16 @@ class BaseVisualizer(ABC):
             'interactive': interactive
         }
 
-    def set_output_directory(self, directory: str) -> None:
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
         """
         Set the output directory for generated visualizations
 
         Args:
             directory: Path to output directory
+            subdirectory: Optional subdirectory to append to directory
         """
-        self.output_dir = directory
+        if subdirectory:
+            self.output_dir = os.path.join(directory, subdirectory)
+        else:
+            self.output_dir = directory
         os.makedirs(self.output_dir, exist_ok=True)

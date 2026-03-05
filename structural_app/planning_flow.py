@@ -78,7 +78,7 @@ class PlanningFlow:
             drawing_agent: CADDrawingAgent instance
             evaluation_agent: EvaluationAgent instance
             report_agent: ReportGenerationAgent instance
-            output_dir: Directory for output files
+            output_dir: Base directory for output files
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -101,6 +101,9 @@ class PlanningFlow:
 
         # Load API configuration for LLM calls
         self.api_key, self.api_provider, self.api_base_url, self.api_model = self._load_api_config()
+
+        # Test run timestamp for organizing output files
+        self.test_timestamp = None
 
     def _load_api_config(self) -> tuple:
         """
@@ -154,6 +157,16 @@ class PlanningFlow:
             print("=" * 60)
             print("OpenManus Structural Design System - PlanningFlow")
             print("=" * 60)
+            print()
+
+        # Generate timestamp for output directory (at the start of test run)
+        from datetime import datetime
+        self.test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.main_output_dir = self.output_dir / f"e2e_test_{self.test_timestamp}"
+        self.main_output_dir.mkdir(parents=True, exist_ok=True)
+
+        if verbose:
+            print(f"[PlanningFlow] Output directory: {self.main_output_dir}")
             print()
 
         # Step 1: Design Proposal
@@ -228,6 +241,36 @@ class PlanningFlow:
             if not code_check.get('compliant', True):
                 # Code check failed - ask user for action
                 user_choice = self._ask_code_check_failure_action(code_check, verbose)
+
+        # Set up output directories for drawings, visualizations, and reports
+        # Each test run gets its own timestamped directory
+        drawings_dir = self.main_output_dir / "drawings"
+        visualizations_dir = self.main_output_dir / "visualizations"
+        reports_dir = self.main_output_dir / "reports"
+
+        # Configure drawing agent output directory
+        if hasattr(self.drawing_agent, 'tools') and self.drawing_agent.tools:
+            for tool in self.drawing_agent.tools:
+                if hasattr(tool, 'set_output_directory'):
+                    tool.set_output_directory(str(drawings_dir), None)
+
+        # Configure evaluation agent output directory (for visualizations)
+        if hasattr(self.evaluation_agent, 'tools') and self.evaluation_agent.tools:
+            for tool in self.evaluation_agent.tools:
+                if hasattr(tool, 'set_output_directory'):
+                    tool.set_output_directory(str(visualizations_dir), None)
+
+        # Configure report agent output directories
+        if hasattr(self.report_agent, 'tools') and self.report_agent.tools:
+            for tool in self.report_agent.tools:
+                if hasattr(tool, 'set_output_directory'):
+                    tool.set_output_directory(str(reports_dir), None)
+
+        # Also configure analysis agent's visualization tool if it exists
+        if hasattr(self.analysis_agent, 'tools') and self.analysis_agent.tools:
+            for tool in self.analysis_agent.tools:
+                if hasattr(tool, 'set_output_directory'):
+                    tool.set_output_directory(str(visualizations_dir), None)
 
                 if user_choice == "manual":
                     # Option 1: Manual improvement loop with LLM suggestions
