@@ -38,6 +38,8 @@ class CADDrawingTool(BaseTool):
         )
         # Manually set parameters for Pydantic v2 compatibility
         object.__setattr__(self, 'parameters', self._define_parameters())
+        # Store custom output directory (None means use default)
+        self._custom_output_dir = None
 
     def _define_parameters(self) -> Dict[str, Any]:
         """
@@ -159,6 +161,10 @@ class CADDrawingTool(BaseTool):
             # Create drawer using factory
             drawer = DrawerFactory.create(structure_type)
 
+            # Set custom output directory if specified
+            if self._custom_output_dir:
+                drawer.set_output_directory(self._custom_output_dir, None)
+
             # Prepare design parameters
             design = {
                 'type': structure_type,
@@ -202,3 +208,13 @@ class CADDrawingTool(BaseTool):
             List of structure type identifiers
         """
         return DrawerFactory.get_available_types()
+
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
+        """
+        Set the output directory for generated drawings
+
+        Args:
+            directory: Path to output directory
+            subdirectory: Optional subdirectory (ignored, kept for compatibility)
+        """
+        self._custom_output_dir = directory

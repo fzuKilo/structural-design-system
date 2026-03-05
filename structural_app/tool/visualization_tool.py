@@ -42,6 +42,8 @@ class VisualizationTool(BaseTool):
                 "Returns file paths for static (PNG) and interactive (HTML) visualizations."
             )
         )
+        # Store custom output directory (None means use default)
+        self._custom_output_dir = None
 
     def _define_parameters(self) -> Dict[str, Any]:
         """
@@ -139,6 +141,10 @@ class VisualizationTool(BaseTool):
             # Create visualizer using factory
             visualizer = VisualizerFactory.create(structure_type)
 
+            # Set custom output directory if specified
+            if self._custom_output_dir:
+                visualizer.set_output_directory(self._custom_output_dir, None)
+
             # Generate visualizations
             visualization_results = visualizer.generate_all_visualizations(design_proposal, analysis_results)
 
@@ -160,3 +166,13 @@ class VisualizationTool(BaseTool):
     def get_available_structure_types(self) -> list[str]:
         """Get list of available structure types"""
         return VisualizerFactory.get_available_types()
+
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
+        """
+        Set the output directory for generated visualizations
+
+        Args:
+            directory: Path to output directory
+            subdirectory: Optional subdirectory (ignored, kept for compatibility)
+        """
+        self._custom_output_dir = directory

@@ -38,6 +38,8 @@ class ReportTool(BaseTool):
                 "Returns file path for the generated Markdown report."
             )
         )
+        # Store custom output directory (None means use default)
+        self._custom_output_dir = None
 
     def _define_parameters(self) -> Dict[str, Any]:
         """
@@ -146,6 +148,10 @@ class ReportTool(BaseTool):
             # Create reporter using factory
             reporter = ReporterFactory.create(structure_type)
 
+            # Set custom output directory if specified
+            if self._custom_output_dir:
+                reporter.set_output_directory(self._custom_output_dir, None)
+
             # Generate report
             report_path = reporter.generate_report(
                 design_proposal,
@@ -172,3 +178,13 @@ class ReportTool(BaseTool):
     def get_available_structure_types(self) -> list[str]:
         """Get list of available structure types"""
         return ReporterFactory.get_available_types()
+
+    def set_output_directory(self, directory: str, subdirectory: str = None) -> None:
+        """
+        Set the output directory for generated reports
+
+        Args:
+            directory: Path to output directory
+            subdirectory: Optional subdirectory (ignored, kept for compatibility)
+        """
+        self._custom_output_dir = directory
