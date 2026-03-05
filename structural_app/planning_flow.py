@@ -235,13 +235,6 @@ class PlanningFlow:
                     "design_proposal": self.results["design_proposal"]
                 }
 
-        # Check code_check compliance
-        if self.results["analysis_results"]:
-            code_check = self.results["analysis_results"].get('code_check', {})
-            if not code_check.get('compliant', True):
-                # Code check failed - ask user for action
-                user_choice = self._ask_code_check_failure_action(code_check, verbose)
-
         # Set up output directories for drawings, visualizations, and reports
         # Each test run gets its own timestamped directory
         drawings_dir = self.main_output_dir / "drawings"
@@ -271,6 +264,13 @@ class PlanningFlow:
             for tool in self.analysis_agent.tools:
                 if hasattr(tool, 'set_output_directory'):
                     tool.set_output_directory(str(visualizations_dir), None)
+
+        # Handle code check failure (only if not compliant)
+        if self.results["analysis_results"]:
+            code_check = self.results["analysis_results"].get('code_check', {})
+            if not code_check.get('compliant', True):
+                # Code check failed - ask user for action
+                user_choice = self._ask_code_check_failure_action(code_check, verbose)
 
                 if user_choice == "manual":
                     # Option 1: Manual improvement loop with LLM suggestions
