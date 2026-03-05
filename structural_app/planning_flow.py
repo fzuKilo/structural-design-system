@@ -258,12 +258,28 @@ class PlanningFlow:
                         print(f"[PlanningFlow] Set evaluation tool output to: {visualizations_dir}")
 
         # Configure report agent output directories
+        # Note: ReportGenerationAgent has both ReportTool and VisualizationTool
+        # We need to set different output directories for each
         if hasattr(self.report_agent, 'available_tools'):
             for tool in self.report_agent.available_tools:
                 if hasattr(tool, 'set_output_directory'):
-                    tool.set_output_directory(str(reports_dir), None)
-                    if verbose:
-                        print(f"[PlanningFlow] Set report tool output to: {reports_dir}")
+                    # Check tool type by name
+                    tool_name = getattr(tool, 'name', '')
+                    if tool_name == 'visualization':
+                        # VisualizationTool should output to visualizations_dir
+                        tool.set_output_directory(str(visualizations_dir), None)
+                        if verbose:
+                            print(f"[PlanningFlow] Set report agent's visualization tool output to: {visualizations_dir}")
+                    elif tool_name == 'report':
+                        # ReportTool should output to reports_dir
+                        tool.set_output_directory(str(reports_dir), None)
+                        if verbose:
+                            print(f"[PlanningFlow] Set report agent's report tool output to: {reports_dir}")
+                    else:
+                        # Default: use reports_dir for unknown tools
+                        tool.set_output_directory(str(reports_dir), None)
+                        if verbose:
+                            print(f"[PlanningFlow] Set report agent's {tool_name} tool output to: {reports_dir}")
 
         # Also configure analysis agent's visualization tool if it exists
         if hasattr(self.analysis_agent, 'available_tools'):
@@ -360,9 +376,13 @@ class PlanningFlow:
         drawing_result = await self.drawing_agent.run(drawing_request)
         self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
 
-        if verbose and self.results["drawing_results"]:
-            status = self.results['drawing_results'].get('status', 'unknown')
-            print(f"[OK] CAD drawings generated: {status}")
+        if verbose:
+            if self.results["drawing_results"]:
+                status = self.results['drawing_results'].get('status', 'unknown')
+                print(f"[OK] CAD drawings generated: {status}")
+            else:
+                print(f"[WARNING] Failed to extract drawing results from response")
+                print(f"[DEBUG] Drawing agent response (first 500 chars): {str(drawing_result)[:500]}")
 
         # Step 5: Report Generation
         if verbose:
