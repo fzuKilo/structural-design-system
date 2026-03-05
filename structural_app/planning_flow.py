@@ -27,6 +27,12 @@ try:
 except (FileNotFoundError, ModuleNotFoundError):
     FEAnalysisAgent = None
 
+# Import AnalyzerFactory for structure type pre-check
+try:
+    from structural_app.tool.fe_analysis_tool import AnalyzerFactory
+except (FileNotFoundError, ModuleNotFoundError, ImportError):
+    AnalyzerFactory = None
+
 try:
     from structural_app.agent.cad_drawing_agent import CADDrawingAgent
 except (FileNotFoundError, ModuleNotFoundError):
@@ -160,6 +166,28 @@ class PlanningFlow:
 
         if verbose and self.results["design_proposal"]:
             print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
+
+        # Step 1.5: Pre-check - Verify structure type is supported
+        if self.results["design_proposal"]:
+            structure_type = self.results["design_proposal"].get('type')
+            if structure_type and not AnalyzerFactory.is_registered(structure_type):
+                available_types = AnalyzerFactory.get_available_types()
+                if verbose:
+                    print()
+                    print("=" * 60)
+                    print("[ERROR] 不支持的结构类型")
+                    print("=" * 60)
+                    print(f"当前设计类型: '{structure_type}'")
+                    print(f"支持的类型: {available_types}")
+                    print()
+                    print("请使用已支持的结构类型，或参考 docs/how_to_add_new_structure_type.md")
+                    print("添加新结构类型的支持。")
+                    print("=" * 60)
+                return {
+                    "status": "failed",
+                    "error": f"当前未支持的结构类型: '{structure_type}'。可用类型: {available_types}",
+                    "design_proposal": self.results["design_proposal"]
+                }
 
         # Step 2: FE Analysis
         if verbose:
