@@ -625,26 +625,31 @@ class PlanningFlow:
         detailed_results = results.get('detailed_results', {})
 
         # Build prompt for LLM
-        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出具体的改进建议。
+        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出改进建议。
 
 设计类型：{design_proposal.get('type', 'Unknown')}
 
 当前设计参数：
-{json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+- 跨度: {design_proposal.get('geometry', {}).get('length', 'N/A')} m
+- 截面: {design_proposal.get('geometry', {}).get('width', 'N/A')} x {design_proposal.get('geometry', {}).get('height', 'N/A')} m
+- 材料: {design_proposal.get('material', {}).get('material_name', 'N/A')}
 
-分析结果摘要：
-{json.dumps(detailed_results, ensure_ascii=False, indent=2)}
+分析结果：
+- 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
+- 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
+- 应力安全系数: {code_check.get('safety_factors', {}).get('stress', 'N/A')}
+- 挠度安全系数: {code_check.get('safety_factors', {}).get('deflection', 'N/A')}
 
-规范检查结果：{summary}
-
-违规项详情：
+违规项：
 {json.dumps(violations, ensure_ascii=False, indent=2)}
 
-请给出具体的改进建议，包括：
-1. 每个违规项的原因分析
-2. 应该调整哪些参数（如梁高度、宽度、配筋等）
-3. 建议的参数值或调整方向
-4. 调整的优先级
+**要求**：
+1. 简要分析违规原因（每个违规项2-3句话）
+2. 给出具体的改进建议，包括：
+   - 应该调整哪些参数
+   - 建议的参数值或调整方向
+   - 调整的优先级
+3. 保持简洁明了，总字数控制在400-500字
 
 请用中文回答，格式清晰。"""
 
@@ -660,7 +665,7 @@ class PlanningFlow:
             response = client.chat.completions.create(
                 model=self.api_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000,
+                max_tokens=1000,
                 temperature=0.7
             )
 
