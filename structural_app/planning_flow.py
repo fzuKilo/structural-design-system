@@ -319,23 +319,26 @@ class PlanningFlow:
                             print("[PlanningFlow] 继续执行后续步骤...")
 
                 elif user_choice == "auto":
-                    # Option 2: Enable automatic iterative optimization
+                    # Option 2: 自动迭代优化（模仿manual模式，但无需用户交互）
                     if verbose:
                         print()
                         print("[PlanningFlow] 启动自动迭代优化模式...")
 
-                    # Create new FEAnalysisAgent with loop enabled
-                    loop_agent = FEAnalysisAgent(enable_loop=True) if FEAnalysisAgent else None
-                    if loop_agent:
-                        improved_result = await loop_agent.run(analysis_request)
-                        self.results["analysis_results"] = self._extract_analysis_results(improved_result)
+                    improved_results, updated_design_proposal = await self._auto_improvement_loop(
+                        self.results["design_proposal"],
+                        self.results["analysis_results"],
+                        verbose
+                    )
+                    self.results["analysis_results"] = improved_results
+                    self.results["design_proposal"] = updated_design_proposal
 
+                    # 检查最终状态
+                    final_code_check = improved_results.get('code_check', {})
+                    if not final_code_check.get('compliant', False):
                         if verbose:
-                            final_code_check = self.results["analysis_results"].get('code_check', {})
-                            if final_code_check.get('compliant', False):
-                                print("[OK] 自动优化完成，设计已满足规范要求")
-                            else:
-                                print("[WARNING] 自动优化结束，但设计仍未满足规范要求")
+                            print()
+                            print("[WARNING] 自动优化结束，但设计仍未满足规范要求")
+                            print("[PlanningFlow] 继续执行后续步骤...")
 
                 elif user_choice == "terminate":
                     # Option 3: Terminate workflow
@@ -869,6 +872,185 @@ class PlanningFlow:
                 if verbose:
                     print()
                     print(f"[WARNING] 仍有 {violations_count} 个违规项，继续改进...")
+
+    async def _auto_improvement_loop(
+        self,
+        design_proposal: Dict,
+        initial_analysis_results: Dict,
+        verbose: bool = True
+    ) -> tuple:
+        """
+        自动改进循环（模仿manual模式，但无需用户交互）
+
+        Workflow:
+        1. LLM分析code_check违规并自动生成改进方案
+        2. LLM自动更新设计提案
+        3. 重新运行FEAnalysisAgent
+        4. 循环直到通过或达到最大次数
+
+        Args:
+            design_proposal: 设计提案字典
+            initial_analysis_results: 初始分析结果
+            verbose: 是否打印进度
+
+        Returns:
+            Tuple of (final_analysis_results, updated_design_proposal)
+        """
+        loop_count = 0
+        max_loops = 10  # 最大迭代次数
+        current_results = initial_analysis_results
+        current_design_proposal = design_proposal.copy()
+
+        while loop_count < max_loops:
+            loop_count += 1
+            code_check = current_results.get('code_check', {})
+
+            if verbose:
+                print()
+                print("=" * 60)
+                print(f"[自动优化 {loop_count}/{max_loops}] 正在生成改进方案...")
+                print("=" * 60)
+
+            # Step 1: 使用LLM自动生成改进方案（不需要用户输入）
+            improvement_plan = await self._generate_auto_improvement_plan(
+                current_design_proposal,
+                current_results,
+                code_check
+            )
+
+            if verbose:
+                print(f"[改进方案] {improvement_plan}")
+
+            # 检查是否生成失败
+            if improvement_plan.startswith("错误："):
+                if verbose:
+                    print(f"[ERROR] {improvement_plan}")
+                return (current_results, current_design_proposal)
+
+            # Step 2: 使用LLM更新设计提案
+            if verbose:
+                print(f"[PlanningFlow] 根据改进方案更新设计提案...")
+
+            updated_design_proposal = await self._update_design_proposal_with_improvements(
+                current_design_proposal,
+                improvement_plan,  # 使用自动生成的改进方案
+                current_results
+            )
+
+            # 检查设计是否发生变化
+            if updated_design_proposal == current_design_proposal:
+                if verbose:
+                    print("[WARNING] 设计未发生变化，终止自动优化")
+                return (current_results, current_design_proposal)
+
+            current_design_proposal = updated_design_proposal
+
+            # Step 3: 重新运行分析
+            if verbose:
+                print(f"[PlanningFlow] 使用更新后的设计重新分析...")
+
+            analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
+            analysis_result = await self.analysis_agent.run(analysis_request)
+            current_results = self._extract_analysis_results(analysis_result)
+
+            if not current_results:
+                if verbose:
+                    print("[ERROR] 无法提取分析结果，终止循环")
+                return (initial_analysis_results, design_proposal)
+
+            # Step 4: 检查是否通过
+            new_code_check = current_results.get('code_check', {})
+            if new_code_check.get('compliant', False):
+                if verbose:
+                    print()
+                    print(f"[OK] 自动优化成功！设计已满足规范要求（共 {loop_count} 轮）")
+                return (current_results, current_design_proposal)
+            else:
+                violations_count = len(new_code_check.get('violations', []))
+                if verbose:
+                    print()
+                    print(f"[INFO] 仍有 {violations_count} 个违规项，继续优化...")
+
+        # 达到最大次数
+        if verbose:
+            print()
+            print(f"[WARNING] 已达到最大迭代次数（{max_loops}），设计仍未满足规范要求")
+        return (current_results, current_design_proposal)
+
+    async def _generate_auto_improvement_plan(
+        self,
+        design_proposal: Dict,
+        analysis_results: Dict,
+        code_check: Dict
+    ) -> str:
+        """
+        使用LLM自动生成改进方案（不需要用户输入）
+
+        Args:
+            design_proposal: 设计提案字典
+            analysis_results: 分析结果字典
+            code_check: 规范检查结果字典
+
+        Returns:
+            LLM生成的改进方案（简洁描述）
+        """
+        if not self.api_key or self.api_key == 'your-api-key-here':
+            return "错误：未配置 API key，请在 OpenManus config.toml 或项目 config.toml 中配置"
+
+        # 提取违规详情
+        violations = code_check.get('violations', [])
+        safety_factors = code_check.get('safety_factors', {})
+
+        # 获取设计参数
+        results = analysis_results.get('results', {})
+        detailed_results = results.get('detailed_results', {})
+
+        # 构建LLM提示词
+        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出**简洁明确**的改进方案。
+
+设计类型：{design_proposal.get('type', 'Unknown')}
+
+当前设计参数：
+{json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+
+分析结果摘要：
+- 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
+- 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
+- 应力安全系数: {safety_factors.get('stress', 'N/A')}
+- 挠度安全系数: {safety_factors.get('deflection', 'N/A')}
+
+违规项详情：
+{json.dumps(violations, ensure_ascii=False, indent=2)}
+
+**要求**：
+1. 直接给出改进方案，不要分析原因
+2. 使用简洁的自然语言描述（如：增加截面高度到0.5m，改用C40混凝土）
+3. 只给出1-2个最关键的改进措施
+4. 不要使用JSON格式，使用自然语言
+5. 改进措施要具体、可执行
+
+请直接输出改进方案："""
+
+        try:
+            # Use OpenAI-compatible API (supports DeepSeek, OpenAI, etc.)
+            from openai import OpenAI
+
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base_url if self.api_base_url else None
+            )
+
+            response = client.chat.completions.create(
+                model=self.api_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=500,  # 限制输出长度，确保简洁
+                temperature=0.3  # 降低温度，使输出更确定
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            return f"错误：调用 LLM API 失败 - {str(e)}"
 
     def _extract_analysis_results(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract analysis results from response."""
