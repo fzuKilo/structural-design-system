@@ -299,7 +299,7 @@ async def main():
     # 保存结果到文件
     if results:
         # Use PlanningFlow's main_output_dir if available, otherwise default to output/test_results
-        output_dir = getattr(flow, 'main_output_dir', None)
+        output_dir = results.get('main_output_dir', None)
         if output_dir:
             output_dir = str(output_dir)
         else:

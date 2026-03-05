@@ -242,28 +242,36 @@ class PlanningFlow:
         reports_dir = self.main_output_dir / "reports"
 
         # Configure drawing agent output directory
-        if hasattr(self.drawing_agent, 'tools') and self.drawing_agent.tools:
-            for tool in self.drawing_agent.tools:
+        if hasattr(self.drawing_agent, 'available_tools'):
+            for tool in self.drawing_agent.available_tools:
                 if hasattr(tool, 'set_output_directory'):
                     tool.set_output_directory(str(drawings_dir), None)
+                    if verbose:
+                        print(f"[PlanningFlow] Set drawing tool output to: {drawings_dir}")
 
         # Configure evaluation agent output directory (for visualizations)
-        if hasattr(self.evaluation_agent, 'tools') and self.evaluation_agent.tools:
-            for tool in self.evaluation_agent.tools:
+        if hasattr(self.evaluation_agent, 'available_tools'):
+            for tool in self.evaluation_agent.available_tools:
                 if hasattr(tool, 'set_output_directory'):
                     tool.set_output_directory(str(visualizations_dir), None)
+                    if verbose:
+                        print(f"[PlanningFlow] Set evaluation tool output to: {visualizations_dir}")
 
         # Configure report agent output directories
-        if hasattr(self.report_agent, 'tools') and self.report_agent.tools:
-            for tool in self.report_agent.tools:
+        if hasattr(self.report_agent, 'available_tools'):
+            for tool in self.report_agent.available_tools:
                 if hasattr(tool, 'set_output_directory'):
                     tool.set_output_directory(str(reports_dir), None)
+                    if verbose:
+                        print(f"[PlanningFlow] Set report tool output to: {reports_dir}")
 
         # Also configure analysis agent's visualization tool if it exists
-        if hasattr(self.analysis_agent, 'tools') and self.analysis_agent.tools:
-            for tool in self.analysis_agent.tools:
+        if hasattr(self.analysis_agent, 'available_tools'):
+            for tool in self.analysis_agent.available_tools:
                 if hasattr(tool, 'set_output_directory'):
                     tool.set_output_directory(str(visualizations_dir), None)
+                    if verbose:
+                        print(f"[PlanningFlow] Set analysis tool output to: {visualizations_dir}")
 
         # Handle code check failure (only if not compliant)
         if self.results["analysis_results"]:
@@ -380,6 +388,9 @@ class PlanningFlow:
             print("=" * 60)
             print("Workflow completed!")
             print("=" * 60)
+
+        # Add main_output_dir to results for test result saving
+        self.results["main_output_dir"] = str(self.main_output_dir)
 
         return self.results
 
