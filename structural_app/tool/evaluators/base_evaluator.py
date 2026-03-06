@@ -6,6 +6,11 @@ Defines the abstract interface for all structure type evaluators
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 
+try:
+    from .evaluator_config import get_weights, get_scoring_curves, get_deflection_limit
+except ImportError:
+    from evaluator_config import get_weights, get_scoring_curves, get_deflection_limit
+
 
 class DesignEvaluator(ABC):
     """
@@ -121,14 +126,8 @@ class DesignEvaluator(ABC):
             safety = self.evaluate_safety(design, results)
             sustainability = self.evaluate_sustainability(design, results)
 
-            # Weighted scoring (domain-specific weights)
-            # Adjust weights based on design priorities
-            weights = {
-                'economy': 0.25,
-                'efficiency': 0.25,
-                'safety': 0.30,
-                'sustainability': 0.20
-            }
+            # Weighted scoring (structure-specific weights from config)
+            weights = get_weights(self.structure_type)
 
             # Calculate comprehensive score
             comprehensive_score = (
@@ -272,3 +271,127 @@ class DesignEvaluator(ABC):
                 )
 
         return recommendations
+
+    # ========================================================================
+    # New Helper Methods for Improved Scoring System
+    # ========================================================================
+
+    def _get_deflection_utilization(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
+        """
+        Calculate deflection utilization ratio
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            Deflection utilization ratio (0.0 to 1.0+)
+        """
+        try:
+            max_displacement = results.get('results', {}).get('max_displacement', 0)
+            geometry = design.get('geometry', {})
+            length = geometry.get('length', 1.0)
+
+            # Get structure-specific deflection limit
+            deflection_limit = get_deflection_limit(self.structure_type, length)
+
+            if deflection_limit <= 0:
+                return 0.5  # Default value
+
+            utilization = max_displacement / deflection_limit
+            return min(1.0, max(0.0, utilization))
+        except:
+            return 0.5
+
+    def _get_comprehensive_utilization(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
+        """
+        Calculate comprehensive utilization (average of stress and deflection utilization)
+
+        This is a key indicator for economy evaluation (ref: DQS)
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            Comprehensive utilization ratio (0.0 to 1.0+)
+        """
+        stress_util = self._get_stress_utilization(design, results)
+        deflection_util = self._get_deflection_utilization(design, results)
+
+        return (stress_util + deflection_util) / 2
+
+    @abstractmethod
+    def _get_stress_utilization(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
+        """
+        Calculate stress utilization ratio (must be implemented by subclasses)
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            Stress utilization ratio (0.0 to 1.0+)
+        """
+        pass
+
+    @abstractmethod
+    def _check_structure_specific_construction(
+        self, design: Dict[str, Any], results: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Check structure-specific construction requirements (must be implemented by subclasses)
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            List of construction issues, each containing:
+                - type: Issue type identifier
+                - severity: 'minor', 'moderate', or 'severe'
+                - message: Human-readable description
+                - recommendation: Suggested fix
+        """
+        pass
+
+    def evaluate_construction(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Evaluate construction aspects (deduction-based scoring)
+
+        Initial score: 5.0 points
+        Deductions based on issue severity:
+        - Minor: -0.5 points
+        - Moderate: -1.0 points
+        - Severe: -2.0 points
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            Dictionary containing:
+                - score: Score (0-5)
+                - issues: List of construction issues
+        """
+        initial_score = 5.0
+        issues = []
+
+        # Call structure-specific construction checks
+        structure_issues = self._check_structure_specific_construction(design, results)
+
+        # Deduct points based on severity
+        for issue in structure_issues:
+            severity = issue.get('severity', 'minor')
+            if severity == 'minor':
+                initial_score -= 0.5
+            elif severity == 'moderate':
+                initial_score -= 1.0
+            elif severity == 'severe':
+                initial_score -= 2.0
+            issues.append(issue)
+
+        return {
+            'score': max(0, initial_score),
+            'issues': issues
+        }

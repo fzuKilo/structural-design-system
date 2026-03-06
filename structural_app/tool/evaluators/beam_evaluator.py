@@ -1,34 +1,50 @@
 """
-Beam evaluator for structural design assessment
-Implements 4-dimensional evaluation for beam structures
+Beam evaluator for structural design assessment (v2.0)
+Implements improved 4-dimensional evaluation with multi-level scoring curves
 """
 
-from typing import Dict, Any
-from .base_evaluator import DesignEvaluator
+from typing import Dict, Any, List
+
+try:
+    from .base_evaluator import DesignEvaluator
+    from .evaluator_config import get_scoring_curves, get_construction_requirements
+except ImportError:
+    from base_evaluator import DesignEvaluator
+    from evaluator_config import get_scoring_curves, get_construction_requirements
 
 
 class BeamEvaluator(DesignEvaluator):
     """
-    Concrete evaluator for beam structures
+    Concrete evaluator for beam structures (v2.0)
 
-    Implements 4-dimensional evaluation:
-    - Economy: Material usage, cost efficiency
-    - Structural Efficiency: Stress utilization, redundancy
-    - Safety: Safety factors, deflection margins
-    - Sustainability: Carbon emissions, recyclability
+    Improvements:
+    - Multi-level scoring curves for stress and deflection
+    - Comprehensive utilization indicator
+    - Construction scoring (deduction-based)
+    - Structure-specific configuration
     """
 
     def __init__(self):
         """Initialize beam evaluator"""
         super().__init__()
+        self.scoring_curves = get_scoring_curves('beam')
+        self.construction_reqs = get_construction_requirements('beam')
 
     def _get_structure_type(self) -> str:
         """Return structure type identifier"""
         return "beam"
 
+    # ========================================================================
+    # Economy Evaluation (25%)
+    # ========================================================================
+
     def evaluate_economy(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Evaluate economic aspects of beam design
+
+        Components:
+        - Comprehensive utilization score (60%): Uses multi-level curve
+        - Material usage score (40%): Based on material usage index
 
         Args:
             design: Design parameters
@@ -39,40 +55,51 @@ class BeamEvaluator(DesignEvaluator):
         """
         # Calculate material volume
         geometry = design.get('geometry', {})
-        length = geometry.get('length', 1.0)  # meters
-        width = geometry.get('width', 0.3)    # meters
-        height = geometry.get('height', 0.5)  # meters
-        volume = length * width * height      # m^3
+        length = geometry.get('length', 1.0)
+        width = geometry.get('width', 0.3)
+        height = geometry.get('height', 0.5)
+        volume = length * width * height
 
-        # Material usage index: ratio to theoretical minimum
-        # Theoretical minimum for a beam: L * 0.2 * 0.4 = 0.08 m^3 for 6m span
+        # Material usage index
         theoretical_min = length * 0.2 * 0.4
         material_usage_index = volume / theoretical_min if theoretical_min > 0 else 1.0
 
-        # Cost efficiency: based on material usage and stress utilization
-        stress_utilization = self._get_stress_utilization(design, results)
+        # Comprehensive utilization (stress + deflection) / 2
+        comprehensive_util = self._get_comprehensive_utilization(design, results)
 
-        # Score calculation:
-        # - Low material usage is good (< 1.2 is excellent, 1.5 is acceptable)
-        # - High stress utilization is good (0.6-0.8 is optimal)
+        # Use multi-level scoring curve for utilization
+        utilization_score = self.scoring_curves['stress'].calculate_score(comprehensive_util)
+
+        # Material usage score (linear: lower is better)
         material_score = max(0, 100 - (material_usage_index - 1) * 50)
-        efficiency_score = self._calculate_utilization_score(stress_utilization)
 
-        economy_score = material_score * 0.6 + efficiency_score * 0.4
+        # Weighted economy score
+        economy_score = utilization_score * 0.6 + material_score * 0.4
 
         return {
             'score': round(economy_score, 1),
             'indicators': {
+                'comprehensive_utilization': round(comprehensive_util, 4),
+                'stress_utilization': round(self._get_stress_utilization(design, results), 4),
+                'deflection_utilization': round(self._get_deflection_utilization(design, results), 4),
                 'material_usage_index': round(material_usage_index, 3),
                 'volume_m3': round(volume, 4),
-                'cost_efficiency_ratio': round(stress_utilization / 0.7 if stress_utilization > 0 else 0, 2),
                 'construction_complexity': self._evaluate_construction_complexity(geometry)
             }
         }
 
+    # ========================================================================
+    # Structural Efficiency Evaluation (20%)
+    # ========================================================================
+
     def evaluate_efficiency(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Evaluate structural efficiency of beam design
+
+        Components:
+        - Stress utilization score (50%): Uses multi-level curve
+        - Utilization uniformity (30%): Coefficient of variation
+        - Redundancy index (20%): Element count proxy
 
         Args:
             design: Design parameters
@@ -84,23 +111,20 @@ class BeamEvaluator(DesignEvaluator):
         # Get stress utilization
         stress_utilization = self._get_stress_utilization(design, results)
 
+        # Use multi-level scoring curve
+        utilization_score = self.scoring_curves['stress'].calculate_score(stress_utilization)
+
         # Calculate utilization uniformity
         utilization_uniformity = self._calculate_utilization_uniformity(results)
-
-        # Check redundancy (number of elements - simple proxy)
-        geometry = design.get('geometry', {})
-        n_elements = geometry.get('n_elements', 20)
-        redundancy_index = min(1.5, n_elements / 20)  # More elements = more redundancy
-
-        # Score calculation
-        utilization_score = self._calculate_utilization_score(stress_utilization)
-
-        # Uniformity score: more uniform = better (less local stress concentrations)
         uniformity_score = utilization_uniformity * 100
 
-        # Redundancy score: some redundancy is good for safety
+        # Redundancy index
+        geometry = design.get('geometry', {})
+        n_elements = geometry.get('n_elements', 20)
+        redundancy_index = min(1.5, n_elements / 20)
         redundancy_score = min(100, redundancy_index * 50)
 
+        # Weighted efficiency score
         efficiency_score = (
             utilization_score * 0.5 +
             uniformity_score * 0.3 +
@@ -116,9 +140,18 @@ class BeamEvaluator(DesignEvaluator):
             }
         }
 
+    # ========================================================================
+    # Safety Evaluation (40% = Strength 20% + Stiffness 15% + Construction 5%)
+    # ========================================================================
+
     def evaluate_safety(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Evaluate safety aspects of beam design
+
+        Components:
+        - Strength score (50%): Based on stress utilization using multi-level curve
+        - Stiffness score (37.5%): Based on deflection utilization using multi-level curve
+        - Construction score (12.5%): Deduction-based construction checks
 
         Args:
             design: Design parameters
@@ -127,48 +160,56 @@ class BeamEvaluator(DesignEvaluator):
         Returns:
             Dictionary with score and safety indicators
         """
+        # 1. Strength evaluation (using stress curve, inverted logic)
+        stress_util = self._get_stress_utilization(design, results)
+        # For safety: lower utilization = higher safety
+        # Use inverted scoring: safety_score = 100 - utilization * 100
+        strength_score = max(0, 100 - stress_util * 100)
+
+        # 2. Stiffness evaluation (using deflection curve, inverted logic)
+        deflection_util = self._get_deflection_utilization(design, results)
+        stiffness_score = max(0, 100 - deflection_util * 100)
+
+        # 3. Construction evaluation (deduction-based)
+        construction_eval = self.evaluate_construction(design, results)
+        construction_score = construction_eval['score'] * 20  # Scale 0-5 to 0-100
+
+        # Weighted safety score
+        safety_score = (
+            strength_score * 0.50 +
+            stiffness_score * 0.375 +
+            construction_score * 0.125
+        )
+
+        # Get code check results
         code_check = results.get('code_check', {})
         safety_factors = code_check.get('safety_factors', {})
-
-        # Get minimum safety factor
         min_safety_factor = min(safety_factors.values()) if safety_factors else 0
-
-        # Check deflection margin
-        max_displacement = results.get('results', {}).get('max_displacement', 0)
-        geometry = design.get('geometry', {})
-        length = geometry.get('length', 1.0)
-        deflection_limit = length / 250  # Standard deflection limit
-        deflection_margin = deflection_limit / max_displacement if max_displacement > 0 else float('inf')
-
-        # Score calculation
-        # Safety factor scoring: > 2.0 is excellent, 1.5 is minimum acceptable
-        sf_score = min(100, max(0, min_safety_factor * 50))
-
-        # Deflection margin scoring: > 1.5 is good
-        deflection_score = min(100, max(0, 150 - deflection_margin * 50))
-
-        # Code compliance score
-        compliant = code_check.get('compliant', False)
-        compliance_score = 100 if compliant else 40
-
-        safety_score = (
-            sf_score * 0.4 +
-            deflection_score * 0.3 +
-            compliance_score * 0.3
-        )
 
         return {
             'score': round(safety_score, 1),
             'indicators': {
+                'strength_score': round(strength_score, 1),
+                'stiffness_score': round(stiffness_score, 1),
+                'construction_score': round(construction_score, 1),
                 'min_safety_factor': round(min_safety_factor, 2),
-                'safety_factor_distribution': self._evaluate_sf_distribution(safety_factors),
-                'deflection_margin': round(min(deflection_margin, 3.0), 2)
+                'stress_utilization': round(stress_util, 4),
+                'deflection_utilization': round(deflection_util, 4),
+                'construction_issues': construction_eval['issues']
             }
         }
+
+    # ========================================================================
+    # Sustainability Evaluation (15%)
+    # ========================================================================
 
     def evaluate_sustainability(self, design: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Evaluate sustainability aspects of beam design
+
+        Components:
+        - Carbon emission score (50%)
+        - Recyclability score (50%)
 
         Args:
             design: Design parameters
@@ -177,25 +218,20 @@ class BeamEvaluator(DesignEvaluator):
         Returns:
             Dictionary with score and sustainability indicators
         """
-        # Calculate carbon emissions (approximate)
-        # Concrete: ~2400 kg/m^3, ~0.11 kg CO2/kg
-        # Steel: ~7850 kg/m^3, ~1.8 kg CO2/kg
+        # Calculate carbon emissions
         geometry = design.get('geometry', {})
         volume = geometry.get('length', 1.0) * geometry.get('width', 0.3) * geometry.get('height', 0.5)
 
-        # Assume concrete (conservative estimate)
-        carbon_emission = volume * 2400 * 0.11  # kg CO2
+        # Concrete: ~2400 kg/m^3, ~0.11 kg CO2/kg
+        carbon_emission = volume * 2400 * 0.11
 
-        # Recyclability ratio (concrete = 0, steel = 0.9+)
+        # Recyclability
         material = design.get('material', {})
         material_name = material.get('material_name', 'concrete').lower()
         recyclability = 0.9 if 'steel' in material_name or 'q' in material_name else 0.15
 
-        # Score calculation
-        # Lower carbon = better
+        # Scoring
         carbon_score = max(0, 100 - carbon_emission / 5)
-
-        # Recyclability score
         recyclability_score = recyclability * 100
 
         sustainability_score = (carbon_score + recyclability_score) / 2
@@ -208,64 +244,120 @@ class BeamEvaluator(DesignEvaluator):
             }
         }
 
-    # Helper methods
+    # ========================================================================
+    # Helper Methods
+    # ========================================================================
 
     def _get_stress_utilization(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
         """Calculate stress utilization ratio"""
         try:
             max_stress = results.get('results', {}).get('max_stress_MPa', 0)
             if max_stress <= 0:
-                return 0.5  # Default if no results
+                return 0.5
 
             material = design.get('material', {})
-            fy = material.get('fy', 235e6)  # Default: Q235 steel
+            fy = material.get('fy', 235e6)
             fy_MPa = fy / 1e6
 
-            allowable_stress = fy_MPa / 1.5  # Allowable stress design
+            allowable_stress = fy_MPa / 1.5
             utilization = max_stress / allowable_stress
 
             return min(1.0, max(0.0, utilization))
         except:
             return 0.5
 
-    def _calculate_utilization_score(self, utilization: float) -> float:
-        """Calculate score based on stress utilization (optimal: 0.6-0.8)"""
-        if utilization <= 0:
-            return 50
+    def _check_structure_specific_construction(
+        self, design: Dict[str, Any], results: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Check beam-specific construction requirements
 
-        # Optimal range: 0.6-0.8
-        if 0.6 <= utilization <= 0.8:
-            return 100
+        Checks:
+        1. Height-span ratio (1/20 to 1/10)
+        2. Width-height ratio (1/3 to 1/1.5)
+        3. Minimum section dimensions
 
-        # Below optimal (under-designed)
-        if utilization < 0.6:
-            return 100 - (0.6 - utilization) * 100
+        Args:
+            design: Design parameters
+            results: Analysis results
 
-        # Above optimal (over-designed)
-        if utilization <= 1.0:
-            return 100 - (utilization - 0.8) * 200
+        Returns:
+            List of construction issues
+        """
+        issues = []
+        geometry = design.get('geometry', {})
 
-        # Way over (100+ score clamped)
-        return max(0, 100 - (utilization - 0.8) * 200)
+        length = geometry.get('length', 1.0)
+        height = geometry.get('height', 0.5)
+        width = geometry.get('width', 0.3)
+
+        # Check 1: Height-span ratio
+        height_span_ratio = height / length
+        min_ratio, max_ratio = self.construction_reqs['height_span_ratio']
+
+        if height_span_ratio < min_ratio:
+            issues.append({
+                'type': 'height_span_ratio_low',
+                'severity': 'moderate',
+                'message': f'Height-span ratio too small ({height_span_ratio:.3f} < {min_ratio:.3f})',
+                'recommendation': 'Increase beam height or reduce span'
+            })
+        elif height_span_ratio > max_ratio:
+            issues.append({
+                'type': 'height_span_ratio_high',
+                'severity': 'minor',
+                'message': f'Height-span ratio too large ({height_span_ratio:.3f} > {max_ratio:.3f})',
+                'recommendation': 'Consider reducing beam height for economy'
+            })
+
+        # Check 2: Width-height ratio
+        width_height_ratio = width / height
+        min_wh, max_wh = self.construction_reqs['width_height_ratio']
+
+        if width_height_ratio < min_wh:
+            issues.append({
+                'type': 'width_height_ratio_low',
+                'severity': 'minor',
+                'message': f'Width-height ratio too small ({width_height_ratio:.2f} < {min_wh:.2f})',
+                'recommendation': 'Increase beam width for stability'
+            })
+        elif width_height_ratio > max_wh:
+            issues.append({
+                'type': 'width_height_ratio_high',
+                'severity': 'minor',
+                'message': f'Width-height ratio too large ({width_height_ratio:.2f} > {max_wh:.2f})',
+                'recommendation': 'Reduce beam width or increase height'
+            })
+
+        # Check 3: Minimum dimensions
+        min_width = self.construction_reqs['min_width']
+        min_height = self.construction_reqs['min_height']
+
+        if width < min_width or height < min_height:
+            issues.append({
+                'type': 'section_too_small',
+                'severity': 'severe',
+                'message': f'Section dimensions too small ({width}m × {height}m)',
+                'recommendation': 'Increase section dimensions to meet minimum construction requirements'
+            })
+
+        return issues
 
     def _calculate_utilization_uniformity(self, results: Dict[str, Any]) -> float:
         """Calculate how uniform the stress distribution is"""
         try:
             moments = results.get('results', {}).get('detailed_results', {}).get('moments', [])
             if not moments or len(moments) < 2:
-                return 0.7  # Default for insufficient data
+                return 0.7
 
             avg_moment = sum(moments) / len(moments)
             if avg_moment == 0:
                 return 1.0
 
-            # Calculate coefficient of variation
             variance = sum((m - avg_moment) ** 2 for m in moments) / len(moments)
             std_dev = variance ** 0.5
             cv = std_dev / avg_moment
 
-            # Lower CV = more uniform = better
-            # CV < 0.3 is excellent, CV > 1.0 is poor
             uniformity = max(0, min(1, 1 - cv))
             return uniformity
         except:
@@ -276,28 +368,9 @@ class BeamEvaluator(DesignEvaluator):
         length = geometry.get('length', 0)
         height = geometry.get('height', 0)
 
-        # Simple heuristic
         if length > 15 or height > 1.0:
             return "high"
         elif length > 8 or height > 0.7:
             return "medium"
         else:
             return "low"
-
-    def _evaluate_sf_distribution(self, safety_factors: Dict[str, float]) -> str:
-        """Evaluate safety factor distribution"""
-        if not safety_factors:
-            return "unknown"
-
-        values = list(safety_factors.values())
-        min_sf = min(values)
-        max_sf = max(values)
-
-        ratio = max_sf / min_sf if min_sf > 0 else 1
-
-        if ratio > 2:
-            return "uneven"
-        elif ratio > 1.5:
-            return "moderate"
-        else:
-            return "uniform"
