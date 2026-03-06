@@ -22,7 +22,7 @@ def load_module_from_path(module_name, file_path):
 # Load modules directly
 scoring_curve_path = os.path.join(project_root, 'structural_app/tool/evaluators/scoring_curve.py')
 config_path = os.path.join(project_root, 'structural_app/tool/evaluators/evaluator_config.py')
-evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/beam_evaluator_v2.py')
+evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/beam_evaluator.py')
 base_evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/base_evaluator.py')
 
 # Load scoring_curve first and register it
@@ -37,8 +37,8 @@ sys.modules['evaluator_config'] = config_module
 base_evaluator_module = load_module_from_path('base_evaluator', base_evaluator_path)
 sys.modules['base_evaluator'] = base_evaluator_module
 
-# Finally load beam_evaluator_v2
-evaluator_module = load_module_from_path('beam_evaluator_v2', evaluator_path)
+# Finally load beam_evaluator
+evaluator_module = load_module_from_path('beam_evaluator', evaluator_path)
 
 MultiLevelScoringCurve = scoring_curve_module.MultiLevelScoringCurve
 get_scoring_curves = config_module.get_scoring_curves
