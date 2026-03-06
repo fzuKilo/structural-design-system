@@ -6,6 +6,7 @@ Implements the Factory Pattern for extensibility
 from typing import Dict, Type
 from .base_evaluator import DesignEvaluator
 from .beam_evaluator import BeamEvaluator
+from .cantilever_beam_evaluator import CantileverBeamEvaluator
 
 
 class EvaluatorFactory:
@@ -89,8 +90,9 @@ class EvaluatorFactory:
 
 # Register built-in evaluators
 EvaluatorFactory.register("beam", BeamEvaluator)
+EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
 
 # Future registrations will be added here:
 # EvaluatorFactory.register("frame", FrameEvaluator)
 # EvaluatorFactory.register("truss", TrussEvaluator)
-# EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
+# EvaluatorFactory.register("continuous_beam", ContinuousBeamEvaluator)

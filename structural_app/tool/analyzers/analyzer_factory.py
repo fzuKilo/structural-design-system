@@ -6,6 +6,7 @@ Implements the Factory Pattern for extensibility
 from typing import Dict, Type, Optional
 from .base_analyzer import StructureAnalyzer
 from .beam_analyzer import BeamAnalyzer
+from .cantilever_beam_analyzer import CantileverBeamAnalyzer
 
 
 class AnalyzerFactory:
@@ -89,8 +90,9 @@ class AnalyzerFactory:
 
 # Register built-in analyzers
 AnalyzerFactory.register("beam", BeamAnalyzer)
+AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
 
 # Future registrations will be added here:
 # AnalyzerFactory.register("frame", FrameAnalyzer)
 # AnalyzerFactory.register("truss", TrussAnalyzer)
-# AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
+# AnalyzerFactory.register("continuous_beam", ContinuousBeamAnalyzer)

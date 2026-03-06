@@ -1,0 +1,285 @@
+"""
+Cantilever beam analyzer using OpenSeesPy
+Implements finite element analysis for cantilever beam structures
+"""
+
+import openseespy.opensees as ops
+import numpy as np
+from typing import Dict, Any, List, Optional
+from .base_analyzer import StructureAnalyzer, AnalysisResults
+
+
+class CantileverBeamAnalyzer(StructureAnalyzer):
+    """
+    Concrete analyzer for cantilever beam structures using OpenSeesPy
+
+    Key differences from simply supported beam:
+    - Fixed support at one end (all DOFs constrained)
+    - Free end at the other end
+    - Different deflection limits (L/200 vs L/250)
+    """
+
+    def __init__(self):
+        """Initialize cantilever beam analyzer"""
+        super().__init__()
+        self.model_built = False
+        self.design_params = None
+
+    def _get_structure_type(self) -> str:
+        """Return structure type identifier"""
+        return "cantilever_beam"
+
+    def validate_design(self, design: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+        """
+        Validate cantilever beam-specific design parameters
+
+        Args:
+            design: Design parameters
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Call parent validation first
+        is_valid, error_msg = super().validate_design(design)
+        if not is_valid:
+            return False, error_msg
+
+        # Check geometry parameters
+        geometry = design.get('geometry', {})
+        required_geom = ['length', 'width', 'height']
+        for param in required_geom:
+            if param not in geometry:
+                return False, f"Missing geometry parameter: {param}"
+            if geometry[param] <= 0:
+                return False, f"Invalid geometry parameter {param}: must be positive"
+
+        # Check material parameters
+        material = design.get('material', {})
+        required_mat = ['E', 'nu']
+        for param in required_mat:
+            if param not in material:
+                return False, f"Missing material parameter: {param}"
+            if material[param] <= 0:
+                return False, f"Invalid material parameter {param}: must be positive"
+
+        # Check loads
+        loads = design.get('loads', {})
+        if 'distributed' not in loads and 'point' not in loads:
+            return False, "No loads specified (need 'distributed' or 'point')"
+
+        return True, None
+
+    def build_model(self, design: Dict[str, Any]) -> None:
+        """
+        Build OpenSeesPy model for cantilever beam
+
+        Args:
+            design: Design parameters including geometry, material, loads, constraints
+        """
+        # Validate design first
+        is_valid, error_msg = self.validate_design(design)
+        if not is_valid:
+            raise ValueError(f"Invalid design: {error_msg}")
+
+        # Store design parameters
+        self.design_params = design
+
+        # Clear any existing model
+        ops.wipe()
+
+        # Create model
+        ops.model('basic', '-ndm', 2, '-ndf', 3)
+
+        # Extract parameters
+        geometry = design['geometry']
+        material = design['material']
+        loads = design['loads']
+
+        length = geometry['length']
+        width = geometry['width']
+        height = geometry['height']
+        n_elements = geometry.get('n_elements', 20)
+
+        E = material['E']
+        nu = material.get('nu', 0.2)
+        G = E / (2 * (1 + nu))
+
+        # Calculate section properties
+        A = width * height
+        Iz = (width * height**3) / 12
+
+        # Create nodes
+        n_nodes = n_elements + 1
+        for i in range(n_nodes):
+            x = i * length / n_elements
+            ops.node(i + 1, x, 0.0)
+
+        # Define boundary conditions - CANTILEVER
+        # Node 1 (left end): Fixed support (all DOFs constrained)
+        ops.fix(1, 1, 1, 1)
+        # All other nodes: Free (no constraints)
+
+        # Define material and section
+        ops.section('Elastic', 1, E, A, Iz)
+
+        # Define geometric transformation
+        ops.geomTransf('Linear', 1)
+
+        # Create elements
+        for i in range(n_elements):
+            ops.element('elasticBeamColumn', i + 1, i + 1, i + 2, A, E, Iz, 1)
+
+        # Apply loads
+        # Distributed loads
+        if 'distributed' in loads:
+            for dist_load in loads['distributed']:
+                q = dist_load.get('q', 0)
+                direction = dist_load.get('direction', 'y')
+
+                if direction == 'y':
+                    for i in range(n_elements):
+                        ops.eleLoad('-ele', i + 1, '-type', '-beamUniform', q, 0.0)
+
+        # Point loads
+        if 'point' in loads:
+            for point_load in loads['point']:
+                position = point_load.get('position', length)
+                force = point_load.get('force', 0)
+                direction = point_load.get('direction', 'y')
+
+                # Find closest node
+                node_id = int(round(position / length * n_elements)) + 1
+                node_id = max(1, min(n_nodes, node_id))
+
+                if direction == 'y':
+                    ops.load(node_id, 0.0, force, 0.0)
+
+        self.model_built = True
+
+    def analyze(self) -> Dict[str, Any]:
+        """
+        Run finite element analysis
+
+        Returns:
+            Dictionary containing analysis results
+        """
+        if not self.model_built:
+            raise RuntimeError("Model not built. Call build_model() first.")
+
+        # Create analysis
+        ops.system('BandGeneral')
+        ops.numberer('RCM')
+        ops.constraints('Plain')
+        ops.integrator('LoadControl', 1.0)
+        ops.algorithm('Linear')
+        ops.analysis('Static')
+
+        # Run analysis
+        ok = ops.analyze(1)
+
+        if ok != 0:
+            return {
+                'status': 'failed',
+                'error': 'Analysis failed to converge'
+            }
+
+        # Extract results
+        geometry = self.design_params['geometry']
+        n_elements = geometry.get('n_elements', 20)
+        n_nodes = n_elements + 1
+
+        # Get displacements
+        displacements = []
+        for i in range(n_nodes):
+            disp = ops.nodeDisp(i + 1)
+            displacements.append(disp[1])  # y-displacement
+
+        max_displacement = max(abs(d) for d in displacements)
+
+        # Get element forces (moments and shears)
+        moments = []
+        shears = []
+        for i in range(n_elements):
+            forces = ops.eleForce(i + 1)
+            # For 2D beam: [N1, V1, M1, N2, V2, M2]
+            moment = max(abs(forces[2]), abs(forces[5]))
+            shear = max(abs(forces[1]), abs(forces[4]))
+            moments.append(moment)
+            shears.append(shear)
+
+        max_moment = max(moments)
+        max_shear = max(shears)
+
+        # Calculate stress
+        width = geometry['width']
+        height = geometry['height']
+        Iz = (width * height**3) / 12
+        c = height / 2
+        max_stress = (max_moment * c) / Iz
+        max_stress_MPa = max_stress / 1e6
+
+        return {
+            'status': 'success',
+            'max_displacement': max_displacement,
+            'max_moment': max_moment,
+            'max_shear': max_shear,
+            'max_stress_MPa': max_stress_MPa,
+            'detailed_results': {
+                'displacements': displacements,
+                'moments': moments,
+                'shears': shears
+            }
+        }
+
+    def check_code(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Check design against code requirements (cantilever beam specific)
+
+        Args:
+            results: Analysis results from analyze()
+
+        Returns:
+            Dictionary containing code check results
+        """
+        if results.get('status') != 'success':
+            return {
+                'compliant': False,
+                'violations': ['Analysis failed'],
+                'safety_factors': {}
+            }
+
+        geometry = self.design_params['geometry']
+        material = self.design_params['material']
+
+        length = geometry['length']
+        max_displacement = results['max_displacement']
+        max_stress_MPa = results['max_stress_MPa']
+
+        # Deflection limit for cantilever beam: L/200 (stricter than simply supported)
+        deflection_limit = length / 200
+
+        # Stress limit
+        fy = material.get('fy', 235e6)
+        fy_MPa = fy / 1e6
+        allowable_stress = fy_MPa / 1.5
+
+        # Check compliance
+        violations = []
+        if max_displacement > deflection_limit:
+            violations.append(f"Deflection exceeds limit: {max_displacement:.4f}m > {deflection_limit:.4f}m")
+
+        if max_stress_MPa > allowable_stress:
+            violations.append(f"Stress exceeds limit: {max_stress_MPa:.2f}MPa > {allowable_stress:.2f}MPa")
+
+        # Calculate safety factors
+        deflection_sf = deflection_limit / max_displacement if max_displacement > 0 else float('inf')
+        stress_sf = allowable_stress / max_stress_MPa if max_stress_MPa > 0 else float('inf')
+
+        return {
+            'compliant': len(violations) == 0,
+            'violations': violations,
+            'safety_factors': {
+                'deflection': round(deflection_sf, 2),
+                'stress': round(stress_sf, 2)
+            }
+        }
