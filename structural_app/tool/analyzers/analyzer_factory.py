@@ -7,6 +7,7 @@ from typing import Dict, Type, Optional
 from .base_analyzer import StructureAnalyzer
 from .beam_analyzer import BeamAnalyzer
 from .cantilever_beam_analyzer import CantileverBeamAnalyzer
+from .continuous_beam_analyzer import ContinuousBeamAnalyzer
 
 
 class AnalyzerFactory:
@@ -91,8 +92,8 @@ class AnalyzerFactory:
 # Register built-in analyzers
 AnalyzerFactory.register("beam", BeamAnalyzer)
 AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
+AnalyzerFactory.register("continuous_beam", ContinuousBeamAnalyzer)
 
 # Future registrations will be added here:
 # AnalyzerFactory.register("frame", FrameAnalyzer)
 # AnalyzerFactory.register("truss", TrussAnalyzer)
-# AnalyzerFactory.register("continuous_beam", ContinuousBeamAnalyzer)

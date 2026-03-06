@@ -130,13 +130,14 @@ CRITICAL OUTPUT FORMAT:
 You MUST output a valid JSON object with the following structure:
 
 {
-  "type": "<structure_type>",  // REQUIRED: "beam", "frame", "truss", etc.
+  "type": "<structure_type>",  // REQUIRED: "beam", "cantilever_beam", "continuous_beam", "frame", "truss", etc.
   "units": "<units>",          // REQUIRED: "m" or "mm" (specifies units for geometry)
   "geometry": {
     "length": <number>,        // in specified units (m or mm)
     "width": <number>,         // in specified units (for cross-section)
     "height": <number>,        // in specified units (for cross-section)
-    "n_elements": <integer>    // number of finite elements (default: 20)
+    "n_elements": <integer>,   // number of finite elements (default: 20)
+    "n_spans": <integer>       // ONLY for continuous_beam: number of spans (2-5)
   },
   "material": {
     "E": <number>,             // Young's modulus in Pa (e.g., 30e9 for C30 concrete)
@@ -160,9 +161,40 @@ You MUST output a valid JSON object with the following structure:
     ]
   },
   "constraints": {
-    "support_type": "<type>"   // "simply_supported", "cantilever", "fixed_fixed"
+    "support_type": "<type>"   // "simply_supported", "cantilever", "fixed_fixed", "continuous"
   }
 }
+
+STRUCTURE TYPE SELECTION:
+=========================
+Choose the correct "type" based on the user's description:
+
+1. "beam" - Simply supported beam (简支梁)
+   - Single span with two supports (pinned + roller)
+   - Use when user says: "简支梁", "单跨梁", "simple beam"
+
+2. "cantilever_beam" - Cantilever beam (悬臂梁)
+   - Fixed at one end, free at the other
+   - Use when user says: "悬臂梁", "cantilever", "固定一端"
+
+3. "continuous_beam" - Continuous beam (连续梁)
+   - Multiple spans with intermediate supports
+   - MUST include "n_spans" in geometry (2-5 spans)
+   - "length" is TOTAL length across all spans
+   - Use when user says: "连续梁", "多跨梁", "两跨", "三跨", "continuous beam"
+   - Example: "两跨连续梁，跨度12m" means n_spans=2, length=24m (total)
+
+4. "truss" - Truss structure (桁架)
+   - Use when user says: "桁架", "truss"
+
+5. "frame" - Frame structure (框架)
+   - Use when user says: "框架", "frame", "刚架"
+
+CRITICAL: For continuous beams:
+- Set type to "continuous_beam" (NOT "beam")
+- Add "n_spans" to geometry
+- "length" is the TOTAL length (sum of all spans)
+- Example: 两跨连续梁，每跨6m → type="continuous_beam", n_spans=2, length=12.0
 
 UNITS GUIDELINES:
 - Use "m" for meters (default for most structural engineering calculations)
@@ -171,21 +203,36 @@ UNITS GUIDELINES:
 - Load values have fixed units: q in N/m, P in N (independent of geometry units)
 
 DESIGN GUIDELINES:
-1. For beams:
+1. For simply supported beams (type="beam"):
    - Typical span-to-depth ratio: L/10 to L/15
    - Width typically 0.3-0.5m for concrete beams
    - Use C30 concrete (E=30GPa) or Q235 steel (E=200GPa) as defaults
 
-2. For loads:
+2. For cantilever beams (type="cantilever_beam"):
+   - More conservative span-to-depth ratio: L/6 to L/10
+   - Larger sections needed due to higher moments
+   - Fixed support at one end
+
+3. For continuous beams (type="continuous_beam"):
+   - Can use more slender sections: L/12 to L/20
+   - MUST specify n_spans (2-5)
+   - Total length = n_spans × span_length
+   - More economical than simply supported beams
+   - Example: "两跨连续梁12m" → n_spans=2, length=12.0 (if 12m is total)
+   - Example: "两跨连续梁每跨6m" → n_spans=2, length=12.0 (6m × 2)
+
+4. For loads:
    - Residential: 2-3 kN/m² live load
    - Office: 3-4 kN/m² live load
    - Convert area loads to line loads based on tributary width
 
-3. Material selection:
+5. Material selection:
    - Concrete: E=30e9 Pa, nu=0.2, fy=14.3e6 Pa (C30)
    - Steel: E=200e9 Pa, nu=0.3, fy=235e6 Pa (Q235)
 
-4. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
+6. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
+
+7. For continuous beams, ALWAYS include "n_spans" in geometry.
 
 CRITICAL: UNITS FIELD IS MANDATORY:
 ====================================
@@ -207,6 +254,41 @@ Example 2 (using millimeters):
   "type": "beam",
   "units": "mm",
   "geometry": {"length": 6000, "width": 300, "height": 600},
+  ...
+}
+
+Example 3 (continuous beam with 2 spans):
+{
+  "type": "continuous_beam",
+  "units": "m",
+  "geometry": {
+    "length": 12.0,
+    "width": 0.3,
+    "height": 0.6,
+    "n_elements": 40,
+    "n_spans": 2
+  },
+  "material": {
+    "E": 30e9,
+    "nu": 0.2,
+    "fy": 14.3e6,
+    "material_name": "C30"
+  },
+  "loads": {
+    "distributed": [{"q": -10000, "direction": "y"}],
+    "point": []
+  },
+  "constraints": {
+    "support_type": "continuous"
+  }
+}
+
+Example 4 (cantilever beam):
+{
+  "type": "cantilever_beam",
+  "units": "m",
+  "geometry": {"length": 3.0, "width": 0.3, "height": 0.5},
+  "constraints": {"support_type": "cantilever"},
   ...
 }
 

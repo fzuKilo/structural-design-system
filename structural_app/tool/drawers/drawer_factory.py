@@ -7,6 +7,7 @@ from typing import Dict, Type, Optional
 from .base_drawer import StructureDrawer
 from .beam_drawer import BeamDrawer
 from .cantilever_beam_drawer import CantileverBeamDrawer
+from .continuous_beam_drawer import ContinuousBeamDrawer
 
 
 class DrawerFactory:
@@ -91,8 +92,8 @@ class DrawerFactory:
 # Register built-in drawers
 DrawerFactory.register("beam", BeamDrawer)
 DrawerFactory.register("cantilever_beam", CantileverBeamDrawer)
+DrawerFactory.register("continuous_beam", ContinuousBeamDrawer)
 
 # Future registrations will be added here:
 # DrawerFactory.register("frame", FrameDrawer)
 # DrawerFactory.register("truss", TrussDrawer)
-# DrawerFactory.register("continuous_beam", ContinuousBeamDrawer)

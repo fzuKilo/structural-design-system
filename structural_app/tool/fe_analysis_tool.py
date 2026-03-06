@@ -32,7 +32,7 @@ class FEAnalysisTool(BaseTool):
             name="fe_analysis",
             description=(
                 "Perform finite element analysis on structural designs. "
-                "Supports various structure types (beam, frame, truss, etc.). "
+                "Supports various structure types (beam, cantilever_beam, continuous_beam, frame, truss, etc.). "
                 "Returns displacement, stress, moment, shear results and code compliance check."
             )
         )
@@ -67,7 +67,8 @@ class FEAnalysisTool(BaseTool):
                         "length": {"type": "number", "description": "Length in specified units (m or mm)"},
                         "width": {"type": "number", "description": "Width in specified units (for cross-section)"},
                         "height": {"type": "number", "description": "Height in specified units (for cross-section)"},
-                        "n_elements": {"type": "integer", "description": "Number of finite elements (optional, default 20)"}
+                        "n_elements": {"type": "integer", "description": "Number of finite elements (optional, default 20)"},
+                        "n_spans": {"type": "integer", "description": "Number of spans (ONLY for continuous_beam, 2-5)"}
                     },
                     "required": ["length", "width", "height"]
                 },
@@ -249,12 +250,17 @@ class FEAnalysisTool(BaseTool):
 
             # Convert geometry to meters if units is mm
             if geometry and units == "mm":
-                geometry = {
+                converted_geometry = {
                     "length": self._convert_to_meters(geometry.get("length", 0), units),
                     "width": self._convert_to_meters(geometry.get("width", 0), units),
                     "height": self._convert_to_meters(geometry.get("height", 0), units),
                     "n_elements": geometry.get("n_elements", 20)
                 }
+                # Preserve additional fields like n_spans for continuous beams
+                for key, value in geometry.items():
+                    if key not in converted_geometry:
+                        converted_geometry[key] = value
+                geometry = converted_geometry
 
             # Prepare design parameters
             design = {
@@ -264,6 +270,10 @@ class FEAnalysisTool(BaseTool):
                 'loads': loads,
                 'constraints': constraints
             }
+
+            # Debug: print design for continuous_beam
+            if structure_type == 'continuous_beam':
+                print(f"[DEBUG] Continuous beam design: {design}")
 
             # Run full analysis (validate -> build -> analyze -> check)
             result = analyzer.run_full_analysis(design)
