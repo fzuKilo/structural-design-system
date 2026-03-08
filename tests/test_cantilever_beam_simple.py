@@ -1,92 +1,20 @@
 """
-悬臂梁测试脚本
-验证CantileverBeam的Analyzer、Drawer、Evaluator是否正常工作
-验证架构通用性（Agent代码零修改）
+悬臂梁简化测试脚本
+使用正常的Python导入机制
 """
 
 import sys
 import os
 
-# Add project root to path
+# 确保项目根目录在Python路径中
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-# Direct imports
-import importlib.util
-
-def load_module_from_path(module_name, file_path):
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-# Load all base modules first
-base_analyzer_path = os.path.join(project_root, 'structural_app/tool/analyzers/base_analyzer.py')
-base_drawer_path = os.path.join(project_root, 'structural_app/tool/drawers/base_drawer.py')
-base_evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/base_evaluator.py')
-
-# Load analyzer base
-base_analyzer_module = load_module_from_path('base_analyzer', base_analyzer_path)
-sys.modules['structural_app.tool.analyzers.base_analyzer'] = base_analyzer_module
-
-# Load drawer base
-base_drawer_module = load_module_from_path('base_drawer', base_drawer_path)
-sys.modules['structural_app.tool.drawers.base_drawer'] = base_drawer_module
-
-# Load evaluator dependencies
-scoring_curve_path = os.path.join(project_root, 'structural_app/tool/evaluators/scoring_curve.py')
-config_path = os.path.join(project_root, 'structural_app/tool/evaluators/evaluator_config.py')
-
-scoring_curve_module = load_module_from_path('scoring_curve', scoring_curve_path)
-sys.modules['scoring_curve'] = scoring_curve_module
-sys.modules['structural_app.tool.evaluators.scoring_curve'] = scoring_curve_module
-
-config_module = load_module_from_path('evaluator_config', config_path)
-sys.modules['evaluator_config'] = config_module
-sys.modules['structural_app.tool.evaluators.evaluator_config'] = config_module
-
-base_evaluator_module = load_module_from_path('base_evaluator', base_evaluator_path)
-sys.modules['base_evaluator'] = base_evaluator_module
-sys.modules['structural_app.tool.evaluators.base_evaluator'] = base_evaluator_module
-
-# Load concrete implementations
-beam_analyzer_path = os.path.join(project_root, 'structural_app/tool/analyzers/beam_analyzer.py')
-cantilever_analyzer_path = os.path.join(project_root, 'structural_app/tool/analyzers/cantilever_beam_analyzer.py')
-beam_drawer_path = os.path.join(project_root, 'structural_app/tool/drawers/beam_drawer.py')
-cantilever_drawer_path = os.path.join(project_root, 'structural_app/tool/drawers/cantilever_beam_drawer.py')
-beam_evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/beam_evaluator.py')
-cantilever_evaluator_path = os.path.join(project_root, 'structural_app/tool/evaluators/cantilever_beam_evaluator.py')
-
-beam_analyzer_module = load_module_from_path('beam_analyzer', beam_analyzer_path)
-sys.modules['structural_app.tool.analyzers.beam_analyzer'] = beam_analyzer_module
-
-cantilever_analyzer_module = load_module_from_path('cantilever_beam_analyzer', cantilever_analyzer_path)
-sys.modules['structural_app.tool.analyzers.cantilever_beam_analyzer'] = cantilever_analyzer_module
-
-beam_drawer_module = load_module_from_path('beam_drawer', beam_drawer_path)
-sys.modules['structural_app.tool.drawers.beam_drawer'] = beam_drawer_module
-
-cantilever_drawer_module = load_module_from_path('cantilever_beam_drawer', cantilever_drawer_path)
-sys.modules['structural_app.tool.drawers.cantilever_beam_drawer'] = cantilever_drawer_module
-
-beam_evaluator_module = load_module_from_path('beam_evaluator', beam_evaluator_path)
-sys.modules['structural_app.tool.evaluators.beam_evaluator'] = beam_evaluator_module
-
-cantilever_evaluator_module = load_module_from_path('cantilever_beam_evaluator', cantilever_evaluator_path)
-sys.modules['structural_app.tool.evaluators.cantilever_beam_evaluator'] = cantilever_evaluator_module
-
-# Now load factories
-analyzer_factory_path = os.path.join(project_root, 'structural_app/tool/analyzers/analyzer_factory.py')
-drawer_factory_path = os.path.join(project_root, 'structural_app/tool/drawers/drawer_factory.py')
-evaluator_factory_path = os.path.join(project_root, 'structural_app/tool/evaluators/evaluator_factory.py')
-
-analyzer_factory_module = load_module_from_path('analyzer_factory', analyzer_factory_path)
-drawer_factory_module = load_module_from_path('drawer_factory', drawer_factory_path)
-evaluator_factory_module = load_module_from_path('evaluator_factory', evaluator_factory_path)
-
-AnalyzerFactory = analyzer_factory_module.AnalyzerFactory
-DrawerFactory = drawer_factory_module.DrawerFactory
-EvaluatorFactory = evaluator_factory_module.EvaluatorFactory
+# 正常导入
+from structural_app.tool.analyzers.analyzer_factory import AnalyzerFactory
+from structural_app.tool.drawers.drawer_factory import DrawerFactory
+from structural_app.tool.evaluators.evaluator_factory import EvaluatorFactory
 
 
 def test_cantilever_beam():
@@ -115,6 +43,9 @@ def test_cantilever_beam():
                 {'q': -5000, 'direction': 'y'}
             ],
             'point': []
+        },
+        'constraints': {
+            'support_type': 'cantilever'
         },
         'units': 'm'
     }
@@ -161,6 +92,8 @@ def test_cantilever_beam():
         print(f"  [PASS] Evaluator创建成功: {type(evaluator).__name__}")
     except Exception as e:
         print(f"  [FAIL] 创建实例失败: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
     # 测试3: 有限元分析
@@ -282,5 +215,11 @@ def test_cantilever_beam():
 
 
 if __name__ == '__main__':
-    success = test_cantilever_beam()
-    sys.exit(0 if success else 1)
+    try:
+        success = test_cantilever_beam()
+        sys.exit(0 if success else 1)
+    except Exception as e:
+        print(f"\n[ERROR] 测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

@@ -172,15 +172,11 @@ class CantileverBeamDrawer(StructureDrawer):
             ).set_placement((beam_end_x - height_mm * scale * 0.8, beam_start_y - height_mm * scale * 0.6))
 
             # Save file
-            output_dir = 'output/drawings'
-            os.makedirs(output_dir, exist_ok=True)
-
+            os.makedirs(self.output_dir, exist_ok=True)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'cantilever_beam_elevation_{timestamp}.dxf'
-            filepath = os.path.join(output_dir, filename)
-
-            doc.saveas(filepath)
-            return filepath
+            filename = f"{self.output_dir}/cantilever_beam_elevation_{timestamp}.dxf"
+            doc.saveas(filename)
+            return filename
 
         except Exception as e:
             print(f"Error drawing cantilever beam elevation: {e}")
@@ -228,15 +224,11 @@ class CantileverBeamDrawer(StructureDrawer):
             ).set_placement((0, width_mm * scale * 1.5))
 
             # Save file
-            output_dir = 'output/drawings'
-            os.makedirs(output_dir, exist_ok=True)
-
+            os.makedirs(self.output_dir, exist_ok=True)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'cantilever_beam_plan_{timestamp}.dxf'
-            filepath = os.path.join(output_dir, filename)
-
-            doc.saveas(filepath)
-            return filepath
+            filename = f"{self.output_dir}/cantilever_beam_plan_{timestamp}.dxf"
+            doc.saveas(filename)
+            return filename
 
         except Exception as e:
             print(f"Error drawing cantilever beam plan: {e}")
@@ -291,15 +283,11 @@ class CantileverBeamDrawer(StructureDrawer):
             ).set_placement((0, height_mm * 1.3))
 
             # Save file
-            output_dir = 'output/drawings'
-            os.makedirs(output_dir, exist_ok=True)
-
+            os.makedirs(self.output_dir, exist_ok=True)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'cantilever_beam_details_{timestamp}.dxf'
-            filepath = os.path.join(output_dir, filename)
-
-            doc.saveas(filepath)
-            return filepath
+            filename = f"{self.output_dir}/cantilever_beam_details_{timestamp}.dxf"
+            doc.saveas(filename)
+            return filename
 
         except Exception as e:
             print(f"Error drawing cantilever beam details: {e}")

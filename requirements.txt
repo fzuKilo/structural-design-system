@@ -13,10 +13,11 @@ scipy>=1.10.0
 # CAD绘图
 ezdxf>=1.1.0
 
-# 知识库（阶段13）
+# 知识库（阶段3）
 langchain>=0.1.0
 chromadb>=0.4.0
 openai>=1.0.0
+PyPDF2>=3.0.0  # PDF parsing
 
 # 配置文件解析
 toml>=0.10.2

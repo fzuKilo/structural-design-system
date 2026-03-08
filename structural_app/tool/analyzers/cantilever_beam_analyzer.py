@@ -129,6 +129,10 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
         for i in range(n_elements):
             ops.element('elasticBeamColumn', i + 1, i + 1, i + 2, A, E, Iz, 1)
 
+        # Create load pattern
+        ops.timeSeries('Linear', 1)
+        ops.pattern('Plain', 1, 1)
+
         # Apply loads
         # Distributed loads
         if 'distributed' in loads:
