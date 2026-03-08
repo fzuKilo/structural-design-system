@@ -14,6 +14,17 @@
 
 本文档详细说明如何在不修改 Agent 代码的前提下，为系统添加新的结构类型。
 
+### ⚠️ 关键提醒：5个工厂注册缺一不可
+
+添加新结构类型时，必须在以下**5个工厂**中注册：
+1. AnalyzerFactory（有限元分析）
+2. DrawerFactory（CAD绘图）
+3. EvaluatorFactory（设计评估）
+4. **VisualizerFactory（可视化）** ⚠️ **容易遗漏，会导致报告和可视化缺失**
+5. **ReporterFactory（报告生成）** ⚠️ **容易遗漏，会导致报告生成失败**
+
+---
+
 ### 1.1 核心原则
 
 - **Agent 代码零修改**：所有 Agent 保持通用，不针对特定结构类型
@@ -60,7 +71,10 @@
 1. **Analyzer**：有限元分析器（OpenSeesPy 建模）
 2. **Drawer**：CAD 绘图器（ezdxf 绘图）
 3. **Evaluator**：设计评估器（4 维度评估）
-4. **Validator**：规范校核器（可选，如果有特定规范要求）
+4. **Visualizer**：可视化器（matplotlib/Plotly 可视化）⚠️ **容易遗漏**
+5. **Reporter**：报告生成器（Markdown 报告）⚠️ **容易遗漏**
+
+**注意**：对于梁类结构（简支梁、悬臂梁、连续梁），可以复用 `BeamVisualizer` 和 `BeamReporter`，无需创建新类。
 
 ---
 
@@ -430,7 +444,7 @@ class CantileverBeamEvaluator(DesignEvaluator):
 
 ---
 
-## 2.5 步骤4：在工厂类中注册
+## 2.5 步骤4：在工厂类中注册 ⚠️ 关键步骤
 
 ### 2.5.1 注册 Analyzer
 
@@ -462,9 +476,36 @@ from app.tool.evaluators.cantilever_beam_evaluator import CantileverBeamEvaluato
 EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
 ```
 
+### 2.5.4 注册 Visualizer ⚠️ **容易遗漏**
+
+```python
+# app/tool/visualizations/visualizer_factory.py
+
+# 方案A：复用 BeamVisualizer（推荐，适用于梁类结构）
+VisualizerFactory.register("cantilever_beam", BeamVisualizer)
+
+# 方案B：创建独立 Visualizer（如果需要定制可视化样式）
+# from app.tool.visualizations.cantilever_beam_visualizer import CantileverBeamVisualizer
+# VisualizerFactory.register("cantilever_beam", CantileverBeamVisualizer)
+```
+
+### 2.5.5 注册 Reporter ⚠️ **容易遗漏**
+
+```python
+# app/tool/reports/reporter_factory.py
+
+# 方案A：复用 BeamReporter（推荐，适用于梁类结构）
+ReporterFactory.register("cantilever_beam", BeamReporter)
+
+# 方案B：创建独立 Reporter（如果需要定制报告格式）
+# from app.tool.reports.cantilever_beam_reporter import CantileverBeamReporter
+# ReporterFactory.register("cantilever_beam", CantileverBeamReporter)
+```
+
 **重要提示**：
 - ✅ 注册的 key（"cantilever_beam"）必须与 LLM 输出的 `type` 字段一致
 - ✅ 确保在系统启动时执行注册代码
+- ⚠️ **VisualizerFactory 和 ReporterFactory 注册最容易遗漏**，会导致报告生成失败
 
 ---
 
@@ -576,11 +617,14 @@ assert "drawings" in result
   - [ ] 实现 4 个评估方法
   - [ ] 评分逻辑合理
 
-- [ ] **工厂注册**
+- [ ] **工厂注册** ⚠️ **最容易出错的环节**
   - [ ] 在 AnalyzerFactory 中注册
   - [ ] 在 DrawerFactory 中注册
   - [ ] 在 EvaluatorFactory 中注册
+  - [ ] **在 VisualizerFactory 中注册** ⚠️ **容易遗漏**
+  - [ ] **在 ReporterFactory 中注册** ⚠️ **容易遗漏**
   - [ ] 注册 key 与 type 字段一致
+  - [ ] 验证注册成功：`VisualizerFactory.get_available_types()` 和 `ReporterFactory.get_available_types()`
 
 
 ### 3.2 架构验证
@@ -629,10 +673,40 @@ assert "drawings" in result
 
 **问题**：运行时报错 `Unknown structure type: cantilever_beam`
 
+**常见原因**：
+1. ❌ 忘记在某个工厂中注册（最常见：VisualizerFactory）
+2. ❌ 注册的 key 与 type 字段不一致（大小写敏感）
+3. ❌ 导入路径错误
+4. ❌ 注册代码未执行
+
 **解决方案**：
-1. 检查工厂注册代码是否执行
-2. 确认注册的 key 与 type 字段完全一致（大小写敏感）
-3. 检查导入路径是否正确
+1. **检查所有4个工厂的注册**：
+   ```python
+   # 验证注册状态
+   from structural_app.tool.analyzers.analyzer_factory import AnalyzerFactory
+   from structural_app.tool.drawers.drawer_factory import DrawerFactory
+   from structural_app.tool.evaluators.evaluator_factory import EvaluatorFactory
+   from structural_app.tool.visualizations.visualizer_factory import VisualizerFactory
+
+   print("Analyzer:", AnalyzerFactory.get_available_types())
+   print("Drawer:", DrawerFactory.get_available_types())
+   print("Evaluator:", EvaluatorFactory.get_available_types())
+   print("Visualizer:", VisualizerFactory.get_available_types())  # ⚠️ 最容易遗漏
+   ```
+
+2. **确认注册的 key 与 type 字段完全一致**（大小写敏感）
+3. **检查导入路径是否正确**
+4. **确保注册代码在工厂文件末尾执行**
+
+**症状对照表**：
+
+| 症状 | 缺失的工厂注册 | 影响 |
+|------|--------------|------|
+| 有限元分析失败 | AnalyzerFactory | 无法进行结构分析 |
+| CAD图纸生成失败 | DrawerFactory | 无法生成DXF文件 |
+| 设计评估失败 | EvaluatorFactory | 无法生成评分报告 |
+| **可视化缺失** | **VisualizerFactory** ⚠️ | **无可视化图表** |
+| **报告生成失败或降级** | **ReporterFactory** ⚠️ | **报告生成失败，LLM可能自动降级为beam** |
 
 ### 4.3 OpenSeesPy 建模失败
 
@@ -736,6 +810,7 @@ app/tool/
 2. **遵循抽象基类**：确保接口一致性
 3. **工厂模式注册**：实现类型动态路由
 4. **充分测试**：单元测试 + 端到端测试
+5. **⚠️ 检查所有5个工厂注册**：Analyzer、Drawer、Evaluator、**Visualizer**、**Reporter**（后两个最容易遗漏）
 
 ### 7.2 开发时间估算
 
@@ -749,6 +824,15 @@ app/tool/
 - ✅ 所有单元测试通过
 - ✅ 端到端测试通过
 - ✅ 生成正确的分析结果和图纸
+- ✅ **生成完整的可视化和报告**（验证 VisualizerFactory 注册）
+
+### 7.4 常见错误排查
+
+**如果端到端测试只生成了CAD图纸，但缺少可视化和报告**：
+1. 检查 `VisualizerFactory.get_available_types()` 是否包含新类型
+2. 检查 `ReporterFactory.get_available_types()` 是否包含新类型
+3. 在 `visualizer_factory.py` 和 `reporter_factory.py` 末尾添加注册代码
+4. 对于梁类结构，可以直接复用 `BeamVisualizer` 和 `BeamReporter`
 
 ---
 

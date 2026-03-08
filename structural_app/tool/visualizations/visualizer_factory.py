@@ -74,5 +74,7 @@ class VisualizerFactory:
 
 # Register default visualizers
 VisualizerFactory.register("beam", BeamVisualizer)
+VisualizerFactory.register("cantilever_beam", BeamVisualizer)  # Reuse BeamVisualizer (same 1D beam visualization)
+VisualizerFactory.register("continuous_beam", BeamVisualizer)  # Reuse BeamVisualizer (same 1D beam visualization)
 # VisualizerFactory.register("frame", FrameVisualizer)  # Future extension
 # VisualizerFactory.register("truss", TrussVisualizer)  # Future extension
