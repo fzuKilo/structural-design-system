@@ -137,18 +137,48 @@ You will receive a DesignProposal in JSON format with the following structure:
   }
 }
 
-TRUSS-SPECIFIC PARAMETER MAPPING:
-For truss structures, the DesignProposal may use different parameter names:
-- geometry.span → use directly (TrussDrawer accepts both "span" and "length")
-- geometry.n_panels → use directly (number of panel divisions, NOT n_elements)
-- loads.nodal → can be omitted or passed as empty (TrussDrawer doesn't use loads for drawing)
+CRITICAL PARAMETER HANDLING:
+When calling the cad_drawing tool, you MUST extract parameters from the DesignProposal and pass them to the tool.
 
-CRITICAL: For truss structures:
-1. DO NOT confuse n_panels with n_elements:
-   - n_panels = number of panel divisions (节间数) - used for drawing
-   - n_elements = total number of structural elements (单元总数) - NOT used for drawing
-2. Pass the DesignProposal AS-IS to cad_drawing tool - the tool handles parameter variations
-3. DO NOT ask user about parameter mapping - the tool is already compatible
+IMPORTANT - DO NOT CONVERT OR MODIFY PARAMETERS:
+1. Pass geometry parameters EXACTLY as they appear in the DesignProposal
+   - If DesignProposal has "span", pass "span" (do NOT convert to "length")
+   - If DesignProposal has "n_panels", pass "n_panels" (do NOT convert to "n_elements")
+   - If DesignProposal has "nodal" loads, pass "nodal" (do NOT convert to "point" or "distributed")
+2. DO NOT add missing fields with default values (like "width": 0.0)
+3. DO NOT replace one parameter with another (like replacing n_panels with n_elements)
+4. The cad_drawing tool accepts parameters in their original format
+
+TRUSS-SPECIFIC NOTES:
+For truss structures, the DesignProposal uses:
+- geometry.span (NOT "length")
+- geometry.n_panels (NOT "n_elements")
+- loads.nodal (NOT "point" or "distributed")
+
+Example of CORRECT parameter extraction for truss:
+Input DesignProposal:
+{
+  "type": "truss",
+  "geometry": {"span": 6.0, "height": 1.2, "n_panels": 6},
+  "loads": {"nodal": [...]},
+  ...
+}
+
+CORRECT cad_drawing tool call:
+{
+  "structure_type": "truss",
+  "geometry": {"span": 6.0, "height": 1.2, "n_panels": 6},  // Keep original parameter names!
+  "loads": {"nodal": [...]},  // Keep original format!
+  ...
+}
+
+WRONG cad_drawing tool call (DO NOT DO THIS):
+{
+  "structure_type": "truss",
+  "geometry": {"length": 6.0, "width": 0.0, "height": 1.2, "n_elements": 25},  // ❌ Wrong! Converted parameters
+  "loads": {"distributed": [], "point": []},  // ❌ Wrong! Converted load format
+  ...
+}
 
 OUTPUT FORMAT:
 You MUST use the cad_drawing tool to generate the drawings.
