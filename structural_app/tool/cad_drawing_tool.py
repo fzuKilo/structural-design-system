@@ -58,29 +58,32 @@ class CADDrawingTool(BaseTool):
                 },
                 "geometry": {
                     "type": "object",
-                    "description": "Geometric parameters (length, width, height, etc.)",
+                    "description": "Geometric parameters. Accepts structure-specific parameter names (e.g., span/length, n_panels/n_elements)",
                     "properties": {
-                        "length": {"type": "number", "description": "Length in meters"},
-                        "width": {"type": "number", "description": "Width in meters"},
+                        "length": {"type": "number", "description": "Length in meters (or 'span' for truss)"},
+                        "span": {"type": "number", "description": "Span in meters (truss-specific, alternative to 'length')"},
+                        "width": {"type": "number", "description": "Width in meters (optional for 2D structures)"},
                         "height": {"type": "number", "description": "Height in meters"},
-                        "n_elements": {"type": "integer", "description": "Number of finite elements (optional)"}
+                        "n_elements": {"type": "integer", "description": "Number of finite elements (optional)"},
+                        "n_panels": {"type": "integer", "description": "Number of panel divisions (truss-specific, alternative to 'n_elements')"}
                     },
-                    "required": ["length", "width", "height"]
+                    "required": []
                 },
                 "material": {
                     "type": "object",
                     "description": "Material properties",
                     "properties": {
                         "E": {"type": "number", "description": "Young's modulus in Pa"},
-                        "nu": {"type": "number", "description": "Poisson's ratio"},
+                        "nu": {"type": "number", "description": "Poisson's ratio (optional, default 0.3 for steel)"},
+                        "A": {"type": "number", "description": "Cross-sectional area in m² (optional)"},
                         "fy": {"type": "number", "description": "Yield strength in Pa (optional)"},
                         "material_name": {"type": "string", "description": "Material name (e.g., C30, C40, Q235)"}
                     },
-                    "required": ["E", "nu"]
+                    "required": ["E"]
                 },
                 "loads": {
                     "type": "object",
-                    "description": "Load cases",
+                    "description": "Load cases. Accepts structure-specific load formats (distributed/point/nodal)",
                     "properties": {
                         "distributed": {
                             "type": "array",
@@ -106,6 +109,19 @@ class CADDrawingTool(BaseTool):
                                 },
                                 "required": ["P", "location"]
                             }
+                        },
+                        "nodal": {
+                            "type": "array",
+                            "description": "Nodal loads (truss-specific)",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "node": {"type": "integer", "description": "Node number"},
+                                    "Fx": {"type": "number", "description": "Force in x-direction in N"},
+                                    "Fy": {"type": "number", "description": "Force in y-direction in N"}
+                                },
+                                "required": ["node"]
+                            }
                         }
                     }
                 },
@@ -122,7 +138,7 @@ class CADDrawingTool(BaseTool):
                     "required": ["support_type"]
                 }
             },
-            "required": ["structure_type", "geometry", "material", "loads", "constraints"]
+            "required": ["structure_type"]
         }
 
     async def execute(self, **kwargs) -> ToolResult:
