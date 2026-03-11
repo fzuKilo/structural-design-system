@@ -229,8 +229,8 @@ class DesignEvaluator(ABC):
             if 'material_usage_index' in indicators:
                 usage = indicators['material_usage_index']
                 recommendations.append(
-                    f"Material usage is high (index: {usage:.2f}). "
-                    f"Consider optimizing the design to reduce material consumption."
+                    f"材料用量偏高（指数：{usage:.2f}），"
+                    f"建议优化设计以降低材料消耗。"
                 )
 
         # Efficiency recommendations
@@ -240,13 +240,13 @@ class DesignEvaluator(ABC):
                 util = indicators['average_utilization']
                 if util < 0.5:
                     recommendations.append(
-                        f"Structural utilization is low ({util:.2%}). "
-                        f"The design may be over-conservative; consider reducing section sizes."
+                        f"结构利用率偏低（{util:.2%}），"
+                        f"设计可能过于保守，建议适当减小截面尺寸。"
                     )
                 elif util > 0.9:
                     recommendations.append(
-                        f"Structural utilization is high ({util:.2%}). "
-                        f"Consider adding redundancy or safety margins."
+                        f"结构利用率偏高（{util:.2%}），"
+                        f"建议增加冗余度或提高安全裕度。"
                     )
 
         # Safety recommendations
@@ -256,8 +256,8 @@ class DesignEvaluator(ABC):
                 sf = indicators['min_safety_factor']
                 if sf < 1.5:
                     recommendations.append(
-                        f"Safety factor is critical ({sf:.2f}). "
-                        f"Consider increasing section sizes or using stronger materials."
+                        f"安全系数偏低（{sf:.2f}），"
+                        f"建议增大截面尺寸或使用强度更高的材料。"
                     )
 
         # Sustainability recommendations
@@ -266,8 +266,8 @@ class DesignEvaluator(ABC):
             if 'carbon_emission_kg' in indicators:
                 emissions = indicators['carbon_emission_kg']
                 recommendations.append(
-                    f"Carbon emissions are high ({emissions:.0f} kg). "
-                    f"Consider using more sustainable materials or optimizing the design."
+                    f"碳排放量偏高（{emissions:.0f} kg），"
+                    f"建议使用更环保的材料或优化设计以降低碳排放。"
                 )
 
         return recommendations
