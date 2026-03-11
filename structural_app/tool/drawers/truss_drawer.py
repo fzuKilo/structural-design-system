@@ -81,24 +81,26 @@ class TrussDrawer(StructureDrawer):
             # Extract parameters (support both 'span'/'length' for compatibility)
             geometry = design.get('geometry', {})
 
-            # Get span with fallback to length
+            # Get span with fallback to length, ensure numeric type
             span = geometry.get('span')
-            if span is None or not isinstance(span, (int, float)):
-                span = geometry.get('length', 10.0)
+            if not isinstance(span, (int, float)) or span is None:
+                span = geometry.get('length')
+            if not isinstance(span, (int, float)) or span is None:
+                span = 10.0
+            span = float(span)
 
-            # Get height
-            height = geometry.get('height', 2.0)
-            if not isinstance(height, (int, float)):
+            # Get height, ensure numeric type
+            height = geometry.get('height')
+            if not isinstance(height, (int, float)) or height is None:
                 height = 2.0
+            height = float(height)
 
-            # Get n_panels with fallback to n_elements
+            # Get n_panels with fallback to n_elements, ensure numeric type
             n_panels = geometry.get('n_panels')
-            if n_panels is None or not isinstance(n_panels, (int, float)):
-                n_panels = geometry.get('n_elements', 5)
-            if not isinstance(n_panels, (int, float)):
+            if not isinstance(n_panels, (int, float)) or n_panels is None:
+                n_panels = geometry.get('n_elements')
+            if not isinstance(n_panels, (int, float)) or n_panels is None:
                 n_panels = 5
-
-            # Ensure integer for n_panels
             n_panels = int(n_panels)
 
             truss_type = geometry.get('truss_type', 'pratt')
@@ -199,6 +201,8 @@ class TrussDrawer(StructureDrawer):
 
         except Exception as e:
             print(f"Error drawing truss elevation: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def draw_details(self, design: Dict[str, Any]) -> Optional[str]:
@@ -286,6 +290,8 @@ class TrussDrawer(StructureDrawer):
 
         except Exception as e:
             print(f"Error drawing truss details: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def _draw_pinned_support(self, msp, x: float, y: float):
