@@ -198,6 +198,11 @@ class TrussVisualizer(BaseVisualizer):
         print(f"[TrussVisualizer] Interactive visualization complete. Generated {len(files)} files")
         return files
 
+    def _get_timestamp(self) -> str:
+        """Get timestamp for filenames"""
+        from datetime import datetime
+        return datetime.now().strftime("%Y%m%d_%H%M%S")
+
     def _plot_displacement_cloud(self, nodes, displacements, filename, span, height, n_panels):
         """Plot displacement cloud for truss nodes"""
         fig, ax = plt.subplots(figsize=(12, 6))
@@ -321,10 +326,18 @@ class TrussVisualizer(BaseVisualizer):
         if len(nodes) < n_panels + 1:
             return
 
+        # Extract label if present (only use it once)
+        label = kwargs.pop('label', None)
+        first_line = True
+
         # Bottom chord
         for i in range(n_panels):
+            line_kwargs = kwargs.copy()
+            if first_line and label:
+                line_kwargs['label'] = label
+                first_line = False
             ax.plot([nodes[i, 0], nodes[i+1, 0]],
-                   [nodes[i, 1], nodes[i+1, 1]], **kwargs)
+                   [nodes[i, 1], nodes[i+1, 1]], **line_kwargs)
 
         # Top chord
         offset = n_panels + 1
