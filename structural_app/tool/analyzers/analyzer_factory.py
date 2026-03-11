@@ -8,6 +8,7 @@ from .base_analyzer import StructureAnalyzer
 from .beam_analyzer import BeamAnalyzer
 from .cantilever_beam_analyzer import CantileverBeamAnalyzer
 from .continuous_beam_analyzer import ContinuousBeamAnalyzer
+from .truss_analyzer import TrussAnalyzer
 
 
 class AnalyzerFactory:
@@ -93,7 +94,7 @@ class AnalyzerFactory:
 AnalyzerFactory.register("beam", BeamAnalyzer)
 AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
 AnalyzerFactory.register("continuous_beam", ContinuousBeamAnalyzer)
+AnalyzerFactory.register("truss", TrussAnalyzer)
 
 # Future registrations will be added here:
 # AnalyzerFactory.register("frame", FrameAnalyzer)
-# AnalyzerFactory.register("truss", TrussAnalyzer)

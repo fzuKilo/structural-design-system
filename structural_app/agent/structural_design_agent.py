@@ -185,7 +185,36 @@ Choose the correct "type" based on the user's description:
    - Example: "两跨连续梁，跨度12m" means n_spans=2, length=24m (total)
 
 4. "truss" - Truss structure (桁架)
+   - Planar truss with pin-jointed members
    - Use when user says: "桁架", "truss"
+   - REQUIRED geometry parameters:
+     * span: 桁架跨度 (m) - horizontal span length
+     * height: 桁架高度 (m) - truss height
+     * n_panels: 节间数 (integer, typically 3-8)
+       - Guideline: span/1.5 to span/2.0 meters per panel
+       - Example: 6m span → 3-5 panels recommended
+   - REQUIRED material parameters:
+     * E: 弹性模量 (Pa) - Steel: 200e9, Aluminum: 70e9
+     * A: 杆件截面积 (m²) - cross-sectional area of members
+       - Typical range: 0.0005 to 0.002 m² (500-2000 mm²)
+       - Estimate based on loads or ask user
+     * fy: 屈服强度 (Pa) - Q235: 235e6, Q345: 345e6
+   - REQUIRED loads:
+     * nodal: 节点荷载数组 [{"node": int, "Fx": float, "Fy": float}]
+     * If user provides distributed load (e.g., "6kN/m"), convert to nodal loads
+     * Apply loads at top chord nodes (nodes n_panels+2 to 2*n_panels+2)
+   - Example JSON:
+     {
+       "type": "truss",
+       "units": "m",
+       "geometry": {"span": 6.0, "height": 1.2, "n_panels": 5},
+       "material": {"E": 200e9, "A": 0.001, "fy": 235e6, "material_name": "Q235"},
+       "loads": {"nodal": [
+         {"node": 8, "Fx": 0, "Fy": -10000},
+         {"node": 9, "Fx": 0, "Fy": -10000}
+       ]},
+       "constraints": {"support_type": "simply_supported"}
+     }
 
 5. "frame" - Frame structure (框架)
    - Use when user says: "框架", "frame", "刚架"
@@ -221,18 +250,30 @@ DESIGN GUIDELINES:
    - Example: "两跨连续梁12m" → n_spans=2, length=12.0 (if 12m is total)
    - Example: "两跨连续梁每跨6m" → n_spans=2, length=12.0 (6m × 2)
 
-4. For loads:
+4. For trusses (type="truss"):
+   - Height-to-span ratio: typically 1/6 to 1/10
+   - n_panels: typically 3-8, about span/1.5 to span/2.0 meters per panel
+   - Member cross-sectional area (A): estimate based on loads
+     * Light loads (<5kN/m): A ≈ 0.0005 m² (500 mm²)
+     * Medium loads (5-10kN/m): A ≈ 0.001 m² (1000 mm²)
+     * Heavy loads (>10kN/m): A ≈ 0.002 m² (2000 mm²)
+   - Convert distributed loads to nodal loads at top chord nodes
+   - Use Q235 steel (E=200e9 Pa, fy=235e6 Pa) as default
+
+5. For loads:
    - Residential: 2-3 kN/m² live load
    - Office: 3-4 kN/m² live load
    - Convert area loads to line loads based on tributary width
 
-5. Material selection:
+6. Material selection:
    - Concrete: E=30e9 Pa, nu=0.2, fy=14.3e6 Pa (C30)
    - Steel: E=200e9 Pa, nu=0.3, fy=235e6 Pa (Q235)
 
-6. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
+7. Always include the "type" field - this is CRITICAL for routing to the correct analyzer.
 
-7. For continuous beams, ALWAYS include "n_spans" in geometry.
+8. For continuous beams, ALWAYS include "n_spans" in geometry.
+
+9. For trusses, ALWAYS include "span", "height", "n_panels" in geometry, and "A" in material.
 
 CRITICAL: UNITS FIELD IS MANDATORY:
 ====================================
@@ -354,6 +395,17 @@ Remember to output ONLY a valid JSON object following the specified format."""
         # The parent class handles the ReAct loop with AskHuman tool
         result = await super().run(request=design_prompt, **kwargs)
 
+        # Extract and standardize the design proposal
+        design_proposal = self.extract_design_proposal(result)
+        if design_proposal:
+            # Apply parameter standardization (方案4)
+            standardized_design = self._standardize_parameters(design_proposal)
+            # Convert back to JSON string for return
+            import json
+            result = json.dumps(standardized_design, indent=2, ensure_ascii=False)
+            print(f"\n[StructuralDesignAgent] Standardized design proposal:")
+            print(result)
+
         return result
 
     def extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
@@ -406,6 +458,181 @@ Remember to output ONLY a valid JSON object following the specified format."""
         except json.JSONDecodeError as e:
             print(f"Failed to parse JSON: {e}")
             return None
+
+    def _standardize_parameters(self, design: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Standardize parameters: convert LLM-generated parameters to structure-specific format
+
+        This method handles parameter name mismatches between what LLM generates
+        and what each structure type's analyzer expects.
+
+        Args:
+            design: Design proposal from LLM
+
+        Returns:
+            Standardized design proposal
+        """
+        structure_type = design.get('type')
+        geometry = design.get('geometry', {})
+        material = design.get('material', {})
+        loads = design.get('loads', {})
+
+        # Parameter mapping table for each structure type
+        PARAM_MAPPING = {
+            'beam': {
+                'geometry_aliases': {},  # beam uses standard names
+                'material_aliases': {},
+                'load_aliases': {},
+                'required_geometry': ['length', 'width', 'height'],
+                'required_material': ['E', 'nu'],
+                'required_loads': ['distributed', 'point']
+            },
+            'cantilever_beam': {
+                'geometry_aliases': {},
+                'material_aliases': {},
+                'load_aliases': {},
+                'required_geometry': ['length', 'width', 'height'],
+                'required_material': ['E', 'nu'],
+                'required_loads': ['distributed', 'point']
+            },
+            'continuous_beam': {
+                'geometry_aliases': {},
+                'material_aliases': {},
+                'load_aliases': {},
+                'required_geometry': ['length', 'width', 'height', 'n_spans'],
+                'required_material': ['E', 'nu'],
+                'required_loads': ['distributed', 'point']
+            },
+            'truss': {
+                'geometry_aliases': {
+                    'length': 'span',           # length → span
+                    'n_elements': 'n_panels'    # n_elements → n_panels
+                },
+                'material_aliases': {},
+                'load_aliases': {
+                    'distributed': 'nodal',     # distributed → nodal (needs conversion)
+                    'point': 'nodal'            # point → nodal (needs conversion)
+                },
+                'required_geometry': ['span', 'height', 'n_panels'],
+                'required_material': ['E', 'A'],
+                'required_loads': ['nodal']
+            }
+        }
+
+        if structure_type not in PARAM_MAPPING:
+            # Unknown structure type, return as-is
+            return design
+
+        mapping = PARAM_MAPPING[structure_type]
+
+        # 1. Apply geometry parameter aliases
+        for old_name, new_name in mapping['geometry_aliases'].items():
+            if old_name in geometry and new_name not in geometry:
+                geometry[new_name] = geometry.pop(old_name)
+                print(f"[ParameterStandardization] Converted geometry.{old_name} → geometry.{new_name}")
+
+        # 2. Apply material parameter aliases
+        for old_name, new_name in mapping['material_aliases'].items():
+            if old_name in material and new_name not in material:
+                material[new_name] = material.pop(old_name)
+                print(f"[ParameterStandardization] Converted material.{old_name} → material.{new_name}")
+
+        # 3. Handle structure-specific parameter inference
+        if structure_type == 'truss':
+            # Infer n_panels if missing
+            if 'n_panels' not in geometry and 'span' in geometry:
+                span = geometry['span']
+                geometry['n_panels'] = max(3, min(8, int(span / 1.5)))
+                print(f"[ParameterStandardization] Inferred n_panels={geometry['n_panels']} from span={span}m")
+
+            # Infer A (cross-sectional area) if missing
+            if 'A' not in material:
+                # Estimate based on loads if available
+                if 'distributed' in loads and loads['distributed']:
+                    q = abs(loads['distributed'][0].get('q', 0))
+                    if q < 5000:  # < 5kN/m
+                        material['A'] = 0.0005
+                    elif q < 10000:  # 5-10kN/m
+                        material['A'] = 0.001
+                    else:  # > 10kN/m
+                        material['A'] = 0.002
+                else:
+                    material['A'] = 0.001  # Default: 1000 mm²
+                print(f"[ParameterStandardization] Inferred A={material['A']} m² (cross-sectional area)")
+
+            # Convert distributed/point loads to nodal loads
+            if ('distributed' in loads or 'point' in loads) and 'nodal' not in loads:
+                nodal_loads = self._convert_to_nodal_loads(geometry, loads)
+                loads['nodal'] = nodal_loads
+                # Remove old load formats
+                loads.pop('distributed', None)
+                loads.pop('point', None)
+                print(f"[ParameterStandardization] Converted distributed/point loads to {len(nodal_loads)} nodal loads")
+
+        # Update design with standardized parameters
+        design['geometry'] = geometry
+        design['material'] = material
+        design['loads'] = loads
+
+        return design
+
+    def _convert_to_nodal_loads(self, geometry: Dict, loads: Dict) -> list:
+        """
+        Convert distributed/point loads to nodal loads for truss
+
+        Args:
+            geometry: Geometry parameters (must include span, n_panels)
+            loads: Load parameters (distributed and/or point)
+
+        Returns:
+            List of nodal loads [{"node": int, "Fx": float, "Fy": float}]
+        """
+        nodal_loads = []
+        span = geometry.get('span', 10.0)
+        n_panels = geometry.get('n_panels', 5)
+        panel_length = span / n_panels
+
+        # Convert distributed loads to nodal loads at top chord
+        if 'distributed' in loads:
+            for dist_load in loads['distributed']:
+                q = dist_load.get('q', 0)  # N/m
+                direction = dist_load.get('direction', 'y')
+
+                # Apply to top chord nodes (nodes n_panels+2 to 2*n_panels+2)
+                # Each interior node gets q * panel_length
+                # End nodes get q * panel_length / 2
+                for i in range(n_panels + 1):
+                    node_id = (n_panels + 1) + i + 1  # Top chord node ID
+
+                    if i == 0 or i == n_panels:
+                        # End nodes: half load
+                        load_magnitude = q * panel_length / 2
+                    else:
+                        # Interior nodes: full load
+                        load_magnitude = q * panel_length
+
+                    if direction == 'y':
+                        nodal_loads.append({"node": node_id, "Fx": 0.0, "Fy": load_magnitude})
+                    else:
+                        nodal_loads.append({"node": node_id, "Fx": load_magnitude, "Fy": 0.0})
+
+        # Convert point loads to nodal loads
+        if 'point' in loads:
+            for point_load in loads['point']:
+                P = point_load.get('P', 0)
+                location = point_load.get('location', span / 2)
+                direction = point_load.get('direction', 'y')
+
+                # Find nearest node
+                node_index = round(location / panel_length)
+                node_id = (n_panels + 1) + node_index + 1  # Top chord node
+
+                if direction == 'y':
+                    nodal_loads.append({"node": node_id, "Fx": 0.0, "Fy": P})
+                else:
+                    nodal_loads.append({"node": node_id, "Fx": P, "Fy": 0.0})
+
+        return nodal_loads
 
     def validate_design_proposal(self, proposal: Dict[str, Any]) -> tuple[bool, Optional[str]]:
         """
