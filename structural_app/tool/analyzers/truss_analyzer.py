@@ -115,6 +115,10 @@ class TrussAnalyzer(StructureAnalyzer):
             # Initialize model
             ops.model('basic', '-ndm', 2, '-ndf', 2)  # 2D, 2 DOF per node (x, y)
 
+            # Define material (uniaxial elastic material for truss)
+            mat_tag = 1
+            ops.uniaxialMaterial('Elastic', mat_tag, E)
+
             # Create nodes for Pratt truss
             # Bottom chord nodes
             panel_length = span / n_panels
@@ -157,7 +161,7 @@ class TrussAnalyzer(StructureAnalyzer):
             for i in range(n_panels):
                 i_node = i + 1
                 j_node = i + 2
-                ops.element('Truss', elem_id, i_node, j_node, A, E)
+                ops.element('Truss', elem_id, i_node, j_node, A, mat_tag)
                 length = panel_length
                 self.member_lengths[elem_id] = length
                 self.elements.append(elem_id)
@@ -167,7 +171,7 @@ class TrussAnalyzer(StructureAnalyzer):
             for i in range(n_panels):
                 i_node = (n_panels + 1) + i + 1
                 j_node = (n_panels + 1) + i + 2
-                ops.element('Truss', elem_id, i_node, j_node, A, E)
+                ops.element('Truss', elem_id, i_node, j_node, A, mat_tag)
                 length = panel_length
                 self.member_lengths[elem_id] = length
                 self.elements.append(elem_id)
@@ -177,7 +181,7 @@ class TrussAnalyzer(StructureAnalyzer):
             for i in range(n_panels + 1):
                 i_node = i + 1  # Bottom chord
                 j_node = (n_panels + 1) + i + 1  # Top chord
-                ops.element('Truss', elem_id, i_node, j_node, A, E)
+                ops.element('Truss', elem_id, i_node, j_node, A, mat_tag)
                 length = height
                 self.member_lengths[elem_id] = length
                 self.elements.append(elem_id)
@@ -189,7 +193,7 @@ class TrussAnalyzer(StructureAnalyzer):
                     # Diagonal from bottom left to top right
                     i_node = i + 1  # Bottom left
                     j_node = (n_panels + 1) + i + 2  # Top right
-                    ops.element('Truss', elem_id, i_node, j_node, A, E)
+                    ops.element('Truss', elem_id, i_node, j_node, A, mat_tag)
                     length = np.sqrt(panel_length**2 + height**2)
                     self.member_lengths[elem_id] = length
                     self.elements.append(elem_id)
