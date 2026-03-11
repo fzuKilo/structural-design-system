@@ -448,3 +448,22 @@ class TrussEvaluator(DesignEvaluator):
         geometry = design.get('geometry', {})
         span = geometry.get('span', 10.0)
         return get_deflection_limit(self.structure_type, span)
+
+    def _get_stress_utilization(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
+        """
+        Calculate stress utilization ratio for truss
+
+        Args:
+            design: Design parameters
+            results: Analysis results
+
+        Returns:
+            Stress utilization ratio (0.0 to 1.0+)
+        """
+        analysis_results = results.get('results', {})
+        material = design.get('material', {})
+
+        max_stress = analysis_results.get('max_stress', 0.0)
+        fy = material.get('fy', 235e6)
+
+        return max_stress / fy if fy > 0 else 0.0
