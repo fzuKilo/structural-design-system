@@ -3,6 +3,7 @@ Truss drawer using ezdxf
 Implements CAD drawing generation for truss structures
 """
 
+import os
 import ezdxf
 from ezdxf import colors
 from ezdxf.enums import TextEntityAlignment
@@ -194,7 +195,7 @@ class TrussDrawer(StructureDrawer):
 
             # Save file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = self.output_dir / f"truss_elevation_{timestamp}.dxf"
+            filename = os.path.join(self.output_dir, f"truss_elevation_{timestamp}.dxf")
             doc.saveas(filename)
 
             return str(filename)
@@ -283,7 +284,7 @@ class TrussDrawer(StructureDrawer):
 
             # Save file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = self.output_dir / f"truss_details_{timestamp}.dxf"
+            filename = os.path.join(self.output_dir, f"truss_details_{timestamp}.dxf")
             doc.saveas(filename)
 
             return str(filename)
