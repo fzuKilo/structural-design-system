@@ -463,16 +463,33 @@ class TrussVisualizer(BaseVisualizer):
         # Add members with stress coloring
         member_lines, member_stresses = self._get_member_lines(nodes, stresses, n_panels)
 
-        for i, (line, stress) in enumerate(zip(member_lines, member_stresses)):
-            fig.add_trace(go.Scatter(
-                x=[line[0][0], line[1][0]],
-                y=[line[0][1], line[1][1]],
-                mode='lines',
-                line=dict(width=4, color=stress, colorscale='Coolwarm'),
-                text=f'Member {i}<br>Stress: {stress/1e6:.2f} MPa',
-                hoverinfo='text',
-                showlegend=False
-            ))
+        # Normalize stresses for color mapping
+        if len(member_stresses) > 0:
+            min_stress = min(member_stresses)
+            max_stress = max(member_stresses)
+            stress_range = max_stress - min_stress if max_stress > min_stress else 1.0
+
+            # Create colorscale mapping
+            import matplotlib.cm as cm
+            import matplotlib.colors as mcolors
+            cmap = cm.get_cmap('coolwarm')
+
+            for i, (line, stress) in enumerate(zip(member_lines, member_stresses)):
+                # Normalize stress to [0, 1]
+                normalized_stress = (stress - min_stress) / stress_range if stress_range > 0 else 0.5
+                # Get color from colormap
+                rgba = cmap(normalized_stress)
+                color_str = mcolors.rgb2hex(rgba[:3])
+
+                fig.add_trace(go.Scatter(
+                    x=[line[0][0], line[1][0]],
+                    y=[line[0][1], line[1][1]],
+                    mode='lines',
+                    line=dict(width=4, color=color_str),
+                    text=f'Member {i}<br>Stress: {stress/1e6:.2f} MPa',
+                    hoverinfo='text',
+                    showlegend=False
+                ))
 
         fig.update_layout(
             title='Interactive Truss Stress Distribution',

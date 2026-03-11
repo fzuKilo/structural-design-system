@@ -96,11 +96,12 @@ class TrussDrawer(StructureDrawer):
                 height = 2.0
             height = float(height)
 
-            # Get n_panels with fallback to n_elements, ensure numeric type
+            # Get n_panels (do NOT use n_elements as fallback - they are different!)
+            # n_panels = number of panel divisions (节间数)
+            # n_elements = total number of structural elements (单元总数)
             n_panels = geometry.get('n_panels')
             if not isinstance(n_panels, (int, float)) or n_panels is None:
-                n_panels = geometry.get('n_elements')
-            if not isinstance(n_panels, (int, float)) or n_panels is None:
+                # Default to 5 panels if not specified
                 n_panels = 5
             n_panels = int(n_panels)
 
