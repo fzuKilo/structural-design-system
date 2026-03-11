@@ -80,9 +80,27 @@ class TrussDrawer(StructureDrawer):
 
             # Extract parameters (support both 'span'/'length' for compatibility)
             geometry = design.get('geometry', {})
-            span = geometry.get('span') or geometry.get('length', 10.0)
+
+            # Get span with fallback to length
+            span = geometry.get('span')
+            if span is None or not isinstance(span, (int, float)):
+                span = geometry.get('length', 10.0)
+
+            # Get height
             height = geometry.get('height', 2.0)
-            n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
+            if not isinstance(height, (int, float)):
+                height = 2.0
+
+            # Get n_panels with fallback to n_elements
+            n_panels = geometry.get('n_panels')
+            if n_panels is None or not isinstance(n_panels, (int, float)):
+                n_panels = geometry.get('n_elements', 5)
+            if not isinstance(n_panels, (int, float)):
+                n_panels = 5
+
+            # Ensure integer for n_panels
+            n_panels = int(n_panels)
+
             truss_type = geometry.get('truss_type', 'pratt')
 
             panel_length = span / n_panels
