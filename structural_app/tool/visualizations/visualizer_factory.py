@@ -5,6 +5,7 @@ Factory for creating structure visualizers
 from typing import Dict, Type
 from .base_visualizer import BaseVisualizer
 from .beam_visualizer import BeamVisualizer
+from .truss_visualizer import TrussVisualizer
 
 
 class VisualizerFactory:
@@ -76,5 +77,5 @@ class VisualizerFactory:
 VisualizerFactory.register("beam", BeamVisualizer)
 VisualizerFactory.register("cantilever_beam", BeamVisualizer)  # Reuse BeamVisualizer (same 1D beam visualization)
 VisualizerFactory.register("continuous_beam", BeamVisualizer)  # Reuse BeamVisualizer (same 1D beam visualization)
-VisualizerFactory.register("truss", BeamVisualizer)  # Reuse BeamVisualizer (2D planar structure, similar visualization)
+VisualizerFactory.register("truss", TrussVisualizer)  # Use dedicated TrussVisualizer for 2D truss structures
 # VisualizerFactory.register("frame", FrameVisualizer)  # Future extension

@@ -115,7 +115,7 @@ class TrussEvaluator(DesignEvaluator):
 
         return {
             'score': round(economy_score, 1),
-            'grade': self._score_to_grade(economy_score),
+            'grade': self._calculate_grade(economy_score),
             'indicators': {
                 'material_usage_index': round(material_usage_index, 3),
                 'volume_m3': round(volume, 4),
@@ -190,7 +190,7 @@ class TrussEvaluator(DesignEvaluator):
 
         return {
             'score': round(efficiency_score, 1),
-            'grade': self._score_to_grade(efficiency_score),
+            'grade': self._calculate_grade(efficiency_score),
             'indicators': {
                 'avg_utilization': round(avg_utilization, 4),
                 'stress_utilization': round(stress_utilization, 4),
@@ -241,7 +241,7 @@ class TrussEvaluator(DesignEvaluator):
 
         return {
             'score': round(safety_score, 1),
-            'grade': self._score_to_grade(safety_score * 2.5),  # Scale to 100
+            'grade': self._calculate_grade(safety_score * 2.5),  # Scale to 100
             'indicators': {
                 'stress_safety_factor': round(stress_sf, 2),
                 'deflection_safety_factor': round(deflection_sf, 2),
@@ -321,7 +321,7 @@ class TrussEvaluator(DesignEvaluator):
 
         return {
             'score': round(sustainability_score, 1),
-            'grade': self._score_to_grade(sustainability_score),
+            'grade': self._calculate_grade(sustainability_score),
             'indicators': {
                 'carbon_emission_kg': round(carbon_emission, 2),
                 'carbon_intensity_kg_per_m2': round(carbon_intensity, 2),

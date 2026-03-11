@@ -78,11 +78,11 @@ class TrussDrawer(StructureDrawer):
             doc = ezdxf.new('R2010')
             msp = doc.modelspace()
 
-            # Extract parameters
+            # Extract parameters (support both 'span'/'length' for compatibility)
             geometry = design.get('geometry', {})
-            span = geometry.get('span', 10.0)
+            span = geometry.get('span') or geometry.get('length', 10.0)
             height = geometry.get('height', 2.0)
-            n_panels = geometry.get('n_panels', 5)
+            n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
             truss_type = geometry.get('truss_type', 'pratt')
 
             panel_length = span / n_panels
