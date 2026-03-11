@@ -5,6 +5,7 @@ Factory for creating structure reporters
 from typing import Dict, Type
 from .base_reporter import BaseReporter
 from .beam_reporter import BeamReporter
+from .truss_reporter import TrussReporter
 
 
 class ReporterFactory:
@@ -76,5 +77,5 @@ class ReporterFactory:
 ReporterFactory.register("beam", BeamReporter)
 ReporterFactory.register("cantilever_beam", BeamReporter)  # Reuse BeamReporter (same report format)
 ReporterFactory.register("continuous_beam", BeamReporter)  # Reuse BeamReporter (same report format)
-ReporterFactory.register("truss", BeamReporter)  # Reuse BeamReporter (similar report format)
+ReporterFactory.register("truss", TrussReporter)  # Use dedicated TrussReporter
 # ReporterFactory.register("frame", FrameReporter)  # Future extension
