@@ -6,6 +6,7 @@ from typing import Dict, Type
 from .base_reporter import BaseReporter
 from .beam_reporter import BeamReporter
 from .truss_reporter import TrussReporter
+from .frame_reporter import FrameReporter
 
 
 class ReporterFactory:
@@ -78,4 +79,4 @@ ReporterFactory.register("beam", BeamReporter)
 ReporterFactory.register("cantilever_beam", BeamReporter)  # Reuse BeamReporter (same report format)
 ReporterFactory.register("continuous_beam", BeamReporter)  # Reuse BeamReporter (same report format)
 ReporterFactory.register("truss", TrussReporter)  # Use dedicated TrussReporter
-# ReporterFactory.register("frame", FrameReporter)  # Future extension
+ReporterFactory.register("frame", FrameReporter)  # ⭐ 框架结构注册

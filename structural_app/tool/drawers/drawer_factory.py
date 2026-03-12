@@ -9,6 +9,7 @@ from .beam_drawer import BeamDrawer
 from .cantilever_beam_drawer import CantileverBeamDrawer
 from .continuous_beam_drawer import ContinuousBeamDrawer
 from .truss_drawer import TrussDrawer
+from .frame_drawer import FrameDrawer
 
 
 class DrawerFactory:
@@ -95,6 +96,5 @@ DrawerFactory.register("beam", BeamDrawer)
 DrawerFactory.register("cantilever_beam", CantileverBeamDrawer)
 DrawerFactory.register("continuous_beam", ContinuousBeamDrawer)
 DrawerFactory.register("truss", TrussDrawer)
+DrawerFactory.register("frame", FrameDrawer)  # ⭐ 框架结构注册
 
-# Future registrations will be added here:
-# DrawerFactory.register("frame", FrameDrawer)

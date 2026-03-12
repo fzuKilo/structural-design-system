@@ -37,6 +37,7 @@ class AnalysisResults:
     # Additional data for visualization
     geometry: Dict[str, Any] = None  # Geometry parameters
     material: Dict[str, Any] = None  # Material properties
+    extra: Dict[str, Any] = None     # Structure-specific extra data (e.g. ux_displacements, axial_forces)
 
     def to_dict(self) -> Dict:
         """Convert to dictionary format"""
@@ -55,7 +56,8 @@ class AnalysisResults:
             'analysis_status': self.analysis_status,
             'error_message': self.error_message,
             'geometry': self.geometry,
-            'material': self.material
+            'material': self.material,
+            'extra': self.extra or {}
         }
 
 

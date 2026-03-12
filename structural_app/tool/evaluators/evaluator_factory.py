@@ -9,6 +9,7 @@ from .beam_evaluator import BeamEvaluator
 from .cantilever_beam_evaluator import CantileverBeamEvaluator
 from .continuous_beam_evaluator import ContinuousBeamEvaluator
 from .truss_evaluator import TrussEvaluator
+from .frame_evaluator import FrameEvaluator
 
 
 class EvaluatorFactory:
@@ -95,6 +96,4 @@ EvaluatorFactory.register("beam", BeamEvaluator)
 EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
 EvaluatorFactory.register("continuous_beam", ContinuousBeamEvaluator)
 EvaluatorFactory.register("truss", TrussEvaluator)
-
-# Future registrations will be added here:
-# EvaluatorFactory.register("frame", FrameEvaluator)
+EvaluatorFactory.register("frame", FrameEvaluator)  # ⭐ 框架结构注册

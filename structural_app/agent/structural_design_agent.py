@@ -217,7 +217,73 @@ Choose the correct "type" based on the user's description:
      }
 
 5. "frame" - Frame structure (框架)
-   - Use when user says: "框架", "frame", "刚架"
+   - Multi-story, multi-bay frame with rigid beam-column connections
+   - Use when user says: "框架", "frame", "刚架", "多层框架"
+   - REQUIRED geometry parameters:
+     * num_bays: 跨数 (integer) - number of bays/spans
+     * num_stories: 层数 (integer) - number of stories/floors
+     * bay_widths: 跨度数组 (array of floats) - width of each bay in meters
+     * story_heights: 层高数组 (array of floats) - height of each story in meters
+     * columns: 柱截面 {"type": "rectangular", "width": float, "depth": float}
+     * beams: 梁截面 {"type": "rectangular", "width": float, "depth": float}
+   - REQUIRED material parameters:
+     * E: 弹性模量 (Pa) - Concrete C30: 30e9, Steel Q235: 200e9
+     * nu: 泊松比 - Concrete: 0.2, Steel: 0.3
+     * fy: 屈服强度 (Pa) - C30: 14.3e6, Q235: 235e6
+   - REQUIRED loads:
+     * beam_distributed: 梁分布荷载 [{"story": int, "bay": int, "q": float, "direction": "y"}]
+     * lateral: 侧向荷载 (wind/seismic) [{"story": int, "F": float}] (optional)
+     * nodal: 节点荷载 [{"node": int, "Fx": float, "Fy": float}] (optional)
+   - REQUIRED boundary conditions:
+     * column_base: "fixed" or "pinned" (typically "fixed" for frames)
+   - Example JSON (3-story 2-bay frame):
+     {
+       "type": "frame",
+       "units": "m",
+       "geometry": {
+         "num_bays": 2,
+         "num_stories": 3,
+         "bay_widths": [6.0, 6.0],
+         "story_heights": [4.0, 3.5, 3.5],
+         "columns": {"type": "rectangular", "width": 0.4, "depth": 0.4},
+         "beams": {"type": "rectangular", "width": 0.3, "depth": 0.6}
+       },
+       "material": {
+         "E": 30e9,
+         "nu": 0.2,
+         "fy": 14.3e6,
+         "material_name": "C30"
+       },
+       "loads": {
+         "beam_distributed": [
+           {"story": 1, "bay": 0, "q": -10000, "direction": "y"},
+           {"story": 1, "bay": 1, "q": -10000, "direction": "y"},
+           {"story": 2, "bay": 0, "q": -8000, "direction": "y"},
+           {"story": 2, "bay": 1, "q": -8000, "direction": "y"},
+           {"story": 3, "bay": 0, "q": -8000, "direction": "y"},
+           {"story": 3, "bay": 1, "q": -8000, "direction": "y"}
+         ],
+         "lateral": [
+           {"story": 1, "F": 20000},
+           {"story": 2, "F": 15000},
+           {"story": 3, "F": 10000}
+         ]
+       },
+       "boundary": {
+         "column_base": "fixed"
+       }
+     }
+   - Load conversion guidelines for frames:
+     * Floor area load (kN/m²) → beam line load (kN/m):
+       - For interior beams: q = floor_load × tributary_width
+       - Tributary width = (bay_width_left + bay_width_right) / 2
+     * Wind pressure (kN/m²) → story lateral force (kN):
+       - F = wind_pressure × building_width × story_height
+       - Apply at each floor level
+     * Typical loads:
+       - Dead load: 5 kN/m² (residential), 6-8 kN/m² (office)
+       - Live load: 2-3 kN/m² (residential), 3-4 kN/m² (office)
+       - Wind pressure: 0.4-0.6 kN/m² (depends on location and height)
 
 CRITICAL: For continuous beams:
 - Set type to "continuous_beam" (NOT "beam")
@@ -260,7 +326,18 @@ DESIGN GUIDELINES:
    - Convert distributed loads to nodal loads at top chord nodes
    - Use Q235 steel (E=200e9 Pa, fy=235e6 Pa) as default
 
-5. For loads:
+5. For frames (type="frame"):
+   - Column sections: typically 400×400mm to 600×600mm for concrete
+   - Beam sections: typically 300×600mm to 400×800mm for concrete
+   - Story heights: 3.5-4.5m typical, first floor often 4.0m
+   - Bay widths: 6-9m typical for concrete frames
+   - Load conversion:
+     * Floor load (kN/m²) → beam line load: q = load × tributary_width
+     * Wind pressure → lateral force: F = pressure × width × height
+   - Always use "fixed" for column_base (typical for frames)
+   - Material: C30 concrete (E=30e9, nu=0.2, fy=14.3e6) is standard
+
+6. For loads:
    - Residential: 2-3 kN/m² live load
    - Office: 3-4 kN/m² live load
    - Convert area loads to line loads based on tributary width
@@ -274,6 +351,8 @@ DESIGN GUIDELINES:
 8. For continuous beams, ALWAYS include "n_spans" in geometry.
 
 9. For trusses, ALWAYS include "span", "height", "n_panels" in geometry, and "A" in material.
+
+10. For frames, ALWAYS include "num_bays", "num_stories", "bay_widths", "story_heights", "columns", "beams" in geometry.
 
 CRITICAL: UNITS FIELD IS MANDATORY:
 ====================================
