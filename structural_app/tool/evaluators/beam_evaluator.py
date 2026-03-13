@@ -54,7 +54,8 @@ class BeamEvaluator(DesignEvaluator):
             Dictionary with score and economic indicators
         """
         # Calculate material volume
-        geometry = design.get('geometry', {})\n        length = geometry.get('length', 1.0)
+        geometry = design.get('geometry', {})
+        length = geometry.get('length', 1.0)
         width = geometry.get('width', 0.3)
         height = geometry.get('height', 0.5)
         volume = length * width * height
