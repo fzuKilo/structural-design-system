@@ -54,15 +54,15 @@ class BeamEvaluator(DesignEvaluator):
             Dictionary with score and economic indicators
         """
         # Calculate material volume
-        geometry = design.get('geometry', {})
-        length = geometry.get('length', 1.0)
+        geometry = design.get('geometry', {})\n        length = geometry.get('length', 1.0)
         width = geometry.get('width', 0.3)
         height = geometry.get('height', 0.5)
         volume = length * width * height
 
-        # Material usage index
-        theoretical_min = length * 0.2 * 0.4
-        material_usage_index = volume / theoretical_min if theoretical_min > 0 else 1.0
+        # Theoretical minimum volume based on min height-span ratio (beam: 1/12)
+        h_min = max(0.3, length / 12)
+        v_min = length * 0.2 * h_min
+        material_usage_index = volume / v_min if v_min > 0 else 1.0
 
         # Comprehensive utilization (stress + deflection) / 2
         comprehensive_util = self._get_comprehensive_utilization(design, results)
@@ -70,8 +70,8 @@ class BeamEvaluator(DesignEvaluator):
         # Use multi-level scoring curve for utilization
         utilization_score = self.scoring_curves['stress'].calculate_score(comprehensive_util)
 
-        # Material usage score (linear: lower is better)
-        material_score = max(0, 100 - (material_usage_index - 1) * 50)
+        # Material usage score (slope=30 per DES v2.0)
+        material_score = max(0, 100 - (material_usage_index - 1) * 30)
 
         # Weighted economy score
         economy_score = utilization_score * 0.6 + material_score * 0.4
@@ -114,29 +114,21 @@ class BeamEvaluator(DesignEvaluator):
         # Use multi-level scoring curve
         utilization_score = self.scoring_curves['stress'].calculate_score(stress_utilization)
 
-        # Calculate utilization uniformity
-        utilization_uniformity = self._calculate_utilization_uniformity(results)
+        # Calculate utilization uniformity using element stresses (u_i = σ_i / allowable)
+        utilization_uniformity = self._calculate_utilization_uniformity(design, results)
         uniformity_score = utilization_uniformity * 100
 
-        # Redundancy index
-        geometry = design.get('geometry', {})
-        n_elements = geometry.get('n_elements', 20)
-        redundancy_index = min(1.5, n_elements / 20)
-        redundancy_score = min(100, redundancy_index * 50)
-
-        # Weighted efficiency score
+        # Weighted efficiency score (50% utilization + 50% uniformity, per DES v2.0)
         efficiency_score = (
             utilization_score * 0.5 +
-            uniformity_score * 0.3 +
-            redundancy_score * 0.2
+            uniformity_score * 0.5
         )
 
         return {
             'score': round(efficiency_score, 1),
             'indicators': {
                 'average_utilization': round(stress_utilization, 4),
-                'utilization_uniformity': round(utilization_uniformity, 4),
-                'redundancy_index': round(redundancy_index, 2)
+                'utilization_uniformity': round(utilization_uniformity, 4)
             }
         }
 
@@ -160,15 +152,19 @@ class BeamEvaluator(DesignEvaluator):
         Returns:
             Dictionary with score and safety indicators
         """
-        # 1. Strength evaluation (using stress curve, inverted logic)
+        # 1. Strength evaluation: score = max(0, 100 - 40*x), per DES v2.0
         stress_util = self._get_stress_utilization(design, results)
-        # For safety: lower utilization = higher safety
-        # Use inverted scoring: safety_score = 100 - utilization * 100
-        strength_score = max(0, 100 - stress_util * 100)
+        if stress_util > 1.0:
+            strength_score = 0.0
+        else:
+            strength_score = max(0.0, 100 - 40 * stress_util)
 
-        # 2. Stiffness evaluation (using deflection curve, inverted logic)
+        # 2. Stiffness evaluation: score = max(0, 100 - 40*x), per DES v2.0
         deflection_util = self._get_deflection_utilization(design, results)
-        stiffness_score = max(0, 100 - deflection_util * 100)
+        if deflection_util > 1.0:
+            stiffness_score = 0.0
+        else:
+            stiffness_score = max(0.0, 100 - 40 * deflection_util)
 
         # 3. Construction evaluation (deduction-based)
         construction_eval = self.evaluate_construction(design, results)
@@ -220,26 +216,46 @@ class BeamEvaluator(DesignEvaluator):
         """
         # Calculate carbon emissions
         geometry = design.get('geometry', {})
-        volume = geometry.get('length', 1.0) * geometry.get('width', 0.3) * geometry.get('height', 0.5)
+        length = geometry.get('length', 1.0)
+        width = geometry.get('width', 0.3)
+        height = geometry.get('height', 0.5)
+        volume = length * width * height
 
-        # Concrete: ~2400 kg/m^3, ~0.11 kg CO2/kg
-        carbon_emission = volume * 2400 * 0.11
-
-        # Recyclability
         material = design.get('material', {})
         material_name = material.get('material_name', 'concrete').lower()
-        recyclability = 0.9 if 'steel' in material_name or 'q' in material_name else 0.15
+        is_steel = 'steel' in material_name or material_name.startswith('q')
 
-        # Scoring
-        carbon_score = max(0, 100 - carbon_emission / 5)
+        if is_steel:
+            density = 7850.0
+            carbon_factor = 1.85
+            recyclability = 0.90
+        else:
+            density = 2400.0
+            carbon_factor = 0.11
+            recyclability = 0.15
+
+        total_carbon = volume * density * carbon_factor  # kg CO2
+
+        # Bearing capacity: M_u = fy_MPa * W, W = b*h^2/6
+        fy = material.get('fy', 235e6)
+        fy_MPa = fy / 1e6 if fy > 1000 else fy  # handle both Pa and MPa input
+        W = width * height ** 2 / 6  # m³
+        M_u = fy_MPa * 1e3 * W  # kN·m  (fy_MPa * 1e3 kN/m² * W m³)
+        M_u = max(M_u, 1.0)  # avoid division by zero
+
+        # Carbon intensity score (k=20 for beam, per DES v2.0)
+        carbon_intensity = total_carbon / M_u  # kg CO2 / kN·m
+        carbon_score = max(0.0, 100 - carbon_intensity * 20)
+
         recyclability_score = recyclability * 100
-
         sustainability_score = (carbon_score + recyclability_score) / 2
 
         return {
             'score': round(sustainability_score, 1),
             'indicators': {
-                'carbon_emission_kg': round(carbon_emission, 1),
+                'carbon_emission_kg': round(total_carbon, 1),
+                'carbon_intensity': round(carbon_intensity, 4),
+                'M_u_kNm': round(M_u, 1),
                 'recyclability_ratio': round(recyclability, 2)
             }
         }
@@ -343,23 +359,30 @@ class BeamEvaluator(DesignEvaluator):
 
         return issues
 
-    def _calculate_utilization_uniformity(self, results: Dict[str, Any]) -> float:
-        """Calculate how uniform the stress distribution is"""
+    def _calculate_utilization_uniformity(self, design: Dict[str, Any], results: Dict[str, Any]) -> float:
+        """Calculate uniformity of stress utilization across elements (u_i = σ_i / allowable)"""
         try:
-            moments = results.get('results', {}).get('detailed_results', {}).get('moments', [])
-            if not moments or len(moments) < 2:
+            stresses = results.get('results', {}).get('stresses', [])
+            if not stresses or len(stresses) < 2:
                 return 0.7
 
-            avg_moment = sum(moments) / len(moments)
-            if avg_moment == 0:
+            material = design.get('material', {})
+            fy = material.get('fy', 235e6)
+            fy_Pa = fy if fy > 1000 else fy * 1e6
+            allowable = fy_Pa / 1.5
+
+            utilizations = [abs(s) / allowable for s in stresses if allowable > 0]
+            if not utilizations:
+                return 0.7
+
+            u_avg = sum(utilizations) / len(utilizations)
+            if u_avg == 0:
                 return 1.0
 
-            variance = sum((m - avg_moment) ** 2 for m in moments) / len(moments)
-            std_dev = variance ** 0.5
-            cv = std_dev / avg_moment
+            variance = sum((u - u_avg) ** 2 for u in utilizations) / len(utilizations)
+            cv = variance ** 0.5 / u_avg
 
-            uniformity = max(0, min(1, 1 - cv))
-            return uniformity
+            return max(0.0, min(1.0, 1 - cv))
         except:
             return 0.7
 

@@ -71,44 +71,28 @@ class TrussEvaluator(DesignEvaluator):
         n_panels = geometry.get('n_panels', 5)
         A = material.get('A', 0.01)  # Cross-sectional area (m²)
 
-        # Calculate total material volume
-        # Approximate: (top chord + bottom chord + web members) * area
+        # Calculate total material volume (member length × area)
         panel_length = span / n_panels
         diagonal_length = np.sqrt(panel_length**2 + height**2)
-
-        # Member lengths
-        top_chord_length = span
-        bottom_chord_length = span
-        vertical_length = height * (n_panels + 1)
-        diagonal_length_total = diagonal_length * n_panels
-
-        total_length = top_chord_length + bottom_chord_length + vertical_length + diagonal_length_total
+        total_length = span + span + height * (n_panels + 1) + diagonal_length * n_panels
         volume = total_length * A
 
-        # Reference optimal volume (empirical: span * height * 0.02 for typical truss)
-        optimal_volume = span * height * 0.02
-
-        # Material usage index (closer to 1.0 is better)
-        material_usage_index = volume / optimal_volume if optimal_volume > 0 else 1.0
-
-        # Score material usage (penalize both over-design and under-design)
-        if 0.8 <= material_usage_index <= 1.2:
-            material_score = 100
-        elif material_usage_index < 0.8:
-            # Under-design (risky)
-            material_score = max(0, 100 - (0.8 - material_usage_index) * 200)
-        else:
-            # Over-design (wasteful)
-            material_score = max(0, 100 - (material_usage_index - 1.2) * 50)
+        # Theoretical minimum volume based on min height-span ratio (truss: 1/10)
+        h_min = max(0.3, span / 10)
+        v_min = span * 0.2 * h_min
+        material_usage_index = volume / v_min if v_min > 0 else 1.0
 
         # Calculate comprehensive utilization
         stress_utilization = self._get_stress_utilization(design, results)
         deflection_utilization = self._get_deflection_utilization(design, results)
         avg_utilization = (stress_utilization + deflection_utilization) / 2
 
-        # Use truss-specific scoring curve (more aggressive)
+        # Use truss-specific scoring curve
         curve = SCORING_CURVES[self.structure_type]['stress']
         utilization_score = curve.calculate_score(avg_utilization, max_score=100)
+
+        # Material usage score (slope=30 per DES v2.0)
+        material_score = max(0, 100 - (material_usage_index - 1) * 30)
 
         # Weighted economy score
         economy_score = utilization_score * 0.6 + material_score * 0.4
@@ -148,45 +132,32 @@ class TrussEvaluator(DesignEvaluator):
 
         # Get stress utilization
         stress_utilization = self._get_stress_utilization(design, results)
-
-        # Get deflection utilization
         deflection_utilization = self._get_deflection_utilization(design, results)
-
-        # Average utilization
         avg_utilization = (stress_utilization + deflection_utilization) / 2
 
-        # Calculate utilization uniformity
-        # For trusses, check stress distribution across members
+        # Calculate utilization uniformity using element stresses (u_i = σ_i / allowable)
         stresses = analysis_results.get('stresses', [])
         material = design.get('material', {})
         fy = material.get('fy', 235e6)
+        fy_Pa = fy if fy > 1000 else fy * 1e6
+        allowable = fy_Pa / 1.5
 
-        if len(stresses) > 0 and fy > 0:
-            member_utilizations = [abs(s) / fy for s in stresses]
+        if len(stresses) > 0 and allowable > 0:
+            member_utilizations = [abs(s) / allowable for s in stresses]
             mean_util = np.mean(member_utilizations)
             std_util = np.std(member_utilizations)
             cv = std_util / mean_util if mean_util > 0 else 0
-
-            # Score uniformity (lower CV is better)
-            # Excellent: CV < 0.3, Good: CV < 0.5, Acceptable: CV < 0.7
-            if cv < 0.3:
-                uniformity_score = 100
-            elif cv < 0.5:
-                uniformity_score = 100 - (cv - 0.3) * 200
-            elif cv < 0.7:
-                uniformity_score = 60 - (cv - 0.5) * 150
-            else:
-                uniformity_score = max(0, 30 - (cv - 0.7) * 100)
+            uniformity_score = max(0.0, min(100.0, (1 - cv) * 100))
         else:
-            uniformity_score = 50
+            uniformity_score = 50.0
             cv = 0
 
         # Use truss-specific scoring curve for average utilization
         curve = SCORING_CURVES[self.structure_type]['stress']
         utilization_score = curve.calculate_score(avg_utilization, max_score=100)
 
-        # Weighted efficiency score
-        efficiency_score = utilization_score * 0.6 + uniformity_score * 0.4
+        # Weighted efficiency score (50% + 50%, per DES v2.0)
+        efficiency_score = utilization_score * 0.5 + uniformity_score * 0.5
 
         return {
             'score': round(efficiency_score, 1),
@@ -217,38 +188,39 @@ class TrussEvaluator(DesignEvaluator):
         Returns:
             Dictionary with score and indicators
         """
-        code_check = results.get('code_check', {})
-        safety_factors = code_check.get('safety_factors', {})
+        # 1. Strength safety: score = max(0, 100 - 40*x), per DES v2.0
+        stress_utilization = self._get_stress_utilization(design, results)
+        if stress_utilization > 1.0:
+            strength_score = 0.0
+        else:
+            strength_score = max(0.0, 100 - 40 * stress_utilization)
 
-        # 1. Strength safety (20 points)
-        stress_sf = safety_factors.get('stress', 1.0)
-        stress_curve = SCORING_CURVES[self.structure_type]['stress']
-        stress_utilization = 1.0 / stress_sf if stress_sf > 0 else 1.0
-        strength_score = stress_curve.calculate_score(stress_utilization, max_score=20)
+        # 2. Stiffness safety: score = max(0, 100 - 40*x), per DES v2.0
+        deflection_utilization = self._get_deflection_utilization(design, results)
+        if deflection_utilization > 1.0:
+            stiffness_score = 0.0
+        else:
+            stiffness_score = max(0.0, 100 - 40 * deflection_utilization)
 
-        # 2. Stiffness safety (15 points)
-        deflection_sf = safety_factors.get('deflection', 1.0)
-        deflection_curve = SCORING_CURVES[self.structure_type]['deflection']
-        deflection_utilization = 1.0 / deflection_sf if deflection_sf > 0 else 1.0
-        stiffness_score = deflection_curve.calculate_score(deflection_utilization, max_score=15)
-
-        # 3. Construction safety (5 points)
+        # 3. Construction safety
         construction_result = self.evaluate_construction(design, results)
-        construction_score = construction_result['score']
+        construction_score = construction_result['score'] * 20  # scale 0-5 to 0-100
 
-        # Total safety score
-        safety_score = strength_score + stiffness_score + construction_score
+        # Weighted safety score (50% strength + 37.5% stiffness + 12.5% construction)
+        safety_score = (
+            strength_score * 0.50 +
+            stiffness_score * 0.375 +
+            construction_score * 0.125
+        )
 
         return {
             'score': round(safety_score, 1),
-            'grade': self._calculate_grade(safety_score * 2.5),  # Scale to 100
             'indicators': {
-                'stress_safety_factor': round(stress_sf, 2),
-                'deflection_safety_factor': round(deflection_sf, 2),
-                'slenderness_safety_factor': round(safety_factors.get('slenderness', 1.0), 2),
                 'strength_score': round(strength_score, 1),
                 'stiffness_score': round(stiffness_score, 1),
                 'construction_score': round(construction_score, 1),
+                'stress_utilization': round(stress_utilization, 4),
+                'deflection_utilization': round(deflection_utilization, 4),
                 'construction_issues': construction_result.get('issues', [])
             }
         }
@@ -271,8 +243,6 @@ class TrussEvaluator(DesignEvaluator):
         """
         geometry = design.get('geometry', {})
         material = design.get('material', {})
-
-        # Extract parameters
         span = geometry.get('span', 10.0)
         height = geometry.get('height', 2.0)
         n_panels = geometry.get('n_panels', 5)
@@ -281,53 +251,41 @@ class TrussEvaluator(DesignEvaluator):
         # Calculate total material volume
         panel_length = span / n_panels
         diagonal_length = np.sqrt(panel_length**2 + height**2)
-
-        top_chord_length = span
-        bottom_chord_length = span
-        vertical_length = height * (n_panels + 1)
-        diagonal_length_total = diagonal_length * n_panels
-
-        total_length = top_chord_length + bottom_chord_length + vertical_length + diagonal_length_total
+        total_length = span + span + height * (n_panels + 1) + diagonal_length * n_panels
         volume = total_length * A
 
-        # Steel density: 7850 kg/m³
-        # Steel carbon emission factor: 1.85 kg CO2/kg steel
-        steel_density = 7850
+        # Steel properties
+        steel_density = 7850.0
         carbon_factor = 1.85
+        recyclability = 0.90
 
         mass = volume * steel_density
-        carbon_emission = mass * carbon_factor
+        total_carbon = mass * carbon_factor
 
-        # Carbon emission intensity (per m² of covered area)
-        covered_area = span * 1.0  # Assume 1m width for 2D truss
-        carbon_intensity = carbon_emission / covered_area if covered_area > 0 else 0
+        # Bearing capacity: N_u = Σ(fy_i * A_i) for tension members
+        # Approximate: use all members with same fy and A
+        fy = material.get('fy', 235e6)
+        fy_Pa = fy if fy > 1000 else fy * 1e6
+        fy_kN_m2 = fy_Pa / 1e3  # Pa → kN/m²
+        A_m2 = A  # m²
+        n_members = int(2 * n_panels + (n_panels + 1) + n_panels)  # top+bottom+vertical+diagonal
+        N_u = max(fy_kN_m2 * A_m2 * n_members / 2, 1.0)  # half assumed tension, kN
 
-        # Score carbon intensity
-        # Excellent: < 50 kg/m², Good: < 80 kg/m², Acceptable: < 120 kg/m²
-        if carbon_intensity < 50:
-            carbon_score = 100
-        elif carbon_intensity < 80:
-            carbon_score = 100 - (carbon_intensity - 50) * 1.0
-        elif carbon_intensity < 120:
-            carbon_score = 70 - (carbon_intensity - 80) * 1.0
-        else:
-            carbon_score = max(0, 30 - (carbon_intensity - 120) * 0.5)
+        # Carbon intensity score (k=15 for truss, per DES v2.0)
+        carbon_intensity = total_carbon / N_u  # kg CO2 / kN
+        carbon_score = max(0.0, 100 - carbon_intensity * 15)
 
-        # Recyclability score (steel is highly recyclable)
-        recyclability_score = 95  # Steel: 95% recyclable
-
-        # Weighted sustainability score
-        sustainability_score = carbon_score * 0.6 + recyclability_score * 0.4
+        recyclability_score = recyclability * 100
+        sustainability_score = (carbon_score + recyclability_score) / 2
 
         return {
             'score': round(sustainability_score, 1),
-            'grade': self._calculate_grade(sustainability_score),
             'indicators': {
-                'carbon_emission_kg': round(carbon_emission, 2),
-                'carbon_intensity_kg_per_m2': round(carbon_intensity, 2),
+                'carbon_emission_kg': round(total_carbon, 2),
+                'carbon_intensity': round(carbon_intensity, 4),
+                'N_u_kN': round(N_u, 1),
                 'mass_kg': round(mass, 2),
-                'recyclability_percent': recyclability_score,
-                'carbon_score': round(carbon_score, 1)
+                'recyclability_ratio': round(recyclability, 2)
             }
         }
 
@@ -465,5 +423,7 @@ class TrussEvaluator(DesignEvaluator):
 
         max_stress = analysis_results.get('max_stress', 0.0)
         fy = material.get('fy', 235e6)
+        fy_Pa = fy if fy > 1000 else fy * 1e6
+        allowable = fy_Pa / 1.5  # per DES v2.0
 
-        return max_stress / fy if fy > 0 else 0.0
+        return max_stress / allowable if allowable > 0 else 0.0

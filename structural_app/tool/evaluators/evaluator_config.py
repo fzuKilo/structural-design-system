@@ -84,31 +84,31 @@ SCORING_CURVES = {
 
     'continuous_beam': {
         'stress': MultiLevelScoringCurve(
-            excellent_range=(0.65, 0.75),
-            good_range=(0.60, 0.80),
-            acceptable_range=(0.50, 0.90),
-            peak_position=0.70
+            excellent_range=(0.63, 0.73),  # Continuous beam: slightly conservative (ref: DES v2.0)
+            good_range=(0.58, 0.78),
+            acceptable_range=(0.48, 0.88),
+            peak_position=0.68
         ),
         'deflection': MultiLevelScoringCurve(
-            excellent_range=(0.70, 0.80),
-            good_range=(0.65, 0.85),
-            acceptable_range=(0.55, 0.95),
-            peak_position=0.75
+            excellent_range=(0.63, 0.73),
+            good_range=(0.58, 0.78),
+            acceptable_range=(0.48, 0.88),
+            peak_position=0.68
         )
     },
 
     'truss': {
         'stress': MultiLevelScoringCurve(
-            excellent_range=(0.75, 0.85),  # Truss: can be more aggressive (ref: DQS)
-            good_range=(0.70, 0.90),
-            acceptable_range=(0.60, 0.95),
-            peak_position=0.80
+            excellent_range=(0.45, 0.55),  # Truss: optimal utilization 0.50 (ref: DES v2.0)
+            good_range=(0.40, 0.60),
+            acceptable_range=(0.30, 0.70),
+            peak_position=0.50
         ),
         'deflection': MultiLevelScoringCurve(
-            excellent_range=(0.80, 0.90),
-            good_range=(0.75, 0.95),
-            acceptable_range=(0.65, 1.00),
-            peak_position=0.85
+            excellent_range=(0.45, 0.55),
+            good_range=(0.40, 0.60),
+            acceptable_range=(0.30, 0.70),
+            peak_position=0.50
         )
     },
 

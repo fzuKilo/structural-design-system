@@ -67,7 +67,6 @@ class FrameEvaluator(DesignEvaluator):
         beam_width = beams.get('width', 0.3)
         beam_depth = beams.get('depth', 0.6)
 
-        # Calculate volumes
         total_column_length = sum(story_heights) * (num_bays + 1)
         total_beam_length = sum(bay_widths) * num_stories
 
@@ -75,18 +74,22 @@ class FrameEvaluator(DesignEvaluator):
         beam_volume = total_beam_length * beam_width * beam_depth
         total_volume = column_volume + beam_volume
 
-        # Material usage index (compared to theoretical minimum)
-        theoretical_min = total_column_length * 0.3 * 0.3 + total_beam_length * 0.25 * 0.5
-        material_usage_index = total_volume / theoretical_min if theoretical_min > 0 else 1.0
+        # Theoretical minimum volume per DES v2.0
+        # Beam: h_min = max(0.3, span/18), V_min = span * 0.2 * h_min
+        span = sum(bay_widths) / max(num_bays, 1)
+        h_min_beam = max(0.3, span / 18)
+        v_min_beam = total_beam_length * 0.2 * h_min_beam
+        # Column: use fixed reference 0.3×0.3
+        v_min_col = total_column_length * 0.3 * 0.3
+        v_min = v_min_beam + v_min_col
+        material_usage_index = total_volume / v_min if v_min > 0 else 1.0
 
-        # Comprehensive utilization (stress + deflection + drift) / 3
+        # Comprehensive utilization
         comprehensive_util = self._get_comprehensive_utilization(design, results)
-
-        # Use multi-level scoring curve for utilization
         utilization_score = self.scoring_curves['stress'].calculate_score(comprehensive_util)
 
-        # Material usage score (linear: lower is better)
-        material_score = max(0, 100 - (material_usage_index - 1) * 50)
+        # Material usage score (slope=30 per DES v2.0)
+        material_score = max(0, 100 - (material_usage_index - 1) * 30)
 
         # Weighted economy score
         economy_score = utilization_score * 0.6 + material_score * 0.4
@@ -128,34 +131,23 @@ class FrameEvaluator(DesignEvaluator):
         """
         # Get stress utilization
         stress_utilization = self._get_stress_utilization(design, results)
-
-        # Use multi-level scoring curve
         utilization_score = self.scoring_curves['stress'].calculate_score(stress_utilization)
 
-        # Calculate utilization uniformity
+        # Calculate utilization uniformity using element stresses
         utilization_uniformity = self._calculate_utilization_uniformity(results)
         uniformity_score = utilization_uniformity * 100
 
-        # Redundancy index (frames have high redundancy)
-        geometry = design.get('geometry', {})
-        num_bays = geometry.get('num_bays', 1)
-        num_stories = geometry.get('num_stories', 1)
-        redundancy_index = min(2.0, (num_bays + num_stories) / 4)
-        redundancy_score = min(100, redundancy_index * 50)
-
-        # Weighted efficiency score
+        # Weighted efficiency score (50% + 50%, per DES v2.0)
         efficiency_score = (
             utilization_score * 0.5 +
-            uniformity_score * 0.3 +
-            redundancy_score * 0.2
+            uniformity_score * 0.5
         )
 
         return {
             'score': round(efficiency_score, 1),
             'indicators': {
                 'average_utilization': round(stress_utilization, 4),
-                'utilization_uniformity': round(utilization_uniformity, 4),
-                'redundancy_index': round(redundancy_index, 2)
+                'utilization_uniformity': round(utilization_uniformity, 4)
             }
         }
 
@@ -179,25 +171,31 @@ class FrameEvaluator(DesignEvaluator):
         Returns:
             Dictionary with score and safety indicators
         """
-        # 1. Strength evaluation (inverted logic: lower utilization = higher safety)
+        # 1. Strength evaluation: score = max(0, 100 - 40*x), per DES v2.0
         stress_util = self._get_stress_utilization(design, results)
-        strength_score = max(0, 100 - stress_util * 100)
+        if stress_util > 1.0:
+            strength_score = 0.0
+        else:
+            strength_score = max(0.0, 100 - 40 * stress_util)
 
-        # 2. Stiffness evaluation (deflection + drift)
+        # 2. Stiffness evaluation: take the more critical of deflection and drift
         deflection_util = self._get_deflection_utilization(design, results)
         drift_util = self._get_drift_utilization(design, results)
-        stiffness_util = (deflection_util + drift_util) / 2
-        stiffness_score = max(0, 100 - stiffness_util * 100)
+        stiffness_util = max(deflection_util, drift_util)
+        if stiffness_util > 1.0:
+            stiffness_score = 0.0
+        else:
+            stiffness_score = max(0.0, 100 - 40 * stiffness_util)
 
-        # 3. Construction evaluation (frame-specific checks)
+        # 3. Construction evaluation
         construction_eval = self.evaluate_construction(design, results)
-        construction_score = construction_eval['score'] * 20  # Scale 0-5 to 0-100
+        construction_score = construction_eval['score'] * 20  # scale 0-5 to 0-100
 
-        # Weighted safety score (45% total weight)
+        # Weighted safety score (50% + 37.5% + 12.5%, per DES v2.0)
         safety_score = (
-            strength_score * 0.444 +
-            stiffness_score * 0.333 +
-            construction_score * 0.222
+            strength_score * 0.50 +
+            stiffness_score * 0.375 +
+            construction_score * 0.125
         )
 
         # Get code check results
@@ -242,24 +240,35 @@ class FrameEvaluator(DesignEvaluator):
         economy_eval = self.evaluate_economy(design, results)
         total_volume = economy_eval['indicators']['total_volume_m3']
 
-        # Concrete: ~2400 kg/m^3, ~0.11 kg CO2/kg
-        carbon_emission = total_volume * 2400 * 0.11
-
-        # Recyclability
         material = design.get('material', {})
         material_name = material.get('material_name', 'concrete').lower()
-        recyclability = 0.9 if 'steel' in material_name or 'q' in material_name else 0.15
+        is_steel = 'steel' in material_name or material_name.startswith('q')
 
-        # Scoring
-        carbon_score = max(0, 100 - carbon_emission / 50)
+        if is_steel:
+            density, carbon_factor, recyclability = 7850.0, 1.85, 0.90
+        else:
+            density, carbon_factor, recyclability = 2400.0, 0.11, 0.15
+
+        total_carbon = total_volume * density * carbon_factor
+
+        # Bearing capacity: use max_shear as base shear (N → kN)
+        analysis_results = results.get('results', {})
+        max_shear_N = analysis_results.get('max_shear', 0.0)
+        base_shear_kN = max(abs(max_shear_N) / 1000.0, 1.0)
+
+        # Carbon intensity score (k=25 for frame, per DES v2.0)
+        carbon_intensity = total_carbon / base_shear_kN
+        carbon_score = max(0.0, 100 - carbon_intensity * 25)
+
         recyclability_score = recyclability * 100
-
         sustainability_score = (carbon_score + recyclability_score) / 2
 
         return {
             'score': round(sustainability_score, 1),
             'indicators': {
-                'carbon_emission_kg': round(carbon_emission, 1),
+                'carbon_emission_kg': round(total_carbon, 1),
+                'carbon_intensity': round(carbon_intensity, 4),
+                'base_shear_kN': round(base_shear_kN, 1),
                 'recyclability_ratio': round(recyclability, 2)
             }
         }
@@ -402,6 +411,47 @@ class FrameEvaluator(DesignEvaluator):
                 'severity': 'minor',
                 'message': f'Beam depth ({beam_depth}m) too close to column depth ({col_depth}m)',
                 'recommendation': 'Ensure proper connection detailing'
+            })
+
+        # Check 5: Beam height-span ratio (1/18 ~ 1/10, per DES v2.0)
+        geometry = design.get('geometry', {})
+        bay_widths = geometry.get('bay_widths', [6.0])
+        span = sum(bay_widths) / max(len(bay_widths), 1)
+        beam_height_span = beam_depth / span if span > 0 else 0
+        if beam_height_span < 1 / 18:
+            issues.append({
+                'type': 'beam_height_span_low',
+                'severity': 'moderate',
+                'message': f'框架梁高跨比过小 ({beam_height_span:.3f} < {1/18:.3f})',
+                'recommendation': '增加梁高或减小跨度'
+            })
+        elif beam_height_span > 1 / 10:
+            issues.append({
+                'type': 'beam_height_span_high',
+                'severity': 'minor',
+                'message': f'框架梁高跨比偏大 ({beam_height_span:.3f} > {1/10:.3f})',
+                'recommendation': '可适当减小梁高以提高经济性'
+            })
+
+        # Check 6: Column height-thickness ratio (1/25 ~ 1/15, per DES v2.0)
+        story_heights = geometry.get('story_heights', [4.0])
+        story_h = sum(story_heights) / max(len(story_heights), 1)
+        col_height_thickness = col_depth / story_h if story_h > 0 else 0
+        if col_height_thickness < 1 / 25:
+            issues.append({
+                'type': 'col_height_thickness_low',
+                'severity': 'moderate',
+                'message': f'柱截面高厚比过小 ({col_height_thickness:.3f} < {1/25:.3f})',
+                'recommendation': '增加柱截面尺寸'
+            })
+
+        # Check 7: Beam width should not exceed column width (per DES v2.0)
+        if beam_width > col_width:
+            issues.append({
+                'type': 'beam_wider_than_column',
+                'severity': 'moderate',
+                'message': f'梁宽 ({beam_width}m) 大于柱宽 ({col_width}m)',
+                'recommendation': '梁宽不宜大于柱宽，建议减小梁宽或增大柱宽'
             })
 
         return issues
