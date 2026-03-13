@@ -77,6 +77,7 @@ class TrussDrawer(StructureDrawer):
         try:
             # Create new DXF document
             doc = ezdxf.new('R2010')
+            doc.styles.new('chinese', dxfattribs={'font': 'simsun.ttf'})
             msp = doc.modelspace()
 
             # Extract parameters (support both 'span'/'length' for compatibility)
@@ -211,6 +212,10 @@ class TrussDrawer(StructureDrawer):
         """
         Draw detail views (node connections, member details)
 
+        Layout (2 rows × 3 columns):
+        Row 1: 上弦杆 | 下弦杆 | 竖杆
+        Row 2: 斜杆   | 节点   | 材料表
+
         Args:
             design: Design parameters
 
@@ -220,68 +225,52 @@ class TrussDrawer(StructureDrawer):
         try:
             # Create new DXF document
             doc = ezdxf.new('R2010')
+            doc.styles.new('chinese', dxfattribs={'font': 'simsun.ttf'})
             msp = doc.modelspace()
 
             # Extract parameters
             material = design.get('material', {})
+            geometry = design.get('geometry', {})
             A = material.get('A', 0.01)  # Cross-sectional area in m²
-
-            # Convert to mm² for display
             A_mm2 = A * 1e6
-
-            # Draw typical member cross-section detail
-            # Assume circular hollow section
             diameter = np.sqrt(4 * A / np.pi) * 1000  # Convert to mm
 
-            # Detail 1: Typical member section
-            center_x = 2.0
-            center_y = 2.0
-            msp.add_circle((center_x, center_y), radius=diameter/2000, dxfattribs={'color': colors.BLACK})
+            # Web members (70% of chord area)
+            A_web = A * 0.7
+            A_web_mm2 = A_web * 1e6
+            diameter_web = np.sqrt(4 * A_web / np.pi) * 1000
 
-            # Add dimension
+            # Layout positions (2 rows × 3 columns)
+            row1_y = 5.0
+            row2_y = 2.0
+            col_spacing = 3.5
+            col1_x = 2.0
+            col2_x = col1_x + col_spacing
+            col3_x = col2_x + col_spacing
+
+            # Row 1, Col 1: 上弦杆截面
+            self._draw_member_section(msp, col1_x, row1_y, '上弦杆', diameter, A_mm2)
+
+            # Row 1, Col 2: 下弦杆截面
+            self._draw_member_section(msp, col2_x, row1_y, '下弦杆', diameter, A_mm2)
+
+            # Row 1, Col 3: 竖杆截面
+            self._draw_member_section(msp, col3_x, row1_y, '竖杆', diameter_web, A_web_mm2)
+
+            # Row 2, Col 1: 斜杆截面
+            self._draw_member_section(msp, col1_x, row2_y, '斜杆', diameter_web, A_web_mm2)
+
+            # Row 2, Col 2: 节点连接详图
+            self._draw_node_detail(msp, col2_x, row2_y)
+
+            # Row 2, Col 3: 材料表
+            self._draw_material_table(msp, col3_x, row2_y, design, diameter, diameter_web, A_mm2, A_web_mm2)
+
+            # Add title
             msp.add_text(
-                f'Typical Member',
-                dxfattribs={'height': 0.15, 'color': colors.BLACK}
-            ).set_placement((center_x, center_y + 0.5), align=TextEntityAlignment.CENTER)
-
-            msp.add_text(
-                f'Area = {A_mm2:.0f} mm²',
-                dxfattribs={'height': 0.12, 'color': colors.BLACK}
-            ).set_placement((center_x, center_y - 0.5), align=TextEntityAlignment.CENTER)
-
-            msp.add_text(
-                f'Ø = {diameter:.1f} mm',
-                dxfattribs={'height': 0.12, 'color': colors.BLACK}
-            ).set_placement((center_x, center_y - 0.7), align=TextEntityAlignment.CENTER)
-
-            # Detail 2: Node connection detail (simplified)
-            node_x = 5.0
-            node_y = 2.0
-
-            # Draw gusset plate (simplified)
-            gusset_points = [
-                (node_x - 0.3, node_y - 0.3),
-                (node_x + 0.3, node_y - 0.3),
-                (node_x + 0.3, node_y + 0.3),
-                (node_x - 0.3, node_y + 0.3),
-                (node_x - 0.3, node_y - 0.3)
-            ]
-            msp.add_lwpolyline(gusset_points, dxfattribs={'color': colors.YELLOW})
-
-            # Draw members connecting to node
-            msp.add_line((node_x - 0.5, node_y), (node_x - 0.3, node_y), dxfattribs={'color': colors.BLACK, 'lineweight': 25})
-            msp.add_line((node_x + 0.3, node_y), (node_x + 0.5, node_y), dxfattribs={'color': colors.BLACK, 'lineweight': 25})
-            msp.add_line((node_x, node_y - 0.3), (node_x, node_y - 0.5), dxfattribs={'color': colors.BLACK, 'lineweight': 25})
-
-            msp.add_text(
-                'Typical Node Connection',
-                dxfattribs={'height': 0.15, 'color': colors.BLACK}
-            ).set_placement((node_x, node_y + 0.5), align=TextEntityAlignment.CENTER)
-
-            msp.add_text(
-                'Gusset Plate',
-                dxfattribs={'height': 0.10, 'color': colors.BLACK}
-            ).set_placement((node_x, node_y - 0.7), align=TextEntityAlignment.CENTER)
+                '桁架杆件详图',
+                dxfattribs={'height': 0.25, 'color': colors.BLACK, 'style': 'chinese'}
+            ).set_placement((col2_x, 7.0), align=TextEntityAlignment.CENTER)
 
             # Save file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -295,6 +284,152 @@ class TrussDrawer(StructureDrawer):
             import traceback
             traceback.print_exc()
             return None
+
+    def _draw_member_section(self, msp, center_x: float, center_y: float,
+                            member_name: str, diameter: float, area_mm2: float):
+        """
+        Draw a single member cross-section detail
+
+        Args:
+            msp: Model space
+            center_x, center_y: Center position
+            member_name: Member name (e.g., '上弦杆')
+            diameter: Diameter in mm
+            area_mm2: Area in mm²
+        """
+        # Draw circle (section)
+        radius_m = diameter / 2000  # Convert mm to m for drawing
+        msp.add_circle((center_x, center_y), radius=radius_m, dxfattribs={'color': colors.BLACK, 'lineweight': 25})
+
+        # Title
+        msp.add_text(
+            member_name,
+            dxfattribs={'height': 0.15, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, center_y + 0.6), align=TextEntityAlignment.CENTER)
+
+        # Diameter
+        msp.add_text(
+            f'Ø{diameter:.1f}',
+            dxfattribs={'height': 0.12, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, center_y - 0.4), align=TextEntityAlignment.CENTER)
+
+        # Area
+        msp.add_text(
+            f'A={area_mm2:.0f}mm²',
+            dxfattribs={'height': 0.10, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, center_y - 0.6), align=TextEntityAlignment.CENTER)
+
+    def _draw_node_detail(self, msp, center_x: float, center_y: float):
+        """
+        Draw node connection detail
+
+        Args:
+            msp: Model space
+            center_x, center_y: Center position
+        """
+        # Draw gusset plate
+        gusset_points = [
+            (center_x - 0.3, center_y - 0.3),
+            (center_x + 0.3, center_y - 0.3),
+            (center_x + 0.3, center_y + 0.3),
+            (center_x - 0.3, center_y + 0.3),
+            (center_x - 0.3, center_y - 0.3)
+        ]
+        msp.add_lwpolyline(gusset_points, dxfattribs={'color': colors.YELLOW})
+
+        # Draw members
+        msp.add_line((center_x - 0.5, center_y), (center_x - 0.3, center_y),
+                    dxfattribs={'color': colors.BLACK, 'lineweight': 25})
+        msp.add_line((center_x + 0.3, center_y), (center_x + 0.5, center_y),
+                    dxfattribs={'color': colors.BLACK, 'lineweight': 25})
+        msp.add_line((center_x, center_y - 0.3), (center_x, center_y - 0.5),
+                    dxfattribs={'color': colors.BLACK, 'lineweight': 25})
+
+        # Title
+        msp.add_text(
+            '节点连接',
+            dxfattribs={'height': 0.15, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, center_y + 0.6), align=TextEntityAlignment.CENTER)
+
+        # Label
+        msp.add_text(
+            '节点板',
+            dxfattribs={'height': 0.10, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, center_y - 0.6), align=TextEntityAlignment.CENTER)
+
+    def _draw_material_table(self, msp, center_x: float, center_y: float,
+                            design: Dict[str, Any], diameter_chord: float,
+                            diameter_web: float, area_chord: float, area_web: float):
+        """
+        Draw material specification table
+
+        Args:
+            msp: Model space
+            center_x, center_y: Center position
+            design: Design parameters
+            diameter_chord: Chord diameter in mm
+            diameter_web: Web diameter in mm
+            area_chord: Chord area in mm²
+            area_web: Web area in mm²
+        """
+        # Table border
+        width = 1.2
+        height = 1.2
+        x0 = center_x - width/2
+        y0 = center_y - height/2
+
+        # Draw border
+        border_points = [
+            (x0, y0),
+            (x0 + width, y0),
+            (x0 + width, y0 + height),
+            (x0, y0 + height),
+            (x0, y0)
+        ]
+        msp.add_lwpolyline(border_points, dxfattribs={'color': colors.BLACK})
+
+        # Title
+        msp.add_text(
+            '材料规格',
+            dxfattribs={'height': 0.12, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((center_x, y0 + height - 0.15), align=TextEntityAlignment.CENTER)
+
+        # Content
+        geometry = design.get('geometry', {})
+        material = design.get('material', {})
+        n_panels = geometry.get('n_panels', 5)
+        span = geometry.get('span', 10.0)
+        material_name = material.get('material_name', 'Q235')
+
+        y_line = y0 + height - 0.35
+        line_height = 0.15
+
+        # Chord members
+        msp.add_text(
+            f'弦杆: Ø{diameter_chord:.0f}',
+            dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
+        y_line -= line_height
+
+        # Web members
+        msp.add_text(
+            f'腹杆: Ø{diameter_web:.0f}',
+            dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
+        y_line -= line_height
+
+        # Material
+        msp.add_text(
+            f'材料: {material_name}',
+            dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
+        y_line -= line_height
+
+        # Span
+        msp.add_text(
+            f'跨度: {span:.1f}m',
+            dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
+        ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
 
     def _draw_pinned_support(self, msp, x: float, y: float):
         """
