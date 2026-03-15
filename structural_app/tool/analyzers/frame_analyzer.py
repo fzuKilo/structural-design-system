@@ -400,6 +400,7 @@ class FrameAnalyzer(StructureAnalyzer):
             ux_displacements = self._extract_ux_displacements() # ux (horizontal)
             moments, shears = self._extract_forces()
             axial_forces = self._extract_axial_forces()
+            element_stresses = self._extract_element_stresses()  # For uniformity calculation
 
             # Calculate maximum values
             max_displacement = max([abs(d) for d in displacements]) if displacements else 0.0
@@ -440,6 +441,7 @@ class FrameAnalyzer(StructureAnalyzer):
                     'axial_forces': axial_forces,
                     'max_drift_ratio': max_drift_ratio,
                     'max_axial': max(abs(f) for f in axial_forces) if axial_forces else 0.0,
+                    'element_stresses': element_stresses,  # For evaluator uniformity calculation
                 }
             )
 
@@ -499,6 +501,62 @@ class FrameAnalyzer(StructureAnalyzer):
             # forces[0] = N_i, forces[3] = N_j
             axial_forces.extend([forces[0], forces[3]])
         return axial_forces
+
+    def _extract_element_stresses(self) -> List[float]:
+        """
+        Extract element stresses for uniformity calculation
+
+        For frame structures, calculate combined stress considering:
+        - Bending stress: σ_b = M / W
+        - Axial stress: σ_a = N / A
+        - Combined: σ = σ_b + σ_a (most unfavorable combination)
+
+        Returns:
+            List of element stresses (one per element)
+        """
+        element_stresses = []
+        geometry = self.design_params['geometry']
+
+        # Beam properties
+        beam_width = geometry['beams']['width']
+        beam_depth = geometry['beams']['depth']
+        W_beam = (beam_width * beam_depth**2) / 6
+        A_beam = beam_width * beam_depth
+
+        # Column properties
+        col_width = geometry['columns']['width']
+        col_depth = geometry['columns']['depth']
+        W_col = (col_width * col_depth**2) / 6
+        A_col = col_width * col_depth
+
+        # Extract beam stresses
+        for elem_id in self.beam_elements:
+            forces = ops.eleForce(elem_id)
+            # forces = [N_i, V_i, M_i, N_j, V_j, M_j]
+            M_i = abs(forces[2])
+            M_j = abs(forces[5])
+            N_i = abs(forces[0])
+            N_j = abs(forces[3])
+
+            # Calculate combined stress at both ends, take maximum
+            sigma_i = M_i / W_beam + N_i / A_beam if W_beam > 0 and A_beam > 0 else 0.0
+            sigma_j = M_j / W_beam + N_j / A_beam if W_beam > 0 and A_beam > 0 else 0.0
+            element_stresses.append(max(sigma_i, sigma_j))
+
+        # Extract column stresses
+        for elem_id in self.column_elements:
+            forces = ops.eleForce(elem_id)
+            M_i = abs(forces[2])
+            M_j = abs(forces[5])
+            N_i = abs(forces[0])
+            N_j = abs(forces[3])
+
+            # Calculate combined stress at both ends, take maximum
+            sigma_i = M_i / W_col + N_i / A_col if W_col > 0 and A_col > 0 else 0.0
+            sigma_j = M_j / W_col + N_j / A_col if W_col > 0 and A_col > 0 else 0.0
+            element_stresses.append(max(sigma_i, sigma_j))
+
+        return element_stresses
 
     def _calculate_max_drift_ratio(self, displacements: List[float]) -> float:
         """

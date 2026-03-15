@@ -263,13 +263,24 @@ class TrussEvaluator(DesignEvaluator):
         total_carbon = mass * carbon_factor
 
         # Bearing capacity: N_u = Σ(fy_i * A_i) for tension members
-        # Approximate: use all members with same fy and A
+        # Use actual axial forces from analysis to identify tension members
         fy = material.get('fy', 235e6)
         fy_Pa = fy if fy > 1000 else fy * 1e6
         fy_kN_m2 = fy_Pa / 1e3  # Pa → kN/m²
         A_m2 = A  # m²
-        n_members = int(2 * n_panels + (n_panels + 1) + n_panels)  # top+bottom+vertical+diagonal
-        N_u = max(fy_kN_m2 * A_m2 * n_members / 2, 1.0)  # half assumed tension, kN
+
+        # Try to get actual axial forces from analysis results
+        detailed_results = results.get('results', {}).get('detailed_results', {})
+        axial_forces = detailed_results.get('extra', {}).get('axial_forces', [])
+
+        if axial_forces:
+            # Count actual tension members (positive axial force)
+            n_tension = sum(1 for f in axial_forces if f > 0)
+            N_u = max(fy_kN_m2 * A_m2 * n_tension, 1.0)  # Precise calculation, kN
+        else:
+            # Fallback: approximate as half members in tension
+            n_members = int(2 * n_panels + (n_panels + 1) + n_panels)  # top+bottom+vertical+diagonal
+            N_u = max(fy_kN_m2 * A_m2 * n_members / 2, 1.0)  # Approximate, kN
 
         # Carbon intensity score (k=15 for truss, per DES v2.0)
         carbon_intensity = total_carbon / N_u  # kg CO2 / kN
@@ -316,24 +327,67 @@ class TrussEvaluator(DesignEvaluator):
         n_panels = geometry.get('n_panels', 5)
         A = material.get('A', 0.01)
 
-        # 1. Check slenderness ratio (from code_check)
+        # 1. Check slenderness ratio (λ ≤ 150 for compression, λ ≤ 250 for tension per GB 50017)
         checks = code_check.get('checks', {})
         max_slenderness = checks.get('max_slenderness', 0)
 
-        if max_slenderness > 150:
-            issues.append({
-                'type': 'slenderness_high',
-                'severity': 'severe',
-                'message': f'Slenderness ratio too high: λ={max_slenderness:.1f} > 150',
-                'recommendation': 'Increase member cross-sectional area or reduce member length'
-            })
-        elif max_slenderness > 120:
-            issues.append({
-                'type': 'slenderness_moderate',
-                'severity': 'moderate',
-                'message': f'Slenderness ratio moderately high: λ={max_slenderness:.1f} > 120',
-                'recommendation': 'Consider increasing member size for better stability'
-            })
+        # Try to get axial forces and member lengths for precise check
+        detailed_results = results.get('results', {}).get('detailed_results', {})
+        axial_forces = detailed_results.get('extra', {}).get('axial_forces', [])
+        member_lengths = detailed_results.get('extra', {}).get('member_lengths', [])
+
+        if axial_forces and member_lengths and A > 0:
+            # Calculate radius of gyration (simplified: assume circular or square section)
+            r = np.sqrt(A / np.pi)  # For circular section: r = sqrt(A/π)
+
+            # Check each member individually
+            compression_violations = []
+            tension_violations = []
+
+            for i, (force, length) in enumerate(zip(axial_forces, member_lengths)):
+                slenderness = length / r if r > 0 else 0
+
+                if force < 0:  # Compression member
+                    if slenderness > 150:
+                        compression_violations.append((i, slenderness))
+                else:  # Tension member
+                    if slenderness > 250:
+                        tension_violations.append((i, slenderness))
+
+            # Report violations
+            if compression_violations:
+                max_comp_slenderness = max(s for _, s in compression_violations)
+                issues.append({
+                    'type': 'compression_slenderness_high',
+                    'severity': 'severe',
+                    'message': f'Compression member slenderness too high: λ={max_comp_slenderness:.1f} > 150 (GB 50017)',
+                    'recommendation': 'Increase cross-sectional area or reduce member length for compression members'
+                })
+
+            if tension_violations:
+                max_tens_slenderness = max(s for _, s in tension_violations)
+                issues.append({
+                    'type': 'tension_slenderness_high',
+                    'severity': 'moderate',
+                    'message': f'Tension member slenderness too high: λ={max_tens_slenderness:.1f} > 250 (GB 50017)',
+                    'recommendation': 'Consider increasing cross-sectional area for tension members to reduce vibration'
+                })
+        else:
+            # Fallback: use overall max_slenderness (conservative, assume compression)
+            if max_slenderness > 150:
+                issues.append({
+                    'type': 'slenderness_high',
+                    'severity': 'severe',
+                    'message': f'Slenderness ratio too high: λ={max_slenderness:.1f} > 150 (compression limit)',
+                    'recommendation': 'Increase member cross-sectional area or reduce member length'
+                })
+            elif max_slenderness > 120:
+                issues.append({
+                    'type': 'slenderness_moderate',
+                    'severity': 'moderate',
+                    'message': f'Slenderness ratio moderately high: λ={max_slenderness:.1f} > 120',
+                    'recommendation': 'Consider increasing member size for better stability'
+                })
 
         # 2. Check height-to-span ratio (1/6 to 1/10 is typical)
         height_span_ratio = height / span if span > 0 else 0

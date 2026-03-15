@@ -457,34 +457,76 @@ class FrameEvaluator(DesignEvaluator):
         return issues
 
     def _calculate_utilization_uniformity(self, results: Dict[str, Any]) -> float:
-        """Calculate how uniform the stress distribution is"""
+        """
+        Calculate how uniform the stress utilization is across all elements
+
+        Uses element stresses from analyzer if available, otherwise falls back to moment distribution.
+        Calculates utilization ratio u_i = σ_i / (fy/1.5) for each element, then computes
+        coefficient of variation (CV) to measure uniformity.
+        """
         try:
             detailed_results = results.get('results', {}).get('detailed_results', {})
-            moments = detailed_results.get('moments', [])
 
-            if not moments or len(moments) < 2:
-                return 0.7
+            # Try to get element stresses from analyzer (preferred method)
+            element_stresses = detailed_results.get('extra', {}).get('element_stresses', [])
 
-            # Extract moment values
-            moment_values = []
-            for m in moments:
-                moment_values.append(abs(m.get('M_i', 0)))
-                moment_values.append(abs(m.get('M_j', 0)))
+            if element_stresses and len(element_stresses) >= 2:
+                # Get material yield strength
+                material = results.get('results', {}).get('detailed_results', {}).get('material', {})
+                fy = material.get('fy', 235e6)  # Default Q235 steel
+                fy_Pa = fy if fy > 1000 else fy * 1e6
+                allowable_stress = fy_Pa / 1.5  # Allowable stress
 
-            if not moment_values:
-                return 0.7
+                # Calculate utilization ratio for each element
+                utilizations = [sigma / allowable_stress for sigma in element_stresses if allowable_stress > 0]
 
-            avg_moment = sum(moment_values) / len(moment_values)
-            if avg_moment == 0:
-                return 1.0
+                if not utilizations:
+                    return 0.7
 
-            variance = sum((m - avg_moment) ** 2 for m in moment_values) / len(moment_values)
-            std_dev = variance ** 0.5
-            cv = std_dev / avg_moment
+                # Calculate coefficient of variation (CV)
+                avg_util = sum(utilizations) / len(utilizations)
+                if avg_util == 0:
+                    return 1.0
 
-            uniformity = max(0, min(1, 1 - cv / 2))
-            return uniformity
-        except:
+                variance = sum((u - avg_util) ** 2 for u in utilizations) / len(utilizations)
+                std_dev = variance ** 0.5
+                cv = std_dev / avg_util
+
+                # Uniformity score: CV=0 → 1.0, CV≥1 → 0
+                uniformity = max(0, min(1, 1 - cv))
+                return uniformity
+
+            else:
+                # Fallback: use moment distribution (original method)
+                moments = detailed_results.get('moments', [])
+
+                if not moments or len(moments) < 2:
+                    return 0.7
+
+                # Extract moment values
+                moment_values = []
+                for m in moments:
+                    if isinstance(m, dict):
+                        moment_values.append(abs(m.get('M_i', 0)))
+                        moment_values.append(abs(m.get('M_j', 0)))
+                    else:
+                        moment_values.append(abs(m))
+
+                if not moment_values:
+                    return 0.7
+
+                avg_moment = sum(moment_values) / len(moment_values)
+                if avg_moment == 0:
+                    return 1.0
+
+                variance = sum((m - avg_moment) ** 2 for m in moment_values) / len(moment_values)
+                std_dev = variance ** 0.5
+                cv = std_dev / avg_moment
+
+                uniformity = max(0, min(1, 1 - cv / 2))
+                return uniformity
+
+        except Exception as e:
             return 0.7
 
     def _evaluate_construction_complexity(self, geometry: Dict[str, Any]) -> str:

@@ -289,7 +289,7 @@ class TrussAnalyzer(StructureAnalyzer):
                 max_disp = max(max_disp, total_disp)
 
             # Get element axial forces and stresses
-            axial_forces = []
+            axial_forces = []  # Keep sign: positive=tension, negative=compression
             stresses = []
             max_stress = 0.0
             A = self.design_params['material']['A']
@@ -297,9 +297,9 @@ class TrussAnalyzer(StructureAnalyzer):
             for elem_id in self.elements:
                 force = ops.eleForce(elem_id)
                 # For truss element: [Fx_i, Fy_i, Fx_j, Fy_j]
-                # Axial force is Fx_i (tension positive)
-                axial_force = abs(force[0])
-                stress = axial_force / A
+                # Axial force is Fx_i (tension positive, compression negative)
+                axial_force = force[0]  # Keep sign for tension/compression identification
+                stress = abs(axial_force) / A
                 axial_forces.append(axial_force)
                 stresses.append(stress)
                 max_stress = max(max_stress, stress)
@@ -319,7 +319,11 @@ class TrussAnalyzer(StructureAnalyzer):
                 analysis_status='success',
                 error_message=None,
                 geometry=self.design_params.get('geometry'),
-                material=self.design_params.get('material')
+                material=self.design_params.get('material'),
+                extra={
+                    'axial_forces': axial_forces,  # Signed axial forces for evaluator
+                    'member_lengths': list(self.member_lengths.values())  # For slenderness check
+                }
             )
 
         except Exception as e:
