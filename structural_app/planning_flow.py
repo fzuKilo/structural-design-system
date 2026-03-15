@@ -138,6 +138,183 @@ class PlanningFlow:
 
         return api_key, provider, base_url, model
 
+    def _get_allowed_params(self, design: dict) -> str:
+        """
+        根据结构类型生成允许修改的参数列表（含当前值），用于prompt约束。
+
+        Args:
+            design: 当前设计提案字典
+
+        Returns:
+            格式化字符串，每行一个参数
+        """
+        stype = design.get('type')
+        geom = design.get('geometry', {})
+        mat = design.get('material', {})
+        cons = design.get('constraints', {})
+        bound = design.get('boundary', {})
+
+        if stype in ['beam', 'cantilever_beam', 'continuous_beam']:
+            lines = [
+                f"- geometry.width（梁宽，当前 {geom.get('width', '?')} m）",
+                f"- geometry.height（梁高，当前 {geom.get('height', '?')} m）",
+            ]
+            if 'fy' in mat and mat['fy'] is not None:
+                fy_mpa = mat['fy'] / 1e6 if mat['fy'] > 1000 else mat['fy']
+                lines.append(f"- material.fy（屈服强度，当前 {fy_mpa:.1f} MPa，典型范围 200~500 MPa）")
+            if 'E' in mat and mat['E'] is not None:
+                e_gpa = mat['E'] / 1e9 if mat['E'] > 1000 else mat['E']
+                lines.append(f"- material.E（弹性模量，当前 {e_gpa:.1f} GPa，混凝土约30GPa，钢约200GPa）")
+            if 'material_name' in mat:
+                lines.append(f"- material.material_name（材料名称，当前 '{mat['material_name']}'，常见：C30/C40/C50/Q235/Q345）")
+                lines.append("  **注意**：修改材料时，fy和E应同步调整（C30: fy=20.1 E=30, C40: fy=26.8 E=32.5, Q235: fy=235 E=200）")
+            if stype == 'continuous_beam' and 'n_spans' in geom:
+                lines.append(f"- geometry.n_spans（跨数，当前 {geom['n_spans']}，范围2~5）")
+            return "\n".join(lines)
+
+        elif stype == 'frame':
+            cols = geom.get('columns', {})
+            beams = geom.get('beams', {})
+            lines = [
+                f"- geometry.columns.width（柱宽，当前 {cols.get('width', '?')} m）",
+                f"- geometry.columns.depth（柱深，当前 {cols.get('depth', '?')} m）",
+                f"- geometry.beams.width（梁宽，当前 {beams.get('width', '?')} m）",
+                f"- geometry.beams.depth（梁深，当前 {beams.get('depth', '?')} m）",
+            ]
+            if 'fy' in mat and mat['fy'] is not None:
+                fy_mpa = mat['fy'] / 1e6 if mat['fy'] > 1000 else mat['fy']
+                lines.append(f"- material.fy（屈服强度，当前 {fy_mpa:.1f} MPa）")
+            if 'E' in mat and mat['E'] is not None:
+                e_gpa = mat['E'] / 1e9 if mat['E'] > 1000 else mat['E']
+                lines.append(f"- material.E（弹性模量，当前 {e_gpa:.1f} GPa）")
+            if 'material_name' in mat:
+                lines.append(f"- material.material_name（材料名称，当前 '{mat['material_name']}'）")
+            if 'column_base' in bound:
+                lines.append(f"- boundary.column_base（柱底约束，当前 '{bound['column_base']}'，可选 fixed/pinned）")
+            return "\n".join(lines)
+
+        elif stype == 'truss':
+            lines = [
+                f"- geometry.span（跨度，当前 {geom.get('span', '?')} m）",
+                f"- geometry.height（高度，当前 {geom.get('height', '?')} m）",
+                f"- geometry.n_panels（节间数，当前 {geom.get('n_panels', 5)}）",
+                f"- material.A（杆件截面积，当前 {mat.get('A', '?')} m²）",
+            ]
+            if 'fy' in mat and mat['fy'] is not None:
+                fy_mpa = mat['fy'] / 1e6 if mat['fy'] > 1000 else mat['fy']
+                lines.append(f"- material.fy（屈服强度，当前 {fy_mpa:.1f} MPa）")
+            if 'E' in mat and mat['E'] is not None:
+                e_gpa = mat['E'] / 1e9 if mat['E'] > 1000 else mat['E']
+                lines.append(f"- material.E（弹性模量，当前 {e_gpa:.1f} GPa）")
+            if 'material_name' in mat:
+                lines.append(f"- material.material_name（材料名称，当前 '{mat['material_name']}'）")
+            if 'support_type' in cons:
+                lines.append(f"- constraints.support_type（支撑类型，当前 '{cons['support_type']}'，可选 simply_supported/both_pinned）")
+            return "\n".join(lines)
+
+        else:
+            return "（当前结构类型无可调参数）"
+
+    def _validate_design_params(self, design: dict) -> tuple:
+        """
+        验证设计参数的合理性
+
+        Args:
+            design: 设计参数字典
+
+        Returns:
+            (is_valid, error_message)
+        """
+        geom = design.get('geometry', {})
+        mat = design.get('material', {})
+        stype = design.get('type', '')
+
+        # 几何参数检查
+        if 'width' in geom:
+            if geom['width'] <= 0 or geom['width'] > 2.0:
+                return False, f"梁宽不合理: {geom['width']} m（应在0~2.0m之间）"
+
+        if 'height' in geom:
+            if geom['height'] <= 0 or geom['height'] > 3.0:
+                return False, f"梁高不合理: {geom['height']} m（应在0~3.0m之间）"
+
+        if 'span' in geom:
+            if geom['span'] <= 0 or geom['span'] > 100.0:
+                return False, f"跨度不合理: {geom['span']} m（应在0~100m之间）"
+
+        # 框架特殊检查
+        if stype == 'frame':
+            cols = geom.get('columns', {})
+            beams = geom.get('beams', {})
+            if 'width' in cols and (cols['width'] <= 0 or cols['width'] > 2.0):
+                return False, f"柱宽不合理: {cols['width']} m"
+            if 'depth' in cols and (cols['depth'] <= 0 or cols['depth'] > 2.0):
+                return False, f"柱深不合理: {cols['depth']} m"
+            if 'width' in beams and (beams['width'] <= 0 or beams['width'] > 2.0):
+                return False, f"梁宽不合理: {beams['width']} m"
+            if 'depth' in beams and (beams['depth'] <= 0 or beams['depth'] > 3.0):
+                return False, f"梁深不合理: {beams['depth']} m"
+
+        # 材料参数检查
+        if 'fy' in mat and mat['fy'] is not None:
+            fy_mpa = mat['fy'] / 1e6 if mat['fy'] > 1000 else mat['fy']
+            if fy_mpa < 10 or fy_mpa > 1000:
+                return False, f"屈服强度不合理: {fy_mpa} MPa（应在10~1000 MPa之间）"
+            # 自动单位转换
+            if mat['fy'] < 1000:
+                mat['fy'] = mat['fy'] * 1e6
+
+        if 'E' in mat and mat['E'] is not None:
+            e_gpa = mat['E'] / 1e9 if mat['E'] > 1000 else mat['E']
+            if e_gpa < 10 or e_gpa > 500:
+                return False, f"弹性模量不合理: {e_gpa} GPa（应在10~500 GPa之间）"
+            # 自动单位转换
+            if mat['E'] < 1000:
+                mat['E'] = mat['E'] * 1e9
+
+        # 桁架特殊检查
+        if stype == 'truss' and 'A' in mat:
+            if mat['A'] <= 0 or mat['A'] > 0.1:
+                return False, f"杆件截面积不合理: {mat['A']} m²（应在0~0.1m²之间）"
+
+        return True, ""
+
+    def _extract_json_from_text(self, text: str) -> dict:
+        """
+        从文本中提取JSON，支持多种格式
+
+        Args:
+            text: 包含JSON的文本
+
+        Returns:
+            解析后的字典，失败返回None
+        """
+        import re
+
+        # 1. 尝试提取代码块中的JSON
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1).strip()
+            # 移除可能的注释
+            json_str = re.sub(r'//.*?\n', '\n', json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+
+        # 2. 尝试查找完整的JSON对象
+        json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            # 移除注释
+            json_str = re.sub(r'//.*?\n', '\n', json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+
+        return None
+
     async def run_full_design(
         self,
         request: str,
@@ -698,20 +875,14 @@ class PlanningFlow:
             print("[WARNING] 未配置 API key，使用原始设计")
             return design_proposal
 
-        # Extract current design parameters for prompt
-        design_type = design_proposal.get('type', 'Unknown')
-        current_geometry = design_proposal.get('geometry', {})
-        current_material = design_proposal.get('material', {})
-        current_loads = design_proposal.get('loads', {})
-        current_constraints = design_proposal.get('constraints', {})
+        # 获取允许修改的参数列表
+        allowed_params = self._get_allowed_params(design_proposal)
 
         # Get current analysis results for reference
         results = current_results.get('results', {})
-        detailed_results = results.get('detailed_results', {})
         code_check = current_results.get('code_check', {})
-        violations = code_check.get('violations', [])
 
-        prompt = f"""你是一位结构工程专家。请根据用户的改进要求，生成更新后的设计 proposal。
+        prompt = f"""你是一位结构工程专家。请根据用户的改进要求，生成更新后的设计proposal。
 
 当前设计参数：
 ```json
@@ -721,21 +892,22 @@ class PlanningFlow:
 用户改进方案：
 {user_improvements}
 
+**允许修改的参数**（只能修改以下参数，其他参数必须保持原值）：
+{allowed_params}
+
 当前分析结果（供参考）：
 - 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
 - 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
 - 最大弯矩: {results.get('max_moment_kNm', 'N/A')} kN*m
 
-规范检查结果：
-{json.dumps(code_check, ensure_ascii=False, indent=2)}
-
-请生成更新后的完整设计 proposal，要求：
-1. 保持 JSON 格式与原始设计一致
-2. 只修改用户指定的参数（如截面尺寸、材料等级、配筋等）
+请生成更新后的完整设计proposal，要求：
+1. 保持JSON格式与原始设计一致
+2. 只修改用户指定的参数（且必须在允许范围内）
 3. 保持其他参数不变
-4. 输出完整的 JSON 对象
+4. 输出完整的JSON对象
+5. 材料参数使用常用单位：fy使用MPa，E使用GPa
 
-重要：只返回 JSON 对象，不要包含其他文本。"""
+重要：只返回JSON对象，不要包含其他文本。"""
 
         try:
             from openai import OpenAI
@@ -752,28 +924,27 @@ class PlanningFlow:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2000,
-                temperature=0.3  # 低温度确保输出稳定
+                temperature=0.3
             )
 
             content = response.choices[0].message.content
 
-            # Try to extract JSON from response
-            import re
-            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1).strip()
-                return json.loads(json_str)
+            # 提取JSON
+            new_design = self._extract_json_from_text(content)
 
-            # Try direct JSON parsing
-            try:
-                return json.loads(content)
-            except json.JSONDecodeError:
-                # Fallback to original design
+            if new_design:
+                # 验证参数合理性并自动转换单位
+                is_valid, error_msg = self._validate_design_params(new_design)
+                if not is_valid:
+                    print(f"[WARNING] 设计参数验证失败: {error_msg}，使用原始设计")
+                    return design_proposal
+                return new_design
+            else:
                 print(f"[WARNING] 无法解析改进后的设计，使用原始设计")
                 return design_proposal
 
         except Exception as e:
-            print(f"[ERROR] 调用 LLM 更新设计失败 - {str(e)}，使用原始设计")
+            print(f"[ERROR] 调用LLM更新设计失败 - {str(e)}，使用原始设计")
             return design_proposal
 
     async def _manual_improvement_loop(
@@ -932,23 +1103,32 @@ class PlanningFlow:
                     print(f"[ERROR] {improvement_plan}")
                 return (current_results, current_design_proposal)
 
-            # Step 2: 使用LLM更新设计提案
-            if verbose:
-                print(f"[PlanningFlow] 根据改进方案更新设计提案...")
+            # Step 2: 从改进方案中提取JSON
+            new_design = self._extract_json_from_text(improvement_plan)
 
-            updated_design_proposal = await self._update_design_proposal_with_improvements(
-                current_design_proposal,
-                improvement_plan,  # 使用自动生成的改进方案
-                current_results
-            )
+            if new_design:
+                # 验证参数合理性并自动转换单位
+                is_valid, error_msg = self._validate_design_params(new_design)
+                if not is_valid:
+                    if verbose:
+                        print(f"[WARNING] 设计参数验证失败: {error_msg}，保留原设计")
+                    # 继续使用原设计，但不终止循环
+                    continue
 
-            # 检查设计是否发生变化
-            if updated_design_proposal == current_design_proposal:
+                # 检查设计是否真的变化了
+                if new_design != current_design_proposal:
+                    current_design_proposal = new_design
+                    if verbose:
+                        print(f"[PlanningFlow] 设计已更新")
+                else:
+                    if verbose:
+                        print("[WARNING] 设计未发生变化，终止自动优化")
+                    return (current_results, current_design_proposal)
+            else:
                 if verbose:
-                    print("[WARNING] 设计未发生变化，终止自动优化")
-                return (current_results, current_design_proposal)
-
-            current_design_proposal = updated_design_proposal
+                    print("[WARNING] 未找到JSON输出，保留原设计")
+                # 继续循环，尝试下一轮
+                continue
 
             # Step 3: 重新运行分析
             if verbose:
@@ -989,7 +1169,7 @@ class PlanningFlow:
         code_check: Dict
     ) -> str:
         """
-        使用LLM自动生成改进方案（不需要用户输入）
+        使用LLM自动生成改进方案（包含改进说明和完整JSON）
 
         Args:
             design_proposal: 设计提案字典
@@ -997,7 +1177,7 @@ class PlanningFlow:
             code_check: 规范检查结果字典
 
         Returns:
-            LLM生成的改进方案（简洁描述）
+            LLM生成的改进方案（改进说明 + JSON代码块）
         """
         if not self.api_key or self.api_key == 'your-api-key-here':
             return "错误：未配置 API key，请在 OpenManus config.toml 或项目 config.toml 中配置"
@@ -1008,15 +1188,19 @@ class PlanningFlow:
 
         # 获取设计参数
         results = analysis_results.get('results', {})
-        detailed_results = results.get('detailed_results', {})
+
+        # 获取允许修改的参数列表
+        allowed_params = self._get_allowed_params(design_proposal)
 
         # 构建LLM提示词
-        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出**简洁明确**的改进方案。
+        prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出**包含改进说明和更新后的完整设计JSON**。
 
 设计类型：{design_proposal.get('type', 'Unknown')}
 
 当前设计参数：
+```json
 {json.dumps(design_proposal, ensure_ascii=False, indent=2)}
+```
 
 分析结果摘要：
 - 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
@@ -1027,14 +1211,18 @@ class PlanningFlow:
 违规项详情：
 {json.dumps(violations, ensure_ascii=False, indent=2)}
 
-**要求**：
-1. 直接给出改进方案，不要分析原因
-2. 使用简洁的自然语言描述（如：增加截面高度到0.5m，改用C40混凝土）
-3. 只给出1-2个最关键的改进措施
-4. 不要使用JSON格式，使用自然语言
-5. 改进措施要具体、可执行
+**允许修改的参数**（只能修改以下参数，其他参数必须保持原值）：
+{allowed_params}
 
-请直接输出改进方案："""
+**要求**：
+1. 第一行输出"改进说明："后跟自然语言描述（供用户理解，例如"增大截面高度以降低应力"）。
+2. 空一行。
+3. 然后输出一个代码块，包含**更新后的完整设计JSON**，格式必须与输入的JSON完全一致（只修改允许的参数，且必须包含所有原有字段）。
+4. 不得引入系统不支持的参数（如"惯性矩"、"圆钢管"等）。
+5. 参数值必须在合理范围内（例如截面积不能为负）。
+6. 材料参数使用常用单位：fy使用MPa，E使用GPa（例如：fy=235表示235 MPa，E=200表示200 GPa）。
+
+请直接输出结果："""
 
         try:
             # Use OpenAI-compatible API (supports DeepSeek, OpenAI, etc.)
@@ -1048,8 +1236,8 @@ class PlanningFlow:
             response = client.chat.completions.create(
                 model=self.api_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,  # 限制输出长度，确保简洁
-                temperature=0.3  # 降低温度，使输出更确定
+                max_tokens=800,
+                temperature=0.3
             )
 
             return response.choices[0].message.content.strip()
