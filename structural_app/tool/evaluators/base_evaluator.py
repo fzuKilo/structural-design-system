@@ -380,6 +380,14 @@ class DesignEvaluator(ABC):
         # Call structure-specific construction checks
         structure_issues = self._check_structure_specific_construction(design, results)
 
+        # RAG enhancement: add standard citations if mixin is available
+        structure_type = design.get('type', '')
+        if hasattr(self, 'enhance_construction_issue_with_citation'):
+            structure_issues = [
+                self.enhance_construction_issue_with_citation(issue, structure_type)
+                for issue in structure_issues
+            ]
+
         # Deduct points based on severity
         for issue in structure_issues:
             severity = issue.get('severity', 'minor')

@@ -105,6 +105,14 @@ class PlanningFlow:
         # Test run timestamp for organizing output files
         self.test_timestamp = None
 
+        # Evaluation alert: skip drawing flag and alert thresholds
+        self.skip_drawing = False
+        try:
+            from structural_app.tool.evaluators.evaluator_config import ALERT_THRESHOLDS
+            self.alert_config = ALERT_THRESHOLDS
+        except ImportError:
+            self.alert_config = {"default": {"safety_severe": 60, "safety_warning": 70, "economy_severe": 60, "economy_warning": 70}}
+
     def _load_api_config(self) -> tuple:
         """
         Load API configuration from project config.toml.
@@ -543,26 +551,63 @@ class PlanningFlow:
             score = self.results['evaluation_report'].get('comprehensive_score', 0)
             print(f"[OK] Evaluation completed: {status}, Grade: {grade}, Score: {score}")
 
+        # Step 3.5: Evaluation Alert（预警与优化决策）
+        self.skip_drawing = False
+        if self.results["evaluation_report"]:
+            action = self._handle_evaluation_alert(self.results["evaluation_report"])
+
+            if action == "terminate":
+                if verbose:
+                    print("\n[PlanningFlow] 用户选择终止工作流")
+                return {"status": "terminated", "reason": "user_terminated_after_evaluation"}
+
+            elif action == "optimize":
+                if verbose:
+                    print("\n[PlanningFlow] 进入多方案优化...")
+                opt_design, opt_analysis, opt_evaluation = await self._parallel_optimization(
+                    self.results["design_proposal"],
+                    self.results["analysis_results"],
+                    self.results["evaluation_report"],
+                    verbose,
+                )
+                self.results["design_proposal"] = opt_design
+                self.results["analysis_results"] = opt_analysis
+                self.results["evaluation_report"] = opt_evaluation
+                self.skip_drawing = False
+
+            elif action == "report_only":
+                self.skip_drawing = True
+                if verbose:
+                    print("\n[PlanningFlow] 跳过绘图，直接生成报告")
+
+            # "continue": skip_drawing 保持 False，直接往下走
+
         # Step 4: CAD Drawing
-        if verbose:
-            print()
-            print("Step 4: Generating CAD drawings...")
-            print("-" * 40)
+        if not self.skip_drawing:
+            if verbose:
+                print()
+                print("Step 4: Generating CAD drawings...")
+                print("-" * 40)
 
-        drawing_request = self._build_drawing_request(
-            self.results["design_proposal"],
-            self.results["analysis_results"]
-        )
-        drawing_result = await self.drawing_agent.run(drawing_request)
-        self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
+            drawing_request = self._build_drawing_request(
+                self.results["design_proposal"],
+                self.results["analysis_results"]
+            )
+            drawing_result = await self.drawing_agent.run(drawing_request)
+            self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
 
-        if verbose:
-            if self.results["drawing_results"]:
-                status = self.results['drawing_results'].get('status', 'unknown')
-                print(f"[OK] CAD drawings generated: {status}")
-            else:
-                print(f"[WARNING] Failed to extract drawing results from response")
-                print(f"[DEBUG] Drawing agent response (first 500 chars): {str(drawing_result)[:500]}")
+            if verbose:
+                if self.results["drawing_results"]:
+                    status = self.results['drawing_results'].get('status', 'unknown')
+                    print(f"[OK] CAD drawings generated: {status}")
+                else:
+                    print(f"[WARNING] Failed to extract drawing results from response")
+                    print(f"[DEBUG] Drawing agent response (first 500 chars): {str(drawing_result)[:500]}")
+        else:
+            if verbose:
+                print()
+                print("Step 4: 跳过绘图（report_only 模式）")
+            self.results["drawing_results"] = {"status": "skipped", "files": {}}
 
         # Step 5: Report Generation
         if verbose:
@@ -690,6 +735,201 @@ class PlanningFlow:
         if not design_proposal:
             return "No design proposal available for analysis."
         return json.dumps(design_proposal, ensure_ascii=False)
+
+    def _handle_evaluation_alert(self, evaluation_report: Dict) -> str:
+        """
+        根据评估报告生成差异化预警，询问用户后续操作。
+        返回: "continue", "optimize", "report_only", "terminate"
+        无预警时直接返回 "continue"（不打印任何内容）。
+        """
+        design_proposal = self.results.get("design_proposal", {})
+        structure_type = design_proposal.get("type", "default")
+        thresholds = self.alert_config.get(structure_type, self.alert_config.get("default", {}))
+
+        score = evaluation_report.get("comprehensive_score", 0)
+        dimensions = evaluation_report.get("dimensions", {})
+
+        alerts = []
+        safety_score = dimensions.get("safety", {}).get("score", 100)
+        if safety_score < thresholds.get("safety_severe", 60):
+            alerts.append(("严重", "安全性", "安全性得分过低，存在安全风险，建议立即修改"))
+        elif safety_score < thresholds.get("safety_warning", 70):
+            alerts.append(("警告", "安全性", "安全性裕度较小，可考虑适当增大截面或提高材料强度"))
+
+        economy_score = dimensions.get("economy", {}).get("score", 100)
+        if economy_score < thresholds.get("economy_severe", 60):
+            alerts.append(("严重", "经济性", "经济性得分过低，材料浪费严重，建议优化截面尺寸"))
+        elif economy_score < thresholds.get("economy_warning", 70):
+            alerts.append(("警告", "经济性", "经济性一般，可尝试减小截面或优化配筋"))
+
+        if score < 70:
+            alerts.append(("不合格", "综合", f"综合得分 {score:.1f} 低于合格线70分，建议参考以上预警进行修改"))
+
+        if not alerts:
+            return "continue"
+
+        print("\n" + "=" * 60)
+        print("设计评估预警")
+        print("=" * 60)
+        for level, dim, msg in alerts:
+            print(f"[{level}] {dim}：{msg}")
+        print("=" * 60)
+        print("请选择后续操作：")
+        print("  1 - continue   : 继续生成图纸和完整报告")
+        print("  2 - optimize   : 尝试自动优化（推荐）")
+        print("  3 - report_only: 仅生成报告（跳过绘图）")
+        print("  4 - terminate  : 终止工作流")
+        print("=" * 60)
+
+        while True:
+            try:
+                choice = input("请输入选项 (1/2/3/4): ").strip().lower()
+                mapping = {
+                    "1": "continue", "continue": "continue",
+                    "2": "optimize", "optimize": "optimize",
+                    "3": "report_only", "report_only": "report_only",
+                    "4": "terminate", "terminate": "terminate",
+                }
+                if choice in mapping:
+                    return mapping[choice]
+                print("无效选项，请重新输入")
+            except (EOFError, KeyboardInterrupt):
+                print("\n用户中断，默认选择 continue")
+                return "continue"
+
+    async def _parallel_optimization(
+        self,
+        original_design: Dict,
+        original_analysis: Dict,
+        original_evaluation: Dict,
+        verbose: bool = True,
+    ) -> tuple:
+        """
+        顺序多方案优化：生成3个候选方案，依次分析评估，取最优方案。
+        使用顺序执行（非 asyncio.gather）避免 agent 内部 memory 并发写入问题。
+        返回 (best_design, best_analysis, best_evaluation)
+        """
+        candidate_descriptions = await self._generate_candidate_descriptions(
+            original_design, original_analysis, original_evaluation
+        )
+        if not candidate_descriptions:
+            if verbose:
+                print("[WARNING] 无法生成候选方案，保留原设计")
+            return original_design, original_analysis, original_evaluation
+
+        candidates = []
+        for i, desc in enumerate(candidate_descriptions):
+            if verbose:
+                print(f"\n[优化] 正在评估候选方案 {i+1}/{len(candidate_descriptions)}...")
+            new_design = await self._update_design_proposal_with_improvements(
+                original_design, desc, original_analysis
+            )
+            if new_design == original_design:
+                if verbose:
+                    print(f"[优化] 方案{i+1}未产生变化，跳过")
+                continue
+
+            analysis_req = self._build_analysis_request(new_design)
+            analysis_resp = await self.analysis_agent.run(analysis_req)
+            new_analysis = self._extract_analysis_results(analysis_resp)
+            if not new_analysis:
+                if verbose:
+                    print(f"[优化] 方案{i+1}分析失败，跳过")
+                continue
+
+            eval_req = self._build_evaluation_request(new_design, new_analysis)
+            eval_resp = await self.evaluation_agent.run(eval_req)
+            new_evaluation = self._extract_evaluation_report(eval_resp)
+            if not new_evaluation:
+                if verbose:
+                    print(f"[优化] 方案{i+1}评估失败，跳过")
+                continue
+
+            score = new_evaluation.get("comprehensive_score", 0)
+            if verbose:
+                print(f"[优化] 方案{i+1}得分：{score:.1f}")
+            candidates.append((new_design, new_analysis, new_evaluation))
+
+        if not candidates:
+            if verbose:
+                print("[WARNING] 所有候选方案均失败，保留原设计")
+            return original_design, original_analysis, original_evaluation
+
+        candidates.sort(key=lambda x: x[2].get("comprehensive_score", 0), reverse=True)
+        best_design, best_analysis, best_evaluation = candidates[0]
+        best_score = best_evaluation.get("comprehensive_score", 0)
+        orig_score = original_evaluation.get("comprehensive_score", 0)
+
+        print("\n" + "=" * 60)
+        print(f"优化完成：原始得分 {orig_score:.1f} → 推荐方案得分 {best_score:.1f}")
+        print("是否采用推荐方案？(y/n): ", end="")
+        try:
+            confirm = input().strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            confirm = "n"
+
+        if confirm == "y":
+            return best_design, best_analysis, best_evaluation
+        else:
+            print("[优化] 保留原设计")
+            return original_design, original_analysis, original_evaluation
+
+    async def _generate_candidate_descriptions(
+        self,
+        design: Dict,
+        analysis: Dict,
+        evaluation: Dict,
+    ) -> List[str]:
+        """使用 LLM 生成3个不同优化方向的方案描述（自然语言）"""
+        if not self.api_key or self.api_key == "your-api-key-here":
+            return []
+
+        structure_type = design.get("type", "default")
+        direction_prompts = {
+            "cantilever_beam": "请优先保证安全性（提高截面高度或材料强度），其次考虑经济性。",
+            "frame": "请优先保证安全性（提高柱截面或梁高），其次考虑经济性。",
+            "truss": "请优先提高经济性（优化杆件截面、减少用钢量），同时满足安全要求。",
+        }
+        direction = direction_prompts.get(structure_type, "请均衡提高安全性和经济性。")
+
+        results = analysis.get("results", {})
+        prompt = f"""你是一位结构工程专家。请为以下设计生成3个不同的优化方案描述，旨在提高综合得分（目前得分 {evaluation.get('comprehensive_score', 0):.1f}）。
+
+设计参数：
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+分析结果：
+最大应力 {results.get('max_stress_MPa', 'N/A')} MPa
+最大位移 {results.get('max_displacement_mm', 'N/A')} mm
+
+各维度得分：
+{json.dumps(evaluation.get('dimensions', {}), ensure_ascii=False, indent=2)}
+
+优化方向：{direction}
+
+要求：
+1. 每个方案是一句简洁的自然语言描述，例如"将梁高从0.6m增加到0.65m"或"改用C40混凝土"。
+2. 三个方案体现不同优化方向（一个侧重安全、一个侧重经济、一个均衡）。
+3. 直接输出3行，每行一个方案，不要序号和额外文字。"""
+
+        try:
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base_url if self.api_base_url else None
+            )
+            response = client.chat.completions.create(
+                model=self.api_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300,
+                temperature=0.7,
+            )
+            content = response.choices[0].message.content.strip()
+            lines = [line.strip() for line in content.split("\n") if line.strip()]
+            return lines[:3]
+        except Exception as e:
+            print(f"[ERROR] 生成候选方案失败: {e}")
+            return []
 
     def _ask_code_check_failure_action(self, code_check: dict, verbose: bool = True) -> str:
         """

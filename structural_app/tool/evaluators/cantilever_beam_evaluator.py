@@ -8,12 +8,14 @@ from typing import Dict, Any, List
 try:
     from .base_evaluator import DesignEvaluator
     from .evaluator_config import get_scoring_curves, get_construction_requirements
+    from .rag_enhanced_mixin import RAGEnhancedEvaluatorMixin
 except ImportError:
     from base_evaluator import DesignEvaluator
     from evaluator_config import get_scoring_curves, get_construction_requirements
+    from rag_enhanced_mixin import RAGEnhancedEvaluatorMixin
 
 
-class CantileverBeamEvaluator(DesignEvaluator):
+class CantileverBeamEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
     """
     Concrete evaluator for cantilever beam structures
 

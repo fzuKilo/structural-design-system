@@ -9,12 +9,14 @@ import numpy as np
 try:
     from .base_evaluator import DesignEvaluator
     from .evaluator_config import WEIGHTS_CONFIG, SCORING_CURVES, get_deflection_limit
+    from .rag_enhanced_mixin import RAGEnhancedEvaluatorMixin
 except ImportError:
     from base_evaluator import DesignEvaluator
     from evaluator_config import WEIGHTS_CONFIG, SCORING_CURVES, get_deflection_limit
+    from rag_enhanced_mixin import RAGEnhancedEvaluatorMixin
 
 
-class TrussEvaluator(DesignEvaluator):
+class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
     """
     Evaluator for truss structures
 

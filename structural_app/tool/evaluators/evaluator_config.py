@@ -213,3 +213,40 @@ def get_scoring_curves(structure_type: str) -> dict:
 def get_construction_requirements(structure_type: str) -> dict:
     """Get construction requirements for a structure type"""
     return CONSTRUCTION_REQUIREMENTS.get(structure_type, CONSTRUCTION_REQUIREMENTS['beam'])
+
+
+# ============================================================================
+# Alert Thresholds Configuration
+# ============================================================================
+
+ALERT_THRESHOLDS = {
+    "default": {
+        "safety_severe": 60,
+        "safety_warning": 70,
+        "economy_severe": 60,
+        "economy_warning": 70,
+    },
+    "cantilever_beam": {
+        "safety_severe": 65,
+        "safety_warning": 75,
+        "economy_severe": 55,
+        "economy_warning": 65,
+    },
+    "frame": {
+        "safety_severe": 65,
+        "safety_warning": 75,
+        "economy_severe": 55,
+        "economy_warning": 65,
+    },
+    "truss": {
+        "safety_severe": 55,
+        "safety_warning": 65,
+        "economy_severe": 65,
+        "economy_warning": 75,
+    },
+}
+
+
+def get_alert_thresholds(structure_type: str) -> dict:
+    """Get alert thresholds for a structure type"""
+    return ALERT_THRESHOLDS.get(structure_type, ALERT_THRESHOLDS["default"])

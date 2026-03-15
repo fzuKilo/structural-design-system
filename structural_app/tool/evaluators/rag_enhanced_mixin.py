@@ -18,6 +18,7 @@ class RAGEnhancedEvaluatorMixin:
 
     def __init__(self):
         """Initialize RAG engine (lazy loading)"""
+        super().__init__()
         self._rag_engine = None
         self._rag_enabled = False
 
