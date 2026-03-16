@@ -148,9 +148,6 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             # Last node: Roller support (y constrained, x and rotation free)
             ops.fix(total_nodes, 0, 1, 0)
 
-            # Define material and section
-            ops.section('Elastic', 1, E, A, Iz)
-
             # Define geometric transformation
             ops.geomTransf('Linear', 1)
 
@@ -301,6 +298,9 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             stress = (moment * c) / Iz
             stresses.append(stress)
 
+        ops.wipe()
+        self.model_built = False
+
         return AnalysisResults(
             max_displacement=max_displacement,
             max_stress=max_stress,
@@ -370,5 +370,6 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             'safety_factors': {
                 'deflection': round(deflection_sf, 2),
                 'stress': round(stress_sf, 2)
-            }
+            },
+            'summary': f"{'PASS' if not violations else 'FAIL'} - {len(violations)} violation(s) found"
         }
