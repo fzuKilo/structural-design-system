@@ -856,23 +856,142 @@ class PlanningFlow:
             return original_design, original_analysis, original_evaluation
 
         candidates.sort(key=lambda x: x[2].get("comprehensive_score", 0), reverse=True)
-        best_design, best_analysis, best_evaluation = candidates[0]
-        best_score = best_evaluation.get("comprehensive_score", 0)
-        orig_score = original_evaluation.get("comprehensive_score", 0)
 
-        print("\n" + "=" * 60)
-        print(f"优化完成：原始得分 {orig_score:.1f} → 推荐方案得分 {best_score:.1f}")
-        print("是否采用推荐方案？(y/n): ", end="")
-        try:
-            confirm = input().strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            confirm = "n"
+        # Display comparison table and let user choose
+        choice = self._display_optimization_comparison(
+            original_design, original_analysis, original_evaluation, candidates
+        )
 
-        if confirm == "y":
-            return best_design, best_analysis, best_evaluation
-        else:
+        if choice == 0:
             print("[优化] 保留原设计")
             return original_design, original_analysis, original_evaluation
+        else:
+            selected_design, selected_analysis, selected_evaluation = candidates[choice - 1]
+            selected_score = selected_evaluation.get("comprehensive_score", 0)
+            print(f"[优化] 已选择方案 {choice}（得分 {selected_score:.1f}）")
+            return selected_design, selected_analysis, selected_evaluation
+
+    def _display_optimization_comparison(
+        self,
+        original_design: Dict,
+        original_analysis: Dict,
+        original_evaluation: Dict,
+        candidates: List[tuple],
+    ) -> int:
+        """
+        Display comparison table of original design and candidate designs.
+        Returns user's choice: 0 = original, 1/2/3 = candidate index.
+        """
+        def get_section(design: Dict) -> str:
+            g = design.get("geometry", {})
+            w = g.get("width", "?")
+            h = g.get("height", "?")
+            return f"{w}×{h}"
+
+        def get_material(design: Dict) -> str:
+            return design.get("material", {}).get("material_name", "?")
+
+        def get_results(analysis: Dict) -> tuple:
+            r = analysis.get("results", {}) if analysis else {}
+            stress = r.get("max_stress_MPa", 0)
+            disp = r.get("max_displacement_mm", 0)
+            return stress, disp
+
+        def get_dim_score(evaluation: Dict, dim: str) -> str:
+            dims = evaluation.get("dimensions", {}) or {}
+            score = dims.get(dim, {}).get("score", None)
+            return f"{score:.1f}" if score is not None else "N/A"
+
+        # Build all columns: original + candidates
+        all_items = [(original_design, original_analysis, original_evaluation)] + candidates
+        headers = ["原方案"] + [f"方案{i+1}" for i in range(len(candidates))]
+
+        # Mark recommended (highest score among candidates)
+        best_idx = max(range(len(candidates)), key=lambda i: candidates[i][2].get("comprehensive_score", 0))
+        headers[best_idx + 1] += "★"
+
+        col_w = 14
+        sep = "=" * (10 + col_w * len(all_items))
+
+        print("\n" + sep)
+        print("多方案优化完成 - 请选择方案")
+        print(sep)
+
+        # Header row
+        row = f"{'':10}" + "".join(f"{h:>{col_w}}" for h in headers)
+        print(row)
+        print("-" * (10 + col_w * len(all_items)))
+
+        # Section row
+        row = f"{'截面(m)':10}" + "".join(f"{get_section(d):>{col_w}}" for d, _, __ in all_items)
+        print(row)
+
+        # Material row
+        row = f"{'材料':10}" + "".join(f"{get_material(d):>{col_w}}" for d, _, __ in all_items)
+        print(row)
+
+        print("-" * (10 + col_w * len(all_items)))
+
+        # Stress row
+        row = f"{'应力(MPa)':10}" + "".join(
+            f"{get_results(a)[0]:>{col_w}.2f}" for _, a, __ in all_items
+        )
+        print(row)
+
+        # Displacement row
+        row = f"{'位移(mm)':10}" + "".join(
+            f"{get_results(a)[1]:>{col_w}.2f}" for _, a, __ in all_items
+        )
+        print(row)
+
+        print("-" * (10 + col_w * len(all_items)))
+
+        # Dimension scores
+        dim_labels = [
+            ("economy", "经济性"),
+            ("structural_efficiency", "结构效率"),
+            ("safety", "安全性"),
+            ("sustainability", "可持续性"),
+        ]
+        for dim_key, dim_label in dim_labels:
+            row = f"{dim_label:10}" + "".join(
+                f"{get_dim_score(e, dim_key):>{col_w}}" for _, __, e in all_items
+            )
+            print(row)
+
+        print("-" * (10 + col_w * len(all_items)))
+
+        # Comprehensive score row
+        row = f"{'综合得分':10}" + "".join(
+            f"{e.get('comprehensive_score', 0):>{col_w}.1f}" for _, __, e in all_items
+        )
+        print(row)
+
+        # Grade row
+        row = f"{'等级':10}" + "".join(
+            f"{e.get('grade', 'N/A'):>{col_w}}" for _, __, e in all_items
+        )
+        print(row)
+
+        print(sep)
+        print(f"★ 推荐方案：方案{best_idx + 1}")
+        print(sep)
+
+        # User choice
+        valid = list(range(len(all_items)))
+        while True:
+            try:
+                prompt = f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案): "
+                raw = input(prompt).strip()
+                choice = int(raw)
+                if choice in valid:
+                    return choice
+                print(f"请输入 {valid} 中的数字")
+            except ValueError:
+                print("请输入有效数字")
+            except (EOFError, KeyboardInterrupt):
+                print(f"\n用户中断，默认选择推荐方案 {best_idx + 1}")
+                return best_idx + 1
 
     async def _generate_candidate_descriptions(
         self,
@@ -1492,10 +1611,28 @@ class PlanningFlow:
             import json
 
             # Pattern 1: Extract from fe_analysis tool output
-            pattern = r'fe_analysis.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
+            # Match JSON with flexible whitespace handling
+            pattern = r'fe_analysis.*?executed:\s*(\{[\s\S]*?\})\s*(?:Step|\Z|$)'
             matches = re.findall(pattern, response, re.DOTALL)
+
             if matches:
-                return json.loads(matches[-1])
+                # Try to parse all matches and prefer success results over error results
+                parsed_results = []
+                for match in matches:
+                    try:
+                        result = json.loads(match)
+                        parsed_results.append(result)
+                    except json.JSONDecodeError:
+                        continue
+
+                # Prefer success results
+                for result in reversed(parsed_results):
+                    if result.get('status') == 'success':
+                        return result
+
+                # If no success, return the last parsed result
+                if parsed_results:
+                    return parsed_results[-1]
 
             # Pattern 2: Find balanced JSON containing "status" field
             balanced_json = self._find_balanced_json_with_status(response)
@@ -1562,14 +1699,70 @@ class PlanningFlow:
             pattern = r'evaluation.*?executed:\s*(\{[\s\S]*?\n\})\s*(?:Step|\Z)'
             matches = re.findall(pattern, response, re.DOTALL)
             if matches:
-                return json.loads(matches[-1])
+                result = json.loads(matches[-1])
+                # If tool returned error, fallback to manual evaluation
+                if result.get('status') == 'error':
+                    manual_eval = self._extract_manual_evaluation(response)
+                    if manual_eval:
+                        return manual_eval
+                return result
 
             # Pattern 2: Find balanced JSON containing "status" field
             balanced_json = self._find_balanced_json_with_status(response)
             if balanced_json:
-                return json.loads(balanced_json)
+                result = json.loads(balanced_json)
+                if result.get('status') == 'error':
+                    manual_eval = self._extract_manual_evaluation(response)
+                    if manual_eval:
+                        return manual_eval
+                return result
 
+            # Pattern 3: Fallback to manual evaluation (Markdown)
+            return self._extract_manual_evaluation(response)
+
+        except Exception:
             return None
+
+    def _extract_manual_evaluation(self, response: str) -> Optional[Dict[str, Any]]:
+        """Extract evaluation from Agent's Markdown manual evaluation output."""
+        try:
+            import re
+
+            # Extract comprehensive score
+            score_pattern = r'(?:Comprehensive Score|综合得分)[:\s]*([0-9.]+)(?:/100)?'
+            score_match = re.search(score_pattern, response, re.IGNORECASE)
+
+            # Extract grade
+            grade_pattern = r'\*\*Grade[:\s]*([A-F][+\-]?)\*\*'
+            grade_match = re.search(grade_pattern, response, re.IGNORECASE)
+
+            if not score_match or not grade_match:
+                return None
+
+            score = float(score_match.group(1))
+            grade = grade_match.group(1)
+
+            # Extract dimension scores
+            dimensions = {}
+            dim_patterns = {
+                'economy': r'Economy.*?(?:Estimated )?Score[:\s]*([0-9.]+)',
+                'structural_efficiency': r'Structural Efficiency.*?(?:Estimated )?Score[:\s]*([0-9.]+)',
+                'safety': r'Safety.*?(?:Estimated )?Score[:\s]*([0-9.]+)',
+                'sustainability': r'Sustainability.*?(?:Estimated )?Score[:\s]*([0-9.]+)',
+            }
+            for dim_name, pattern in dim_patterns.items():
+                match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
+                if match:
+                    dimensions[dim_name] = {'score': float(match.group(1))}
+
+            return {
+                'status': 'success',
+                'comprehensive_score': score,
+                'grade': grade,
+                'dimensions': dimensions if dimensions else None,
+                'source': 'manual_evaluation',
+            }
+
         except Exception:
             return None
 

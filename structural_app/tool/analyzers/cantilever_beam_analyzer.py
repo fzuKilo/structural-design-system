@@ -119,9 +119,6 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
         ops.fix(1, 1, 1, 1)
         # All other nodes: Free (no constraints)
 
-        # Define material and section
-        ops.section('Elastic', 1, E, A, Iz)
-
         # Define geometric transformation
         ops.geomTransf('Linear', 1)
 
@@ -159,125 +156,144 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
                     ops.load(node_id, 0.0, force, 0.0)
 
         self.model_built = True
+        return True
 
-    def analyze(self) -> Dict[str, Any]:
+    def analyze(self) -> AnalysisResults:
         """
         Run finite element analysis
 
         Returns:
-            Dictionary containing analysis results
+            AnalysisResults object with all results
         """
         if not self.model_built:
-            raise RuntimeError("Model not built. Call build_model() first.")
+            return AnalysisResults(
+                max_displacement=0.0, max_stress=0.0, max_moment=0.0, max_shear=0.0,
+                displacements=[], stresses=[], moments=[], shears=[],
+                nodes=[], n_elements=0, structure_type=self.structure_type,
+                analysis_status='failed', error_message='Model not built'
+            )
 
-        # Create analysis
-        ops.system('BandGeneral')
-        ops.numberer('RCM')
-        ops.constraints('Plain')
-        ops.integrator('LoadControl', 1.0)
-        ops.algorithm('Linear')
-        ops.analysis('Static')
+        try:
+            ops.system('BandGeneral')
+            ops.numberer('RCM')
+            ops.constraints('Plain')
+            ops.integrator('LoadControl', 1.0)
+            ops.algorithm('Linear')
+            ops.analysis('Static')
 
-        # Run analysis
-        ok = ops.analyze(1)
+            ok = ops.analyze(1)
 
-        if ok != 0:
-            return {
-                'status': 'failed',
-                'error': 'Analysis failed to converge'
-            }
+            if ok != 0:
+                ops.wipe()
+                self.model_built = False
+                return AnalysisResults(
+                    max_displacement=0.0, max_stress=0.0, max_moment=0.0, max_shear=0.0,
+                    displacements=[], stresses=[], moments=[], shears=[],
+                    nodes=[], n_elements=0, structure_type=self.structure_type,
+                    analysis_status='failed', error_message='Analysis failed to converge'
+                )
 
-        # Extract results
-        geometry = self.design_params['geometry']
-        n_elements = geometry.get('n_elements', 20)
-        n_nodes = n_elements + 1
+            geometry = self.design_params['geometry']
+            n_elements = geometry.get('n_elements', 20)
+            n_nodes = n_elements + 1
+            length = geometry['length']
+            width = geometry['width']
+            height = geometry['height']
 
-        # Get displacements
-        displacements = []
-        for i in range(n_nodes):
-            disp = ops.nodeDisp(i + 1)
-            displacements.append(disp[1])  # y-displacement
+            # Node coordinates
+            nodes = [[i * length / n_elements, 0.0] for i in range(n_nodes)]
 
-        max_displacement = max(abs(d) for d in displacements)
+            # Displacements
+            displacements = [ops.nodeDisp(i + 1)[1] for i in range(n_nodes)]
+            max_displacement = max(abs(d) for d in displacements)
 
-        # Get element forces (moments and shears)
-        moments = []
-        shears = []
-        for i in range(n_elements):
-            forces = ops.eleForce(i + 1)
-            # For 2D beam: [N1, V1, M1, N2, V2, M2]
-            moment = max(abs(forces[2]), abs(forces[5]))
-            shear = max(abs(forces[1]), abs(forces[4]))
-            moments.append(moment)
-            shears.append(shear)
+            # Element forces
+            moments = []
+            shears = []
+            for i in range(n_elements):
+                forces = ops.eleForce(i + 1)
+                moments.append(max(abs(forces[2]), abs(forces[5])))
+                shears.append(max(abs(forces[1]), abs(forces[4])))
 
-        max_moment = max(moments)
-        max_shear = max(shears)
+            max_moment = max(moments)
+            max_shear = max(shears)
 
-        # Calculate stress
-        width = geometry['width']
-        height = geometry['height']
-        Iz = (width * height**3) / 12
-        c = height / 2
-        max_stress = (max_moment * c) / Iz
-        max_stress_MPa = max_stress / 1e6
+            # Stresses
+            Iz = (width * height**3) / 12
+            c = height / 2
+            stresses = [m * c / Iz for m in moments]
+            max_stress = max(stresses)
 
-        return {
-            'status': 'success',
-            'max_displacement': max_displacement,
-            'max_moment': max_moment,
-            'max_shear': max_shear,
-            'max_stress_MPa': max_stress_MPa,
-            'detailed_results': {
-                'displacements': displacements,
-                'moments': moments,
-                'shears': shears
-            }
-        }
+            ops.wipe()
+            self.model_built = False
 
-    def check_code(self, results: Dict[str, Any]) -> Dict[str, Any]:
+            return AnalysisResults(
+                max_displacement=max_displacement,
+                max_stress=max_stress,
+                max_moment=max_moment,
+                max_shear=max_shear,
+                displacements=displacements,
+                stresses=stresses,
+                moments=moments,
+                shears=shears,
+                nodes=nodes,
+                n_elements=n_elements,
+                structure_type=self.structure_type,
+                analysis_status='success',
+                geometry=self.design_params.get('geometry'),
+                material=self.design_params.get('material')
+            )
+
+        except Exception as e:
+            ops.wipe()
+            self.model_built = False
+            return AnalysisResults(
+                max_displacement=0.0, max_stress=0.0, max_moment=0.0, max_shear=0.0,
+                displacements=[], stresses=[], moments=[], shears=[],
+                nodes=[], n_elements=0, structure_type=self.structure_type,
+                analysis_status='failed', error_message=str(e)
+            )
+
+    def check_code(self, results: AnalysisResults) -> Dict[str, Any]:
         """
         Check design against code requirements (cantilever beam specific)
 
         Args:
-            results: Analysis results from analyze()
+            results: AnalysisResults from analyze()
 
         Returns:
             Dictionary containing code check results
         """
-        if results.get('status') != 'success':
+        if results.analysis_status != 'success':
             return {
                 'compliant': False,
                 'violations': ['Analysis failed'],
-                'safety_factors': {}
+                'safety_factors': {},
+                'summary': 'FAIL - Analysis failed'
             }
 
         geometry = self.design_params['geometry']
         material = self.design_params['material']
 
         length = geometry['length']
-        max_displacement = results['max_displacement']
-        max_stress_MPa = results['max_stress_MPa']
+        max_displacement = results.max_displacement
+        max_stress = results.max_stress
 
-        # Deflection limit for cantilever beam: L/200 (stricter than simply supported)
+        # Deflection limit for cantilever: L/200
         deflection_limit = length / 200
 
         # Stress limit
         fy = material.get('fy', 235e6)
-        fy_MPa = fy / 1e6
-        allowable_stress = fy_MPa / 1.5
+        allowable_stress = fy / 1.5
 
-        # Check compliance
         violations = []
         if max_displacement > deflection_limit:
             violations.append(f"Deflection exceeds limit: {max_displacement:.4f}m > {deflection_limit:.4f}m")
+        if max_stress > allowable_stress:
+            violations.append(f"Stress exceeds limit: {max_stress/1e6:.2f}MPa > {allowable_stress/1e6:.2f}MPa")
 
-        if max_stress_MPa > allowable_stress:
-            violations.append(f"Stress exceeds limit: {max_stress_MPa:.2f}MPa > {allowable_stress:.2f}MPa")
-
-        # Calculate safety factors
         deflection_sf = deflection_limit / max_displacement if max_displacement > 0 else float('inf')
-        stress_sf = allowable_stress / max_stress_MPa if max_stress_MPa > 0 else float('inf')
+        stress_sf = allowable_stress / max_stress if max_stress > 0 else float('inf')
 
         return {
             'compliant': len(violations) == 0,
@@ -285,5 +301,6 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
             'safety_factors': {
                 'deflection': round(deflection_sf, 2),
                 'stress': round(stress_sf, 2)
-            }
+            },
+            'summary': f"{'PASS' if not violations else 'FAIL'} - {len(violations)} violation(s) found"
         }
