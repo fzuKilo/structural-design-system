@@ -163,23 +163,150 @@ class BeamReporter(BaseReporter):
 
             comprehensive_score = evaluation.get('comprehensive_score', 0)
             grade = evaluation.get('grade', 'N/A')
+            dimensions = evaluation.get('dimensions', {}) or {}
 
+            report.append("| 项目 | 值 |")
+            report.append("|------|-----|")
             report.append(f"| 综合评分 | **{comprehensive_score:.1f} / 100** |")
             report.append(f"| 评估等级 | **{grade}** |")
             report.append("")
 
-            # Dimension scores
-            dimensions = evaluation.get('dimensions', {})
+            # Alert thresholds
+            SEVERE = 60
+            WARNING = 70
+
+            alerts = []
+            safety_score = dimensions.get('safety', {}).get('score', 100)
+            economy_score = dimensions.get('economy', {}).get('score', 100)
+            efficiency_score = dimensions.get('structural_efficiency', {}).get('score', 100)
+            sustainability_score = dimensions.get('sustainability', {}).get('score', 100)
+
+            if safety_score < SEVERE:
+                alerts.append(("🔴 严重", "安全性", f"得分 {safety_score:.1f}，存在安全风险，建议立即增大截面或提高材料强度"))
+            elif safety_score < WARNING:
+                alerts.append(("🟡 警告", "安全性", f"得分 {safety_score:.1f}，安全裕度较小，可适当增大截面"))
+            if economy_score < SEVERE:
+                alerts.append(("🔴 严重", "经济性", f"得分 {economy_score:.1f}，材料浪费严重，建议优化截面尺寸"))
+            elif economy_score < WARNING:
+                alerts.append(("🟡 警告", "经济性", f"得分 {economy_score:.1f}，材料利用率偏低，可尝试减小截面"))
+            if efficiency_score < SEVERE:
+                alerts.append(("🔴 严重", "结构效率", f"得分 {efficiency_score:.1f}，应力分布不均，建议优化截面形式"))
+            elif efficiency_score < WARNING:
+                alerts.append(("🟡 警告", "结构效率", f"得分 {efficiency_score:.1f}，截面利用率偏低"))
+            if sustainability_score < SEVERE:
+                alerts.append(("🔴 严重", "可持续性", f"得分 {sustainability_score:.1f}，碳排放强度过高，建议优化材料选型"))
+            elif sustainability_score < WARNING:
+                alerts.append(("🟡 警告", "可持续性", f"得分 {sustainability_score:.1f}，可考虑使用更环保的材料"))
+            if comprehensive_score < WARNING:
+                alerts.append(("❌ 不合格", "综合", f"综合得分 {comprehensive_score:.1f} 低于合格线 70 分，建议优化设计"))
+
+            if alerts:
+                report.append("### ⚠️ 预警信息")
+                report.append("")
+                report.append("| 级别 | 维度 | 说明 |")
+                report.append("|------|------|------|")
+                for level, dim, msg in alerts:
+                    report.append(f"| {level} | {dim} | {msg} |")
+                report.append("")
+
+            # Dimension detail analysis
             if dimensions:
                 report.append("### 3.1 评估维度")
                 report.append("")
-                report.append("| 维度 | 评分 |")
-                report.append("|------|------|")
-                report.append(f"| 经济性 | {dimensions.get('economy', {}).get('score', 0):.1f} |")
-                report.append(f"| 结构效率 | {dimensions.get('structural_efficiency', {}).get('score', 0):.1f} |")
-                report.append(f"| 安全性 | {dimensions.get('safety', {}).get('score', 0):.1f} |")
-                report.append(f"| 可持续性 | {dimensions.get('sustainability', {}).get('score', 0):.1f} |")
+                report.append("| 维度 | 评分 | 权重 |")
+                report.append("|------|------|------|")
+                report.append(f"| 经济性 | {economy_score:.1f} | 25% |")
+                report.append(f"| 结构效率 | {efficiency_score:.1f} | 20% |")
+                report.append(f"| 安全性 | {safety_score:.1f} | 40% |")
+                report.append(f"| 可持续性 | {sustainability_score:.1f} | 15% |")
                 report.append("")
+
+                # Economy indicators
+                econ_ind = dimensions.get('economy', {}).get('indicators', {})
+                if econ_ind:
+                    report.append("#### 经济性分析")
+                    report.append("")
+                    report.append("| 指标 | 值 | 说明 |")
+                    report.append("|------|-----|------|")
+                    util = econ_ind.get('comprehensive_utilization', None)
+                    if util is not None:
+                        report.append(f"| 综合利用率 | {util:.3f} | 应力+挠度综合利用率，越接近1越经济 |")
+                    stress_util = econ_ind.get('stress_utilization', None)
+                    if stress_util is not None:
+                        report.append(f"| 应力利用率 | {stress_util:.3f} | 实际应力/许用应力 |")
+                    defl_util = econ_ind.get('deflection_utilization', None)
+                    if defl_util is not None:
+                        report.append(f"| 挠度利用率 | {defl_util:.3f} | 实际挠度/限值挠度 |")
+                    mat_idx = econ_ind.get('material_usage_index', None)
+                    if mat_idx is not None:
+                        report.append(f"| 材料用量指数 | {mat_idx:.3f} | 实际用量/理论最小用量，越接近1越省料 |")
+                    vol = econ_ind.get('volume_m3', None)
+                    if vol is not None:
+                        report.append(f"| 截面体积 | {vol:.4f} m³ | |")
+                    report.append("")
+
+                # Efficiency indicators
+                eff_ind = dimensions.get('structural_efficiency', {}).get('indicators', {})
+                if eff_ind:
+                    report.append("#### 结构效率分析")
+                    report.append("")
+                    report.append("| 指标 | 值 | 说明 |")
+                    report.append("|------|-----|------|")
+                    avg_util = eff_ind.get('average_utilization', None)
+                    if avg_util is not None:
+                        report.append(f"| 平均应力利用率 | {avg_util:.3f} | 截面平均应力/许用应力 |")
+                    uniformity = eff_ind.get('utilization_uniformity', None)
+                    if uniformity is not None:
+                        report.append(f"| 利用率均匀性 | {uniformity:.3f} | 越接近1说明应力分布越均匀 |")
+                    report.append("")
+
+                # Safety indicators
+                safe_ind = dimensions.get('safety', {}).get('indicators', {})
+                if safe_ind:
+                    report.append("#### 安全性分析")
+                    report.append("")
+                    report.append("| 指标 | 值 | 说明 |")
+                    report.append("|------|-----|------|")
+                    str_score = safe_ind.get('strength_score', None)
+                    if str_score is not None:
+                        report.append(f"| 强度得分 | {str_score:.1f} | 基于应力利用率计算 |")
+                    stiff_score = safe_ind.get('stiffness_score', None)
+                    if stiff_score is not None:
+                        report.append(f"| 刚度得分 | {stiff_score:.1f} | 基于挠度利用率计算 |")
+                    min_sf = safe_ind.get('min_safety_factor', None)
+                    if min_sf is not None:
+                        sf_flag = "✓" if min_sf >= 1.0 else "✗"
+                        report.append(f"| 最小安全系数 | {min_sf:.2f} {sf_flag} | <1.0 表示不满足规范 |")
+                    constr_score = safe_ind.get('construction_score', None)
+                    if constr_score is not None:
+                        report.append(f"| 构造得分 | {constr_score:.1f} | 构造措施检查得分 |")
+                    constr_issues = safe_ind.get('construction_issues', [])
+                    report.append("")
+                    if constr_issues:
+                        report.append("**构造问题：**")
+                        report.append("")
+                        for issue in constr_issues:
+                            msg = issue.get('message', str(issue)) if isinstance(issue, dict) else str(issue)
+                            report.append(f"- {msg}")
+                        report.append("")
+
+                # Sustainability indicators
+                sust_ind = dimensions.get('sustainability', {}).get('indicators', {})
+                if sust_ind:
+                    report.append("#### 可持续性分析")
+                    report.append("")
+                    report.append("| 指标 | 值 | 说明 |")
+                    report.append("|------|-----|------|")
+                    carbon = sust_ind.get('carbon_emission_kg', None)
+                    if carbon is not None:
+                        report.append(f"| 碳排放量 | {carbon:.1f} kg CO₂ | |")
+                    intensity = sust_ind.get('carbon_intensity', None)
+                    if intensity is not None:
+                        report.append(f"| 碳排放强度 | {intensity:.4f} kg/kN·m | 越低越好 |")
+                    recyclability = sust_ind.get('recyclability_ratio', None)
+                    if recyclability is not None:
+                        report.append(f"| 可回收率 | {recyclability*100:.0f}% | |")
+                    report.append("")
 
             # Recommendations
             recommendations = evaluation.get('recommendations', [])

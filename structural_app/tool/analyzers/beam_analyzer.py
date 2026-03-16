@@ -363,7 +363,7 @@ class BeamAnalyzer(StructureAnalyzer):
         safety_factors['deflection'] = deflection_limit / results.max_displacement if results.max_displacement > 0 else float('inf')
 
         # Overall compliance
-        compliant = len([v for v in violations if v['severity'] == 'critical']) == 0
+        compliant = len(violations) == 0
 
         return {
             'compliant': compliant,

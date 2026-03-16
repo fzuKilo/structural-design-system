@@ -28,6 +28,7 @@ class DesignEvaluator(ABC):
 
     def __init__(self):
         """Initialize the evaluator"""
+        super().__init__()
         self.structure_type = self._get_structure_type()
 
     def _get_structure_type(self) -> str:
