@@ -886,20 +886,14 @@ class PlanningFlow:
         Returns user's choice: 0 = original, 1/2/3 = candidate index.
         """
         def get_section(design: Dict) -> str:
-            """Get section display string based on structure type"""
+            """Get section display string based on structure type (single line)"""
             structure_type = design.get("type", "")
             g = design.get("geometry", {})
             m = design.get("material", {})
 
             if structure_type == "frame":
-                # Frame: show column and beam sections separately
-                columns = g.get("columns", {})
-                beams = g.get("beams", {})
-                col_w = columns.get("width", "?")
-                col_d = columns.get("depth", "?")
-                beam_w = beams.get("width", "?")
-                beam_d = beams.get("depth", "?")
-                return f"{col_w}×{col_d}(柱)\n{beam_w}×{beam_d}(梁)"
+                # Frame: return empty, will be handled separately
+                return ""
 
             elif structure_type == "truss":
                 # Truss: show cross-sectional area
@@ -915,6 +909,28 @@ class PlanningFlow:
                 w = g.get("width", "?")
                 h = g.get("height", "?")
                 return f"{w}×{h}"
+
+        def get_column_section(design: Dict) -> str:
+            """Get column section for frame structures"""
+            structure_type = design.get("type", "")
+            if structure_type == "frame":
+                g = design.get("geometry", {})
+                columns = g.get("columns", {})
+                col_w = columns.get("width", "?")
+                col_d = columns.get("depth", "?")
+                return f"{col_w}×{col_d}"
+            return ""
+
+        def get_beam_section(design: Dict) -> str:
+            """Get beam section for frame structures"""
+            structure_type = design.get("type", "")
+            if structure_type == "frame":
+                g = design.get("geometry", {})
+                beams = g.get("beams", {})
+                beam_w = beams.get("width", "?")
+                beam_d = beams.get("depth", "?")
+                return f"{beam_w}×{beam_d}"
+            return ""
 
         def get_material(design: Dict) -> str:
             return design.get("material", {}).get("material_name", "?")
@@ -950,9 +966,19 @@ class PlanningFlow:
         print(row)
         print("-" * (10 + col_w * len(all_items)))
 
-        # Section row
-        row = f"{'截面(m)':10}" + "".join(f"{get_section(d):>{col_w}}" for d, _, __ in all_items)
-        print(row)
+        # Check if this is a frame structure (need separate column/beam rows)
+        is_frame = all_items[0][0].get("type", "") == "frame"
+
+        if is_frame:
+            # Frame: show column and beam sections separately
+            row = f"{'柱截面(m)':10}" + "".join(f"{get_column_section(d):>{col_w}}" for d, _, __ in all_items)
+            print(row)
+            row = f"{'梁截面(m)':10}" + "".join(f"{get_beam_section(d):>{col_w}}" for d, _, __ in all_items)
+            print(row)
+        else:
+            # Other structures: single section row
+            row = f"{'截面(m)':10}" + "".join(f"{get_section(d):>{col_w}}" for d, _, __ in all_items)
+            print(row)
 
         # Material row
         row = f"{'材料':10}" + "".join(f"{get_material(d):>{col_w}}" for d, _, __ in all_items)
