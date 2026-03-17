@@ -547,7 +547,27 @@ class BeamVisualizer(BaseVisualizer):
         ax.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
         ax.grid(True, alpha=0.3)
         ax.set_xlabel('Length (m)', fontsize=12)
-        ax.set_ylabel('Bending Moment', fontsize=12)
+
+        # Create secondary Y-axis to show actual moment values
+        ax2 = ax.twinx()
+
+        # Get current Y-axis ticks (scaled values)
+        y_ticks_scaled = ax.get_yticks()
+
+        # Convert scaled values back to actual moment values (kN·m)
+        # moment_y = -moments * moment_scale, so moments = -moment_y / moment_scale
+        y_ticks_actual = -y_ticks_scaled / moment_scale / 1000  # Convert to kN·m
+
+        # Set ticks and labels for secondary axis
+        ax2.set_yticks(y_ticks_scaled)
+        ax2.set_yticklabels([f'{val:.1f}' for val in y_ticks_actual])
+        ax2.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
+        ax2.set_ylabel('Bending Moment (kN·m)', fontsize=12)
+
+        # Hide primary Y-axis labels (keep grid)
+        ax.set_ylabel('')
+        ax.set_yticklabels([])
+
         ax.set_title('Bending Moment Diagram', fontsize=14, fontweight='bold')
         ax.legend(fontsize=11)
 
