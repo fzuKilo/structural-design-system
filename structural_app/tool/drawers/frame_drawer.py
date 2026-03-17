@@ -109,6 +109,7 @@ class FrameDrawer(StructureDrawer):
             # Create DXF document
             doc = ezdxf.new('R2010')
             msp = doc.modelspace()
+            self._setup_chinese_style(doc)
 
             # 1. Draw columns
             self._draw_all_columns(msp, num_bays, num_stories, bay_widths_mm,
@@ -246,6 +247,16 @@ class FrameDrawer(StructureDrawer):
                         (x + offset - 100, y - support_height - 100),
                         dxfattribs={'color': colors.BLACK})
 
+    def _setup_chinese_style(self, doc):
+        """Setup Chinese font style for the DXF document"""
+        try:
+            doc.styles.new('CHINESE', dxfattribs={'font': 'simhei.ttf'})
+        except Exception:
+            try:
+                doc.styles.new('CHINESE', dxfattribs={'font': 'simsun.ttc'})
+            except Exception:
+                doc.styles.new('CHINESE', dxfattribs={'font': 'Arial.ttf'})
+
     def _add_dimensions(self, msp, num_bays: int, num_stories: int,
                        bay_widths_mm: List[float], story_heights_mm: List[float]):
         """Add dimension annotations with proper spacing to avoid overlap.
@@ -253,12 +264,12 @@ class FrameDrawer(StructureDrawer):
         Layout (from y=0 downward):
           y=0       structure base (supports)
           y=-400    horizontal dimension line
-          y=-600    bay width text (L1=6.0m)
+          y=-620    bay width text (L1=6.0m)
           y=-1200   axis label circles (A, B, C...)
         """
         text_height = 150  # mm
-        dim_line_y = -400   # dimension line Y
-        dim_text_y = -620   # dimension text Y (below dimension line)
+        dim_line_y = -400
+        dim_text_y = -620
 
         # Dimension bay widths
         x = 0.0
@@ -272,28 +283,25 @@ class FrameDrawer(StructureDrawer):
             msp.add_line((x, dim_line_y), (x + width, dim_line_y),
                          dxfattribs={'color': colors.BLUE})
             # Bay width text
-            msp.add_text(
-                f'L{i+1}={width/1000:.1f}m',
-                dxfattribs={'height': text_height, 'color': colors.BLUE,
-                            'insert': (x_mid, dim_text_y),
-                            'halign': 4, 'valign': 0}
-            )
+            t = msp.add_text(f'L{i+1}={width/1000:.1f}m',
+                             dxfattribs={'height': text_height, 'color': colors.BLUE,
+                                         'style': 'CHINESE'})
+            t.set_placement((x_mid, dim_text_y), align=ezdxf.enums.TextEntityAlignment.CENTER)
             x += width
 
         # Right tick for last bay
         msp.add_line((x, dim_line_y + 100), (x, dim_line_y - 100),
                      dxfattribs={'color': colors.BLUE})
 
-        # Dimension story heights (right side, unchanged)
+        # Dimension story heights (right side)
         y = 0.0
         total_width = sum(bay_widths_mm)
         for i, height in enumerate(story_heights_mm):
-            msp.add_text(
-                f'H{i+1}={height/1000:.1f}m',
-                dxfattribs={'height': text_height, 'color': colors.BLUE,
-                            'insert': (total_width + 500, y + height/2),
-                            'halign': 0, 'valign': 0}
-            )
+            t = msp.add_text(f'H{i+1}={height/1000:.1f}m',
+                             dxfattribs={'height': text_height, 'color': colors.BLUE,
+                                         'style': 'CHINESE'})
+            t.set_placement((total_width + 500, y + height / 2),
+                            align=ezdxf.enums.TextEntityAlignment.LEFT)
             y += height
 
     def _add_axis_labels(self, msp, num_bays: int, bay_widths_mm: List[float]):
@@ -301,39 +309,36 @@ class FrameDrawer(StructureDrawer):
         axis_labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
         circle_radius = 200  # mm
         text_height = 150    # mm
-        circle_y = -1200     # below dimension line and text
+        circle_y = -1200
 
         x = 0.0
         for i in range(num_bays + 1):
-            # Draw circle
             msp.add_circle((x, circle_y), radius=circle_radius,
                            dxfattribs={'color': colors.BLACK})
-            # Add label
-            msp.add_text(
-                axis_labels[i] if i < len(axis_labels) else f'{i}',
-                dxfattribs={'height': text_height, 'color': colors.BLACK,
-                            'insert': (x, circle_y), 'halign': 4, 'valign': 0}
-            )
+            label = axis_labels[i] if i < len(axis_labels) else str(i + 1)
+            t = msp.add_text(label, dxfattribs={'height': text_height, 'color': colors.BLACK,
+                                                 'style': 'CHINESE'})
+            t.set_placement((x, circle_y), align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER)
             if i < num_bays:
                 x += bay_widths_mm[i]
 
     def _add_title_block(self, msp, total_width: float, total_height: float,
                         num_bays: int, num_stories: int):
-        """Add title block with frame information"""
+        """Add title block above the frame"""
         text_height = 200  # mm
-        y_pos = total_height + 1000
+        y_pos = total_height + 1500  # enough clearance above frame
 
-        msp.add_text(
-            f'框架结构立面图',
-            dxfattribs={'height': text_height * 1.5, 'color': colors.BLACK,
-                        'insert': (total_width/2, y_pos), 'halign': 4, 'valign': 0}
-        )
+        t = msp.add_text('框架结构立面图',
+                         dxfattribs={'height': text_height * 1.5, 'color': colors.BLACK,
+                                     'style': 'CHINESE'})
+        t.set_placement((total_width / 2, y_pos),
+                        align=ezdxf.enums.TextEntityAlignment.CENTER)
 
-        msp.add_text(
-            f'{num_bays}x{num_stories} Frame',
-            dxfattribs={'height': text_height, 'color': colors.BLUE,
-                        'insert': (total_width/2, y_pos - 500), 'halign': 4, 'valign': 0}
-        )
+        t2 = msp.add_text(f'{num_bays}x{num_stories} Frame',
+                          dxfattribs={'height': text_height, 'color': colors.BLUE,
+                                      'style': 'CHINESE'})
+        t2.set_placement((total_width / 2, y_pos - 500),
+                         align=ezdxf.enums.TextEntityAlignment.CENTER)
 
     def draw_plan(self, design: Dict[str, Any]) -> Optional[str]:
         """
