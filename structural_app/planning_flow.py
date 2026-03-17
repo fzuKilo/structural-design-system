@@ -347,12 +347,6 @@ class PlanningFlow:
         # Generate timestamp for output directory (at the start of test run)
         from datetime import datetime
         self.test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.main_output_dir = self.output_dir / f"e2e_test_{self.test_timestamp}"
-        self.main_output_dir.mkdir(parents=True, exist_ok=True)
-
-        if verbose:
-            print(f"[PlanningFlow] Output directory: {self.main_output_dir}")
-            print()
 
         # Step 1: Design Proposal
         if verbose:
@@ -364,6 +358,15 @@ class PlanningFlow:
 
         if verbose and self.results["design_proposal"]:
             print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
+
+        # Create output directory with structure type name
+        structure_type = self.results["design_proposal"].get("type", "unknown") if self.results["design_proposal"] else "unknown"
+        self.main_output_dir = self.output_dir / f"{structure_type}_{self.test_timestamp}"
+        self.main_output_dir.mkdir(parents=True, exist_ok=True)
+
+        if verbose:
+            print(f"[PlanningFlow] Output directory: {self.main_output_dir}")
+            print()
 
         # Step 1.5: Pre-check - Verify structure type is supported
         if self.results["design_proposal"]:
