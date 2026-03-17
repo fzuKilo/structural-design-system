@@ -75,7 +75,8 @@ class FrameReporter(BaseReporter):
         report.append("")
         report.append("| 项目 | 值 |")
         report.append("|------|-----|")
-        report.append(f"| 结构类型 | 框架 (Frame) |")
+        structure_type = design.get('type', 'frame')
+        report.append(f"| 结构类型 | {self.get_structure_display_name(structure_type)} |")
         report.append(f"| 跨数 | {geometry.get('num_bays', 0)} |")
         report.append(f"| 层数 | {geometry.get('num_stories', 0)} |")
 

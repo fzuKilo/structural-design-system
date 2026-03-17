@@ -73,3 +73,23 @@ class BaseReporter(ABC):
         else:
             self.output_dir = directory
         os.makedirs(self.output_dir, exist_ok=True)
+
+    @staticmethod
+    def get_structure_display_name(structure_type: str) -> str:
+        """
+        Get the display name for a structure type
+
+        Args:
+            structure_type: Structure type identifier (e.g., "beam", "cantilever_beam")
+
+        Returns:
+            Display name in Chinese and English (e.g., "简支梁 (Simply Supported Beam)")
+        """
+        type_display_map = {
+            "beam": "简支梁 (Simply Supported Beam)",
+            "cantilever_beam": "悬臂梁 (Cantilever Beam)",
+            "continuous_beam": "连续梁 (Continuous Beam)",
+            "frame": "框架 (Frame)",
+            "truss": "桁架 (Truss)",
+        }
+        return type_display_map.get(structure_type, structure_type.replace('_', ' ').title())
