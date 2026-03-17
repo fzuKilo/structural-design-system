@@ -271,10 +271,6 @@ class FEAnalysisTool(BaseTool):
                 'constraints': constraints
             }
 
-            # Debug: print design for continuous_beam
-            if structure_type == 'continuous_beam':
-                print(f"[DEBUG] Continuous beam design: {design}")
-
             # Run full analysis (validate -> build -> analyze -> check)
             result = analyzer.run_full_analysis(design)
 

@@ -39,12 +39,8 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
         Returns:
             Tuple of (is_valid, error_message)
         """
-        print(f"[DEBUG] ContinuousBeamAnalyzer.validate_design called")
-        print(f"[DEBUG] Design: {design}")
-
         # Call parent validation first
         is_valid, error_msg = super().validate_design(design)
-        print(f"[DEBUG] Parent validation: is_valid={is_valid}, error_msg={error_msg}")
         if not is_valid:
             return False, error_msg
 
@@ -88,13 +84,8 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             design: Design parameters including geometry, material, loads, constraints
         """
         try:
-            print(f"[DEBUG] ContinuousBeamAnalyzer.build_model called")
-            print(f"[DEBUG] Design keys: {design.keys()}")
-            print(f"[DEBUG] Geometry: {design.get('geometry')}")
-
             # Validate design first
             is_valid, error_msg = self.validate_design(design)
-            print(f"[DEBUG] Validation result: is_valid={is_valid}, error_msg={error_msg}")
             if not is_valid:
                 raise ValueError(f"Invalid design: {error_msg}")
 
