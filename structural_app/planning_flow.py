@@ -886,10 +886,35 @@ class PlanningFlow:
         Returns user's choice: 0 = original, 1/2/3 = candidate index.
         """
         def get_section(design: Dict) -> str:
+            """Get section display string based on structure type"""
+            structure_type = design.get("type", "")
             g = design.get("geometry", {})
-            w = g.get("width", "?")
-            h = g.get("height", "?")
-            return f"{w}×{h}"
+            m = design.get("material", {})
+
+            if structure_type == "frame":
+                # Frame: show column and beam sections separately
+                columns = g.get("columns", {})
+                beams = g.get("beams", {})
+                col_w = columns.get("width", "?")
+                col_d = columns.get("depth", "?")
+                beam_w = beams.get("width", "?")
+                beam_d = beams.get("depth", "?")
+                return f"{col_w}×{col_d}(柱)\n{beam_w}×{beam_d}(梁)"
+
+            elif structure_type == "truss":
+                # Truss: show cross-sectional area
+                A = m.get("A", "?")
+                if A != "?" and isinstance(A, (int, float)):
+                    # Convert m² to mm² for better readability
+                    A_mm2 = A * 1e6
+                    return f"{A_mm2:.0f}mm²"
+                return "?"
+
+            else:
+                # Beam types: show width × height
+                w = g.get("width", "?")
+                h = g.get("height", "?")
+                return f"{w}×{h}"
 
         def get_material(design: Dict) -> str:
             return design.get("material", {}).get("material_name", "?")
