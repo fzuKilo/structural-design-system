@@ -248,22 +248,43 @@ class FrameDrawer(StructureDrawer):
 
     def _add_dimensions(self, msp, num_bays: int, num_stories: int,
                        bay_widths_mm: List[float], story_heights_mm: List[float]):
-        """Add dimension annotations"""
-        # Dimension text height
+        """Add dimension annotations with proper spacing to avoid overlap.
+
+        Layout (from y=0 downward):
+          y=0       structure base (supports)
+          y=-400    horizontal dimension line
+          y=-600    bay width text (L1=6.0m)
+          y=-1200   axis label circles (A, B, C...)
+        """
         text_height = 150  # mm
+        dim_line_y = -400   # dimension line Y
+        dim_text_y = -620   # dimension text Y (below dimension line)
 
         # Dimension bay widths
         x = 0.0
         for i, width in enumerate(bay_widths_mm):
+            x_mid = x + width / 2
+
+            # Left tick
+            msp.add_line((x, dim_line_y + 100), (x, dim_line_y - 100),
+                         dxfattribs={'color': colors.BLUE})
+            # Horizontal dimension line
+            msp.add_line((x, dim_line_y), (x + width, dim_line_y),
+                         dxfattribs={'color': colors.BLUE})
+            # Bay width text
             msp.add_text(
                 f'L{i+1}={width/1000:.1f}m',
                 dxfattribs={'height': text_height, 'color': colors.BLUE,
-                            'insert': (x + width/2, -500),
+                            'insert': (x_mid, dim_text_y),
                             'halign': 4, 'valign': 0}
             )
             x += width
 
-        # Dimension story heights
+        # Right tick for last bay
+        msp.add_line((x, dim_line_y + 100), (x, dim_line_y - 100),
+                     dxfattribs={'color': colors.BLUE})
+
+        # Dimension story heights (right side, unchanged)
         y = 0.0
         total_width = sum(bay_widths_mm)
         for i, height in enumerate(story_heights_mm):
@@ -276,22 +297,23 @@ class FrameDrawer(StructureDrawer):
             y += height
 
     def _add_axis_labels(self, msp, num_bays: int, bay_widths_mm: List[float]):
-        """Add axis labels (A, B, C, ...)"""
+        """Add axis labels (A, B, C, ...) below dimension lines"""
         axis_labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
         circle_radius = 200  # mm
-        text_height = 150  # mm
+        text_height = 150    # mm
+        circle_y = -1200     # below dimension line and text
 
         x = 0.0
         for i in range(num_bays + 1):
             # Draw circle
-            msp.add_circle((x, -1000), radius=circle_radius, dxfattribs={'color': colors.BLACK})
+            msp.add_circle((x, circle_y), radius=circle_radius,
+                           dxfattribs={'color': colors.BLACK})
             # Add label
             msp.add_text(
                 axis_labels[i] if i < len(axis_labels) else f'{i}',
                 dxfattribs={'height': text_height, 'color': colors.BLACK,
-                            'insert': (x, -1000), 'halign': 4, 'valign': 0}
+                            'insert': (x, circle_y), 'halign': 4, 'valign': 0}
             )
-
             if i < num_bays:
                 x += bay_widths_mm[i]
 
