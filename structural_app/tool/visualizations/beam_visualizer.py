@@ -498,7 +498,10 @@ class BeamVisualizer(BaseVisualizer):
         ax.plot([0, length], [0, 0], 'k-', linewidth=3, label='Beam')
 
         # Draw moment diagram (downward is positive)
-        moment_scale = 0.00005  # Scale factor
+        # Adaptive scaling: target height ~2.0 for consistent visualization
+        max_moment = max(abs(moments)) if len(moments) > 0 else 1.0
+        target_height = 2.0  # Target diagram height
+        moment_scale = target_height / max_moment if max_moment > 0 else 0.00005
         moment_y = -moments * moment_scale
 
         # Fill moment diagram
@@ -535,8 +538,13 @@ class BeamVisualizer(BaseVisualizer):
                     bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
                     arrowprops=dict(arrowstyle='->', lw=2))
 
+        # Dynamic Y-axis range based on actual moment values
+        y_min = min(moment_y.min(), -support_size - 0.1)
+        y_max = max(moment_y.max(), 0.5)
+        y_range = y_max - y_min
+
         ax.set_xlim(-0.5, length + 0.5)
-        ax.set_ylim(-3, 0.5)
+        ax.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
         ax.grid(True, alpha=0.3)
         ax.set_xlabel('Length (m)', fontsize=12)
         ax.set_ylabel('Bending Moment', fontsize=12)
