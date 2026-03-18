@@ -289,13 +289,7 @@ class PlanningFlow:
 
     def _extract_json_from_text(self, text: str) -> dict:
         """
-        从文本中提取JSON，支持多种格式
-
-        Args:
-            text: 包含JSON的文本
-
-        Returns:
-            解析后的字典，失败返回None
+        从文本中提取JSON，支持对象和数组，支持多种格式
         """
         import re
 
@@ -303,18 +297,26 @@ class PlanningFlow:
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1).strip()
-            # 移除可能的注释
             json_str = re.sub(r'//.*?\n', '\n', json_str)
             try:
                 return json.loads(json_str)
             except json.JSONDecodeError:
                 pass
 
-        # 2. 尝试查找完整的JSON对象
+        # 2. 尝试查找JSON数组
+        json_match = re.search(r'(\[[\s\S]*\])', text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            json_str = re.sub(r'//.*?\n', '\n', json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+
+        # 3. 尝试查找JSON对象
         json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
-            # 移除注释
             json_str = re.sub(r'//.*?\n', '\n', json_str)
             try:
                 return json.loads(json_str)
@@ -812,21 +814,18 @@ class PlanningFlow:
         使用顺序执行（非 asyncio.gather）避免 agent 内部 memory 并发写入问题。
         返回 (best_design, best_analysis, best_evaluation)
         """
-        candidate_descriptions = await self._generate_candidate_descriptions(
+        candidate_designs = await self._generate_candidate_descriptions(
             original_design, original_analysis, original_evaluation
         )
-        if not candidate_descriptions:
+        if not candidate_designs:
             if verbose:
                 print("[WARNING] 无法生成候选方案，保留原设计")
             return original_design, original_analysis, original_evaluation
 
         candidates = []
-        for i, desc in enumerate(candidate_descriptions):
+        for i, new_design in enumerate(candidate_designs):
             if verbose:
-                print(f"\n[优化] 正在评估候选方案 {i+1}/{len(candidate_descriptions)}...")
-            new_design = await self._update_design_proposal_with_improvements(
-                original_design, desc, original_analysis
-            )
+                print(f"\n[优化] 正在评估候选方案 {i+1}/{len(candidate_designs)}...")
             if new_design == original_design:
                 if verbose:
                     print(f"[优化] 方案{i+1}未产生变化，跳过")
@@ -950,9 +949,10 @@ class PlanningFlow:
         all_items = [(original_design, original_analysis, original_evaluation)] + candidates
         headers = ["原方案"] + [f"方案{i+1}" for i in range(len(candidates))]
 
-        # Mark recommended (highest score among candidates)
-        best_idx = max(range(len(candidates)), key=lambda i: candidates[i][2].get("comprehensive_score", 0))
-        headers[best_idx + 1] += "★"
+        # Mark recommended (highest score among ALL options including original)
+        original_score = original_evaluation.get("comprehensive_score", 0)
+        best_overall_idx = max(range(len(all_items)), key=lambda i: all_items[i][2].get("comprehensive_score", 0))
+        headers[best_overall_idx] += "★"
 
         col_w = 14
         sep = "=" * (10 + col_w * len(all_items))
@@ -1028,7 +1028,10 @@ class PlanningFlow:
         print(row)
 
         print(sep)
-        print(f"★ 推荐方案：方案{best_idx + 1}")
+        if best_overall_idx == 0:
+            print("★ 推荐方案：原方案")
+        else:
+            print(f"★ 推荐方案：方案{best_overall_idx}")
         print(sep)
 
         # User choice
@@ -1044,31 +1047,49 @@ class PlanningFlow:
             except ValueError:
                 print("请输入有效数字")
             except (EOFError, KeyboardInterrupt):
-                print(f"\n用户中断，默认选择推荐方案 {best_idx + 1}")
-                return best_idx + 1
+                if best_overall_idx == 0:
+                    print("\n用户中断，默认选择原方案")
+                else:
+                    print(f"\n用户中断，默认选择推荐方案 {best_overall_idx}")
+                return best_overall_idx
 
     async def _generate_candidate_descriptions(
         self,
         design: Dict,
         analysis: Dict,
         evaluation: Dict,
-    ) -> List[str]:
-        """使用 LLM 生成3个不同优化方向的方案描述（自然语言）"""
+    ) -> List[Dict]:
+        """基于评估建议直接生成3个候选设计JSON（每个方案针对一个主要问题）"""
         if not self.api_key or self.api_key == "your-api-key-here":
             return []
 
-        structure_type = design.get("type", "default")
-        direction_prompts = {
-            "cantilever_beam": "请优先保证安全性（提高截面高度或材料强度），其次考虑经济性。",
-            "frame": "请优先保证安全性（提高柱截面或梁高），其次考虑经济性。",
-            "truss": "请优先提高经济性（优化杆件截面、减少用钢量），同时满足安全要求。",
-        }
-        direction = direction_prompts.get(structure_type, "请均衡提高安全性和经济性。")
-
         results = analysis.get("results", {})
-        prompt = f"""你是一位结构工程专家。请为以下设计生成3个不同的优化方案描述，旨在提高综合得分（目前得分 {evaluation.get('comprehensive_score', 0):.1f}）。
+        recommendations = evaluation.get("recommendations", [])
+        dimensions = evaluation.get("dimensions", {})
+        rec_text = "\n".join(f"- {r}" for r in recommendations) if recommendations else "无具体建议"
 
-设计参数：
+        economy_score = dimensions.get('economy', {}).get('score', 100)
+        safety_score = dimensions.get('safety', {}).get('score', 100)
+        efficiency_score = dimensions.get('structural_efficiency', {}).get('score', 100)
+        sustainability_score = dimensions.get('sustainability', {}).get('score', 100)
+
+        # 根据得分动态生成约束规则
+        constraint_rules = []
+        if economy_score < 70:
+            constraint_rules.append("- 经济性得分偏低：禁止将材料升级到更高强度等级（如C30→C50、Q235→Q345），优先通过减小截面尺寸（10%~25%）改善经济性")
+        if safety_score < 75:
+            constraint_rules.append("- 安全性得分偏低：禁止减小截面尺寸，禁止降级材料，必须增大截面或提升材料强度")
+        if efficiency_score < 60:
+            constraint_rules.append("- 结构效率偏低（利用率过低）：截面过于保守，应减小截面尺寸，禁止增大截面")
+        if sustainability_score < 60:
+            constraint_rules.append("- 可持续性偏低：优先减小截面降低用料量，不建议换钢材（碳排放更高），混凝土等级之间可以调整")
+        if safety_score < 75 and economy_score < 70:
+            constraint_rules.append("- 安全性与经济性同时偏低时：优先保证安全性，经济性让步")
+        constraint_text = "\n".join(constraint_rules) if constraint_rules else "- 无特殊约束，均衡优化各维度"
+
+        prompt = f"""你是一位结构工程专家。请根据以下评估建议，直接生成3个优化后的完整设计方案JSON。
+
+当前设计参数：
 {json.dumps(design, ensure_ascii=False, indent=2)}
 
 分析结果：
@@ -1076,14 +1097,34 @@ class PlanningFlow:
 最大位移 {results.get('max_displacement_mm', 'N/A')} mm
 
 各维度得分：
-{json.dumps(evaluation.get('dimensions', {}), ensure_ascii=False, indent=2)}
+经济性 {economy_score}
+结构效率 {efficiency_score}
+安全性 {safety_score}
+可持续性 {sustainability_score}
 
-优化方向：{direction}
+评估系统建议：
+{rec_text}
+
+【强制约束规则】（必须严格遵守）：
+{constraint_text}
+- 每个方案只修改1~2个参数，不要同时改截面+材料+跨度
+- 修改幅度限制在10%~30%，不要极端值
+- 三个方案之间参数不能完全相同
+- 每个方案分别针对不同问题（经济性、结构效率、可持续性），不要重复
+- 跨度（length）和荷载（load/distributed_load/point_load等）为用户输入的固定条件，禁止修改
 
 要求：
-1. 每个方案是一句简洁的自然语言描述，例如"将梁高从0.6m增加到0.65m"或"改用C40混凝土"。
-2. 三个方案体现不同优化方向（一个侧重安全、一个侧重经济、一个均衡）。
-3. 直接输出3行，每行一个方案，不要序号和额外文字。"""
+1. 生成3个方案，每个方案针对建议中的一个主要问题，优化方向必须与建议一致且符合上述约束规则。
+2. 每个方案输出完整的设计JSON，结构与原始设计完全一致，只修改相关参数。
+3. 材料参数单位：E使用Pa（如32500000000.0），fy使用Pa（如26800000.0）。
+4. 直接输出一个JSON数组，包含3个设计对象，不要包含任何其他文字。
+
+示例输出格式：
+[
+  {{...方案1完整JSON...}},
+  {{...方案2完整JSON...}},
+  {{...方案3完整JSON...}}
+]"""
 
         try:
             from openai import OpenAI
@@ -1094,12 +1135,54 @@ class PlanningFlow:
             response = client.chat.completions.create(
                 model=self.api_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
-                temperature=0.7,
+                max_tokens=2000,
+                temperature=0.5,
             )
             content = response.choices[0].message.content.strip()
-            lines = [line.strip() for line in content.split("\n") if line.strip()]
-            return lines[:3]
+            candidates = self._extract_json_from_text(content)
+            if isinstance(candidates, list) and len(candidates) > 0:
+                # validate each candidate
+                valid = []
+                for c in candidates[:3]:
+                    if isinstance(c, dict):
+                        ok, _ = self._validate_design_params(c)
+                        if ok:
+                            orig_mat = design.get('material', {})
+                            cand_mat = c.get('material', {})
+                            orig_geo = design.get('geometry', {})
+                            cand_geo = c.get('geometry', {})
+
+                            # 跨度和荷载为固定条件，强制回退
+                            for fixed_key in ('length', 'span'):
+                                if fixed_key in orig_geo and cand_geo.get(fixed_key) != orig_geo[fixed_key]:
+                                    cand_geo[fixed_key] = orig_geo[fixed_key]
+                            for load_key in ('load', 'distributed_load', 'point_load', 'loads'):
+                                if load_key in design and c.get(load_key) != design[load_key]:
+                                    c[load_key] = design[load_key]
+
+                            # 材料强度等级排序（越靠后越强）
+                            mat_rank = ['C20','C25','C30','C35','C40','C45','C50','C55','C60',
+                                        'Q235','Q345','Q390','Q420']
+                            orig_rank = mat_rank.index(orig_mat.get('name','C30')) if orig_mat.get('name') in mat_rank else 0
+                            cand_rank = mat_rank.index(cand_mat.get('name','C30')) if cand_mat.get('name') in mat_rank else 0
+
+                            # 经济性差：禁止升级材料
+                            if economy_score < 70 and cand_rank > orig_rank:
+                                cand_mat.update({k: orig_mat[k] for k in orig_mat})
+
+                            # 安全性差：禁止减小截面
+                            if safety_score < 75:
+                                for dim in ('width', 'height', 'area'):
+                                    if dim in orig_geo and dim in cand_geo:
+                                        if cand_geo[dim] < orig_geo[dim] * 0.99:
+                                            cand_geo[dim] = orig_geo[dim]
+
+                            # 过滤与原方案完全相同的候选
+                            if c == design:
+                                continue
+                            valid.append(c)
+                return valid
+            return []
         except Exception as e:
             print(f"[ERROR] 生成候选方案失败: {e}")
             return []
