@@ -284,76 +284,73 @@ class BeamVisualizer(BaseVisualizer):
 
     def _plot_displacement_cloud(self, nodes: np.ndarray, displacements: list, filepath: str, length: float):
         """
-        Plot displacement cloud with deformation visualization
+        Plot displacement cloud with deformation visualization.
+        Y-axis shows actual displacement in mm; deformation scale is dynamic.
         """
         displacements = np.array(displacements)
         n_elem = len(nodes) - 1
 
-        # Create deformed nodes (scale deformation for visibility)
-        scale = 1000  # Deformation scale factor
-        deformed_nodes = nodes.copy()
-        deformed_nodes[:, 1] += displacements * scale
+        # Dynamic scale: target display height ≈ span / 12
+        max_disp = np.max(np.abs(displacements))
+        if max_disp > 0:
+            target_display_height = length / 12  # metres
+            scale = target_display_height / max_disp
+        else:
+            scale = 1.0
 
-        # Create line segments and colors
+        # Deformed Y in metres (for geometry), but we label axis in mm
+        deformed_y_m = displacements * scale  # scaled metres (display only)
+
+        # Build deformed nodes for drawing
+        deformed_nodes = nodes.copy()
+        deformed_nodes[:, 1] = deformed_y_m
+
+        # Line segments coloured by actual displacement (m, converted to mm for colorbar)
         segments = []
         colors = []
-
         for i in range(n_elem):
-            segment = [deformed_nodes[i], deformed_nodes[i+1]]
-            segments.append(segment)
-            # Color based on displacement magnitude
-            color_value = abs(displacements[i])
-            colors.append(color_value)
+            segments.append([deformed_nodes[i], deformed_nodes[i+1]])
+            colors.append(abs(displacements[i]) * 1000)  # mm
 
-        # Create figure
         fig, ax = plt.subplots(figsize=(14, 6))
 
-        # Draw original shape (gray dashed line)
+        # Original shape
         ax.plot(nodes[:, 0], nodes[:, 1], 'k--', linewidth=1, alpha=0.3, label='Original Shape')
 
-        # Draw deformed shape with color cloud
+        # Deformed shape with colour cloud
         lc = LineCollection(segments, cmap='jet',
                             norm=Normalize(vmin=0, vmax=max(colors) if colors else 1),
                             linewidths=8)
         lc.set_array(np.array(colors))
-
         ax.add_collection(lc)
 
-        # Add colorbar
-        cbar = plt.colorbar(lc, ax=ax, label='Displacement (m)')
-        cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x*1000:.2f} mm'))
+        # Colorbar in mm
+        cbar = plt.colorbar(lc, ax=ax, label='Displacement (mm)')
+        cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.3f} mm'))
 
-        # Draw supports
-        support_size = 0.2
-        # Left support (fixed hinge)
-        triangle1 = patches.Polygon([[nodes[0, 0]-support_size/2, 0],
-                                      [nodes[0, 0]+support_size/2, 0],
-                                      [nodes[0, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle1)
-
-        # Right support (roller hinge)
-        triangle2 = patches.Polygon([[nodes[-1, 0]-support_size/2, 0],
-                                      [nodes[-1, 0]+support_size/2, 0],
-                                      [nodes[-1, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle2)
-        circle = patches.Circle((nodes[-1, 0], -support_size), support_size/3,
-                                facecolor='white', edgecolor='black')
-        ax.add_patch(circle)
-
-        # Calculate display range
-        y_min = min(deformed_nodes[:, 1].min(), -support_size - 0.1)
-        y_max = max(deformed_nodes[:, 1].max(), 0.5)
+        # Y-axis: replace scaled-metre ticks with actual mm values
+        y_min = deformed_nodes[:, 1].min()
+        y_max = deformed_nodes[:, 1].max()
         y_range = y_max - y_min
 
-        ax.set_xlim(-0.5, length + 0.5)
-        ax.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
-        ax.set_aspect('equal')
+        ax.set_xlim(-length * 0.08, length * 1.08)
+        ax.set_ylim(y_min - y_range * 0.15, y_max + y_range * 0.15)
+        ax.set_aspect('auto')  # not equal — beam is much longer than it deflects
         ax.grid(True, alpha=0.3)
-        ax.set_xlabel('Length (m)', fontsize=12)
-        ax.set_ylabel('Height (m)', fontsize=12)
-        ax.set_title(f'Displacement Cloud Plot (Deformation Scale: {scale}x)', fontsize=14, fontweight='bold')
+        ax.set_xlabel('Position along beam (m)', fontsize=12)
+
+        # Relabel Y ticks as mm values
+        yticks = ax.get_yticks()
+        ax.set_yticks(yticks)
+        if scale > 0:
+            ax.set_yticklabels([f'{v / scale * 1000:.2f}' for v in yticks])
+        ax.set_ylabel('Displacement (mm)', fontsize=12)
+
+        ax.set_title(
+            f'Displacement Cloud Plot  (scale factor: {scale:.0f}×,  '
+            f'max = {max_disp*1000:.3f} mm)',
+            fontsize=13, fontweight='bold'
+        )
         ax.legend()
 
         plt.tight_layout()
@@ -577,20 +574,30 @@ class BeamVisualizer(BaseVisualizer):
 
     def _plot_interactive_displacement(self, nodes: np.ndarray, displacements: list, filepath: str, n_elem: int):
         """
-        Plot interactive displacement cloud using Plotly
+        Plot interactive displacement cloud using Plotly.
+        Y-axis shows actual displacement in mm; deformation scale is dynamic.
         """
         if not PLOTLY_AVAILABLE:
             return
 
         displacements = np.array(displacements)
+        length = nodes[-1, 0] - nodes[0, 0]
 
-        # Create deformed coordinates (scale deformation)
-        scale = 1000
-        deformed_y = displacements * scale
+        # Dynamic scale: target display height ≈ span / 12
+        max_disp = np.max(np.abs(displacements))
+        if max_disp > 0:
+            scale = (length / 12) / max_disp
+        else:
+            scale = 1.0
+
+        # Deformed Y in display units (scaled metres), labelled as mm
+        deformed_y_display = displacements * scale  # scaled for display
+        # Actual mm values for hover
+        disp_mm = displacements * 1000
 
         fig = go.Figure()
 
-        # Add original shape (gray dashed line)
+        # Original shape
         fig.add_trace(go.Scatter(
             x=nodes[:, 0],
             y=nodes[:, 1],
@@ -600,31 +607,28 @@ class BeamVisualizer(BaseVisualizer):
             hoverinfo='skip'
         ))
 
-        # Add deformed colored segments
+        # Deformed coloured segments
+        max_abs = np.max(np.abs(displacements))
         for i in range(n_elem):
-            # Calculate color (based on displacement magnitude)
-            disp_value = abs(displacements[i])
-            color_intensity = disp_value / abs(displacements).max() if abs(displacements).max() > 0 else 0
-
+            color_intensity = abs(displacements[i]) / max_abs if max_abs > 0 else 0
             fig.add_trace(go.Scatter(
                 x=[nodes[i, 0], nodes[i+1, 0]],
-                y=[deformed_y[i], deformed_y[i+1]],
+                y=[deformed_y_display[i], deformed_y_display[i+1]],
                 mode='lines',
                 line=dict(
                     color=f'rgb({int(255*color_intensity)}, {int(100*(1-color_intensity))}, {int(255*(1-color_intensity))})',
                     width=8
                 ),
-                name=f'Element {i+1}',
                 hovertemplate=(
-                    f'<b>Element {i+1}</b><br>' +
-                    f'Position: %{{x:.2f}} m<br>' +
-                    f'Displacement: {abs(displacements[i])*1000:.3f} mm<br>' +
+                    f'<b>Element {i+1}</b><br>'
+                    f'Position: %{{x:.2f}} m<br>'
+                    f'Displacement: {disp_mm[i]:.3f} mm<br>'
                     '<extra></extra>'
                 ),
                 showlegend=False
             ))
 
-        # Add support markers
+        # Support markers
         fig.add_trace(go.Scatter(
             x=[nodes[0, 0], nodes[-1, 0]],
             y=[0, 0],
@@ -634,23 +638,38 @@ class BeamVisualizer(BaseVisualizer):
             hovertemplate='<b>Support</b><extra></extra>'
         ))
 
-        # Layout settings
+        # Y-axis tick labels: convert display units back to mm
+        y_range_display = deformed_y_display.min(), deformed_y_display.max()
+        y_pad = (y_range_display[1] - y_range_display[0]) * 0.2 or length * 0.05
+        y_lo = y_range_display[0] - y_pad
+        y_hi = y_range_display[1] + y_pad
+
+        # Generate ~6 evenly spaced ticks in display space, label as mm
+        import numpy as _np
+        tick_vals = list(_np.linspace(y_lo, y_hi, 6))
+        tick_text = [f'{v / scale * 1000:.3f} mm' for v in tick_vals]
+
         fig.update_layout(
             title=dict(
-                text=f'Interactive Displacement Cloud Plot (Deformation Scale: {scale}x)',
-                font=dict(size=18, family='Arial', color='black')
+                text=(
+                    f'Interactive Displacement Cloud Plot  '
+                    f'(scale factor: {scale:.0f}×,  max = {max_disp*1000:.3f} mm)'
+                ),
+                font=dict(size=16, family='Arial', color='black')
             ),
             xaxis=dict(
-                title='Length (m)',
+                title='Position along beam (m)',
                 gridcolor='lightgray',
                 showgrid=True
             ),
             yaxis=dict(
-                title='Height (m)',
+                title='Displacement (mm)',
                 gridcolor='lightgray',
                 showgrid=True,
-                scaleanchor='x',
-                scaleratio=1
+                range=[y_lo, y_hi],
+                tickvals=tick_vals,
+                ticktext=tick_text
+                # no scaleanchor — beam span >> deflection
             ),
             hovermode='closest',
             plot_bgcolor='white',
