@@ -1177,6 +1177,35 @@ class PlanningFlow:
                                         if cand_geo[dim] < orig_geo[dim] * 0.99:
                                             cand_geo[dim] = orig_geo[dim]
 
+                            # 桁架：n_panels变化时自动重算荷载节点编号
+                            if c.get('type') == 'truss':
+                                orig_n = orig_geo.get('n_panels')
+                                cand_n = cand_geo.get('n_panels')
+                                if orig_n and cand_n and orig_n != cand_n:
+                                    cand_loads = c.get('loads', {})
+                                    nodal = cand_loads.get('nodal', [])
+                                    if nodal:
+                                        # 节点编号规则：底弦 1~(n+1)，顶弦 (n+2)~(2n+2)
+                                        # 将原节点按位置比例映射到新节点编号
+                                        new_nodal = []
+                                        for nl in nodal:
+                                            old_node = nl['node']
+                                            # 判断是底弦还是顶弦
+                                            if old_node <= orig_n + 1:
+                                                # 底弦节点：保持相对位置（第i个底弦节点）
+                                                idx = old_node - 1  # 0-based index
+                                                ratio = idx / orig_n if orig_n > 0 else 0
+                                                new_node = max(1, min(cand_n + 1, round(ratio * cand_n) + 1))
+                                            else:
+                                                # 顶弦节点：偏移量 = old_node - (orig_n+2)
+                                                top_idx = old_node - (orig_n + 2)  # 0-based top chord index
+                                                ratio = top_idx / orig_n if orig_n > 0 else 0
+                                                new_node = (cand_n + 2) + round(ratio * cand_n)
+                                                new_node = max(cand_n + 2, min(2 * cand_n + 2, new_node))
+                                            new_nodal.append({**nl, 'node': new_node})
+                                        cand_loads['nodal'] = new_nodal
+                                        c['loads'] = cand_loads
+
                             # 过滤与原方案完全相同的候选
                             if c == design:
                                 continue
@@ -1911,9 +1940,16 @@ class PlanningFlow:
         drawing_results: Optional[Dict]
     ) -> str:
         """Build request for report generation agent."""
+        import copy
+        # 裁剪 detailed_results 中的大数组，避免超出工具参数长度限制
+        analysis_for_report = copy.deepcopy(analysis_results) if analysis_results else None
+        if analysis_for_report:
+            detailed = analysis_for_report.get('results', {}).get('detailed_results', {})
+            for key in ('displacements', 'stresses', 'moments', 'shears', 'nodes'):
+                detailed.pop(key, None)
         request = {
             "design_proposal": design_proposal,
-            "analysis_results": analysis_results,
+            "analysis_results": analysis_for_report,
             "evaluation_report": evaluation_report,
             "drawing_results": drawing_results,
         }

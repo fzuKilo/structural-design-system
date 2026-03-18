@@ -182,6 +182,12 @@ IMPORTANT:
 - **CRITICAL: The DesignProposal MUST include the "units" field** ("m" for meters or "mm" for millimeters)
 - Return the AnalysisResults exactly as provided by the fe_analysis tool
 
+ERROR RECOVERY (truss node errors):
+- If the fe_analysis tool returns an error like "no node with tag X exists in the model", this means the nodal load node IDs are inconsistent with n_panels.
+- For a truss with n_panels=N: bottom chord nodes are 1 to N+1, top chord nodes are N+2 to 2N+2.
+- Automatically fix the DesignProposal by recalculating all nodal load node IDs to match the current n_panels, then retry fe_analysis immediately.
+- Do NOT ask the user. Fix and retry silently.
+
 ANALYSIS WORKFLOW:
 1. Read the input request - IT IS the DesignProposal in JSON format
 2. Call the fe_analysis tool with the DesignProposal from the request
