@@ -288,7 +288,11 @@ class BeamReporter(BaseReporter):
                         report.append("")
                         for issue in constr_issues:
                             msg = issue.get('message', str(issue)) if isinstance(issue, dict) else str(issue)
-                            report.append(f"- {msg}")
+                            citation = issue.get('citation', '') if isinstance(issue, dict) else ''
+                            line = f"- {msg}"
+                            if citation:
+                                line += f"（依据：{citation}）"
+                            report.append(line)
                         report.append("")
 
                 # Sustainability indicators

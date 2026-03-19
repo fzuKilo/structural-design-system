@@ -279,6 +279,19 @@ class TrussReporter(BaseReporter):
                             report.append(f"| {label} | {val:.4f}{flag} | {desc} |")
                     report.append("")
 
+                    constr_issues = safe_ind.get('construction_issues', [])
+                    if constr_issues:
+                        report.append("**构造问题：**")
+                        report.append("")
+                        for issue in constr_issues:
+                            msg = issue.get('message', str(issue)) if isinstance(issue, dict) else str(issue)
+                            citation = issue.get('citation', '') if isinstance(issue, dict) else ''
+                            line = f"- {msg}"
+                            if citation:
+                                line += f"（依据：{citation}）"
+                            report.append(line)
+                        report.append("")
+
                 sust_ind = dimensions.get('sustainability', {}).get('indicators', {})
                 if sust_ind:
                     report.append("#### 可持续性分析")

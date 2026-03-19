@@ -335,7 +335,10 @@ class FrameReporter(BaseReporter):
                             severity = issue.get('severity', 'unknown') if isinstance(issue, dict) else ''
                             message = issue.get('message', str(issue)) if isinstance(issue, dict) else str(issue)
                             recommendation = issue.get('recommendation', '') if isinstance(issue, dict) else ''
+                            citation = issue.get('citation', '') if isinstance(issue, dict) else ''
                             report.append(f"- **{severity.upper()}**: {message}")
+                            if citation:
+                                report.append(f"  - 规范依据：{citation}")
                             if recommendation:
                                 report.append(f"  - 建议: {recommendation}")
                         report.append("")
