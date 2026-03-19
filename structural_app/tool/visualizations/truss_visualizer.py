@@ -72,7 +72,11 @@ class TrussVisualizer(BaseVisualizer):
         geometry = design.get('geometry', {})
         span = geometry.get('span') or geometry.get('length', 10.0)
         height = geometry.get('height', 2.0)
-        n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
+        # Infer n_panels from nodes array (bottom + top rows, each n_panels+1 nodes)
+        if nodes_data:
+            n_panels = len(nodes_data) // 2 - 1
+        else:
+            n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
 
         print(f"[TrussVisualizer] Data extracted:")
         print(f"  - Nodes: {len(nodes_data)} points")
@@ -162,7 +166,11 @@ class TrussVisualizer(BaseVisualizer):
         geometry = design.get('geometry', {})
         span = geometry.get('span') or geometry.get('length', 10.0)
         height = geometry.get('height', 2.0)
-        n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
+        # Infer n_panels from nodes array
+        if nodes_data:
+            n_panels = len(nodes_data) // 2 - 1
+        else:
+            n_panels = geometry.get('n_panels') or geometry.get('n_elements', 5)
 
         nodes = np.array(nodes_data) if nodes_data else np.array([])
 

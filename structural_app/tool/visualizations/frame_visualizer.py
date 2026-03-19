@@ -398,7 +398,16 @@ class FrameVisualizer(BaseVisualizer):
         labels, ratios = self._compute_drift(design, results)
         limit = 1.0 / 500
 
+        # 无水平荷载时层间位移角全为0，显示说明文字
+        has_lateral = any(r > 1e-9 for r in ratios)
         fig, ax = plt.subplots(figsize=(8, 6))
+        if not has_lateral:
+            ax.text(0.5, 0.5, 'No lateral load applied\nStory drift = 0',
+                    ha='center', va='center', fontsize=14, color='gray',
+                    transform=ax.transAxes)
+            ax.set_title('Story Drift Ratio Distribution')
+            return self._save_png(fig, 'story_drift', ts)
+
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
         bars = ax.bar(labels, ratios, color=colors, alpha=0.75,
                       edgecolor='black', linewidth=0.5)
@@ -416,6 +425,17 @@ class FrameVisualizer(BaseVisualizer):
     def _html_story_drift(self, design, results, node_coords) -> str:
         labels, ratios = self._compute_drift(design, results)
         limit = 1.0 / 500
+
+        # 无水平荷载时显示说明
+        has_lateral = any(r > 1e-9 for r in ratios)
+        if not has_lateral:
+            fig = go.Figure()
+            fig.add_annotation(text='No lateral load applied — Story drift = 0',
+                               xref='paper', yref='paper', x=0.5, y=0.5,
+                               showarrow=False, font=dict(size=16, color='gray'))
+            fig.update_layout(title='Story Drift Ratio Distribution')
+            return self._save_html(fig, 'story_drift_interactive')
+
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
 
         fig = go.Figure()

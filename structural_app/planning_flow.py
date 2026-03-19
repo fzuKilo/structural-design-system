@@ -1943,6 +1943,8 @@ class PlanningFlow:
         import copy
         # 裁剪 detailed_results 中的大数组，避免超出工具参数长度限制
         analysis_for_report = copy.deepcopy(analysis_results) if analysis_results else None
+        # 保留完整数组供 Visualizer 使用（裁剪前深拷贝）
+        analysis_results_full = copy.deepcopy(analysis_results) if analysis_results else None
         if analysis_for_report:
             detailed = analysis_for_report.get('results', {}).get('detailed_results', {})
             for key in ('displacements', 'stresses', 'moments', 'shears', 'nodes'):
@@ -1950,6 +1952,7 @@ class PlanningFlow:
         request = {
             "design_proposal": design_proposal,
             "analysis_results": analysis_for_report,
+            "analysis_results_full": analysis_results_full,
             "evaluation_report": evaluation_report,
             "drawing_results": drawing_results,
         }

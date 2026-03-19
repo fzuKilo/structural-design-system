@@ -279,7 +279,9 @@ REPORT GENERATION WORKFLOW:
             try:
                 request_obj = json.loads(request)
                 design_proposal = request_obj.get('design_proposal')
-                analysis_results = request_obj.get('analysis_results')
+                # Prefer full arrays for visualization; fall back to stripped version
+                analysis_results = (request_obj.get('analysis_results_full')
+                                    or request_obj.get('analysis_results'))
             except json.JSONDecodeError:
                 pass
 
