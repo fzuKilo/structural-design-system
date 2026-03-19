@@ -392,23 +392,6 @@ class BeamVisualizer(BaseVisualizer):
         cbar = plt.colorbar(lc, ax=ax, label='Bending Moment (N·m)')
         cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1000:.1f} kN·m'))
 
-        # Draw supports
-        support_size = 0.2
-        triangle1 = patches.Polygon([[nodes[0, 0]-support_size/2, 0],
-                                      [nodes[0, 0]+support_size/2, 0],
-                                      [nodes[0, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle1)
-
-        triangle2 = patches.Polygon([[nodes[-1, 0]-support_size/2, 0],
-                                      [nodes[-1, 0]+support_size/2, 0],
-                                      [nodes[-1, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle2)
-        circle = patches.Circle((nodes[-1, 0], -support_size), support_size/3,
-                                facecolor='white', edgecolor='black')
-        ax.add_patch(circle)
-
         ax.set_xlim(-0.5, length + 0.5)
         ax.set_ylim(-0.5, 0.5)
         ax.set_aspect('equal')
@@ -448,23 +431,6 @@ class BeamVisualizer(BaseVisualizer):
         cbar = plt.colorbar(lc, ax=ax, label='Bending Stress (Pa)')
         cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.2f} MPa'))
 
-        # Draw supports
-        support_size = 0.2
-        triangle1 = patches.Polygon([[nodes[0, 0]-support_size/2, 0],
-                                      [nodes[0, 0]+support_size/2, 0],
-                                      [nodes[0, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle1)
-
-        triangle2 = patches.Polygon([[nodes[-1, 0]-support_size/2, 0],
-                                      [nodes[-1, 0]+support_size/2, 0],
-                                      [nodes[-1, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle2)
-        circle = patches.Circle((nodes[-1, 0], -support_size), support_size/3,
-                                facecolor='white', edgecolor='black')
-        ax.add_patch(circle)
-
         ax.set_xlim(-0.5, length + 0.5)
         ax.set_ylim(-0.5, 0.5)
         ax.set_aspect('equal')
@@ -479,92 +445,70 @@ class BeamVisualizer(BaseVisualizer):
 
     def _plot_moment_diagram(self, nodes: np.ndarray, moments: list, filepath: str, length: float, n_elem: int):
         """
-        Plot traditional moment diagram with fill and annotation
+        Plot traditional moment diagram with smooth curve via spline interpolation
         """
+        from scipy.interpolate import make_interp_spline
+
         moments = np.array(moments)
 
-        # Calculate element centers
-        elem_centers_x = []
-        for i in range(n_elem):
-            center_x = (nodes[i, 0] + nodes[i+1, 0]) / 2
-            elem_centers_x.append(center_x)
+        # Element center x-coordinates
+        elem_centers_x = np.array([(nodes[i, 0] + nodes[i+1, 0]) / 2 for i in range(n_elem)])
+
+        # Spline interpolation for smooth curve
+        if len(elem_centers_x) >= 4:
+            k = min(3, len(elem_centers_x) - 1)
+            spline = make_interp_spline(elem_centers_x, moments, k=k)
+            x_smooth = np.linspace(elem_centers_x[0], elem_centers_x[-1], 300)
+            m_smooth = spline(x_smooth)
+        else:
+            x_smooth = elem_centers_x
+            m_smooth = moments
 
         fig, ax = plt.subplots(figsize=(14, 6))
 
         # Draw beam outline
         ax.plot([0, length], [0, 0], 'k-', linewidth=3, label='Beam')
 
-        # Draw moment diagram (downward is positive)
-        # Adaptive scaling: target height ~2.0 for consistent visualization
-        max_moment = max(abs(moments)) if len(moments) > 0 else 1.0
-        target_height = 2.0  # Target diagram height
-        moment_scale = target_height / max_moment if max_moment > 0 else 0.00005
-        moment_y = -moments * moment_scale
+        # Adaptive scaling
+        max_moment = max(abs(m_smooth)) if len(m_smooth) > 0 else 1.0
+        moment_scale = 2.0 / max_moment if max_moment > 0 else 1.0
+        moment_y_smooth = -m_smooth * moment_scale
 
-        # Fill moment diagram
-        ax.fill_between(elem_centers_x, 0, moment_y, alpha=0.6, color='red', label='Bending Moment')
-        ax.plot(elem_centers_x, moment_y, 'r-', linewidth=2)
+        # Fill and line using smooth data
+        ax.fill_between(x_smooth, 0, moment_y_smooth, alpha=0.6, color='red', label='Bending Moment')
+        ax.plot(x_smooth, moment_y_smooth, 'r-', linewidth=2)
 
-        # Draw supports
-        support_size = 0.3
-        triangle1 = patches.Polygon([[nodes[0, 0]-support_size/2, 0],
-                                      [nodes[0, 0]+support_size/2, 0],
-                                      [nodes[0, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle1)
-
-        triangle2 = patches.Polygon([[nodes[-1, 0]-support_size/2, 0],
-                                      [nodes[-1, 0]+support_size/2, 0],
-                                      [nodes[-1, 0], -support_size]],
-                                     closed=True, facecolor='gray', edgecolor='black')
-        ax.add_patch(triangle2)
-        circle = patches.Circle((nodes[-1, 0], -support_size), support_size/3,
-                                facecolor='white', edgecolor='black')
-        ax.add_patch(circle)
-
-        # Annotate maximum moment
-        max_moment_idx = np.argmax(moments)
-        max_moment = moments[max_moment_idx]
+        # Annotate maximum moment (from original data)
+        max_moment_idx = np.argmax(np.abs(moments))
+        max_moment_val = moments[max_moment_idx]
         max_moment_x = elem_centers_x[max_moment_idx]
-        max_moment_y = moment_y[max_moment_idx]
-        ax.annotate(f'Max M = {max_moment/1000:.2f} kN·m',
+        max_moment_y = -max_moment_val * moment_scale
+        ax.annotate(f'Max M = {max_moment_val/1000:.2f} kN·m',
                     xy=(max_moment_x, max_moment_y),
                     xytext=(max_moment_x, max_moment_y - 0.5),
-                    fontsize=12, fontweight='bold',
-                    ha='center',
+                    fontsize=12, fontweight='bold', ha='center',
                     bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
                     arrowprops=dict(arrowstyle='->', lw=2))
 
-        # Dynamic Y-axis range based on actual moment values
-        y_min = min(moment_y.min(), -support_size - 0.1)
-        y_max = max(moment_y.max(), 0.5)
+        y_min = moment_y_smooth.min()
+        y_max = max(moment_y_smooth.max(), 0.5)
         y_range = y_max - y_min
 
         ax.set_xlim(-0.5, length + 0.5)
-        ax.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
+        ax.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.1)
         ax.grid(True, alpha=0.3)
         ax.set_xlabel('Length (m)', fontsize=12)
 
-        # Create secondary Y-axis to show actual moment values
         ax2 = ax.twinx()
-
-        # Get current Y-axis ticks (scaled values)
         y_ticks_scaled = ax.get_yticks()
-
-        # Convert scaled values back to actual moment values (kN·m)
-        # moment_y = -moments * moment_scale, so moments = -moment_y / moment_scale
-        y_ticks_actual = -y_ticks_scaled / moment_scale / 1000  # Convert to kN·m
-
-        # Set ticks and labels for secondary axis
+        y_ticks_actual = -y_ticks_scaled / moment_scale / 1000
         ax2.set_yticks(y_ticks_scaled)
         ax2.set_yticklabels([f'{val:.1f}' for val in y_ticks_actual])
-        ax2.set_ylim(y_min - y_range*0.1, y_max + y_range*0.1)
+        ax2.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.1)
         ax2.set_ylabel('Bending Moment (kN·m)', fontsize=12)
 
-        # Hide primary Y-axis labels (keep grid)
         ax.set_ylabel('')
         ax.set_yticklabels([])
-
         ax.set_title('Bending Moment Diagram', fontsize=14, fontweight='bold')
         ax.legend(fontsize=11)
 
@@ -627,16 +571,6 @@ class BeamVisualizer(BaseVisualizer):
                 ),
                 showlegend=False
             ))
-
-        # Support markers
-        fig.add_trace(go.Scatter(
-            x=[nodes[0, 0], nodes[-1, 0]],
-            y=[0, 0],
-            mode='markers',
-            marker=dict(size=15, color='black', symbol='triangle-down'),
-            name='Supports',
-            hovertemplate='<b>Support</b><extra></extra>'
-        ))
 
         # Y-axis tick labels: convert display units back to mm
         y_range_display = deformed_y_display.min(), deformed_y_display.max()
@@ -719,16 +653,6 @@ class BeamVisualizer(BaseVisualizer):
                 ),
                 showlegend=False
             ))
-
-        # Add support markers
-        fig.add_trace(go.Scatter(
-            x=[nodes[0, 0], nodes[-1, 0]],
-            y=[0, 0],
-            mode='markers',
-            marker=dict(size=15, color='black', symbol='triangle-down'),
-            name='Supports',
-            hovertemplate='<b>Support</b><extra></extra>'
-        ))
 
         # Annotate maximum moment
         max_moment_idx = np.argmax(moments)
@@ -817,16 +741,6 @@ class BeamVisualizer(BaseVisualizer):
                 ),
                 showlegend=False
             ))
-
-        # Add support markers
-        fig.add_trace(go.Scatter(
-            x=[nodes[0, 0], nodes[-1, 0]],
-            y=[0, 0],
-            mode='markers',
-            marker=dict(size=15, color='black', symbol='triangle-down'),
-            name='Supports',
-            hovertemplate='<b>Support</b><extra></extra>'
-        ))
 
         # Annotate maximum stress
         max_stress_idx = np.argmax(stresses)
