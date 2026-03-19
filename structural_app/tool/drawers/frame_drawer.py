@@ -389,10 +389,17 @@ class FrameDrawer(StructureDrawer):
 
             doc = ezdxf.new('R2010')
             msp = doc.modelspace()
+            self._setup_chinese_style(doc)
 
-            # Column section on the left, beam section on the right
-            self._draw_section(msp, 0, 0, col_w, col_d, 'Column Section')
-            self._draw_section(msp, col_w * 3, 0, beam_w, beam_d, 'Beam Section')
+            # 两截面间距 = 较大截面宽度的 3 倍，确保尺寸线和文字不重叠
+            gap = max(col_w, beam_w) * 3
+            total_w = col_w + gap + beam_w
+            # 内容整体居中于原点，让默认视口能看到
+            col_cx = -total_w / 2 + col_w / 2
+            beam_cx = col_cx + col_w / 2 + gap + beam_w / 2
+
+            self._draw_section(msp, col_cx, 0, col_w, col_d, '柱截面')
+            self._draw_section(msp, beam_cx, 0, beam_w, beam_d, '梁截面')
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join(str(self.output_dir), f"frame_details_{timestamp}.dxf")
@@ -435,30 +442,28 @@ class FrameDrawer(StructureDrawer):
         msp.add_line((x1, y0), (x0, y1), dxfattribs={'color': 8})
 
         # Width dimension line (below)
-        dim_y = y0 - depth * 0.3
+        dim_y = y0 - depth * 0.5
         msp.add_line((x0, dim_y), (x1, dim_y), dxfattribs={'color': colors.BLUE})
         msp.add_line((x0, y0), (x0, dim_y), dxfattribs={'color': colors.BLUE})
         msp.add_line((x1, y0), (x1, dim_y), dxfattribs={'color': colors.BLUE})
-        msp.add_text(
-            f'b={width/1000:.3f}m',
-            dxfattribs={'height': text_h, 'color': colors.BLUE,
-                        'insert': (cx, dim_y - text_h * 1.5), 'halign': 4, 'valign': 0}
-        )
+        t_w = msp.add_text(f'宽={width/1000:.3f}m',
+                           dxfattribs={'height': text_h, 'color': colors.BLUE, 'style': 'CHINESE'})
+        t_w.set_placement((cx, dim_y - text_h * 2.5),
+                          align=ezdxf.enums.TextEntityAlignment.CENTER)
 
         # Depth dimension line (right side)
-        dim_x = x1 + width * 0.3
+        dim_x = x1 + width * 0.5
         msp.add_line((dim_x, y0), (dim_x, y1), dxfattribs={'color': colors.BLUE})
         msp.add_line((x1, y0), (dim_x, y0), dxfattribs={'color': colors.BLUE})
         msp.add_line((x1, y1), (dim_x, y1), dxfattribs={'color': colors.BLUE})
-        msp.add_text(
-            f'd={depth/1000:.3f}m',
-            dxfattribs={'height': text_h, 'color': colors.BLUE,
-                        'insert': (dim_x + text_h * 0.5, cy), 'halign': 0, 'valign': 0}
-        )
+        t_d = msp.add_text(f'高={depth/1000:.3f}m',
+                           dxfattribs={'height': text_h, 'color': colors.BLUE, 'style': 'CHINESE'})
+        t_d.set_placement((dim_x + text_h * 1.5, cy),
+                          align=ezdxf.enums.TextEntityAlignment.LEFT)
 
         # Title above
-        msp.add_text(
-            title,
-            dxfattribs={'height': text_h * 1.2, 'color': colors.BLACK,
-                        'insert': (cx, y1 + text_h * 1.5), 'halign': 4, 'valign': 0}
-        )
+        t_title = msp.add_text(title,
+                               dxfattribs={'height': text_h * 1.2, 'color': colors.BLACK,
+                                           'style': 'CHINESE'})
+        t_title.set_placement((cx, y1 + text_h * 2.5),
+                              align=ezdxf.enums.TextEntityAlignment.CENTER)
