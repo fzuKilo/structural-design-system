@@ -50,12 +50,10 @@ class RAGEngine:
         try:
             import chromadb
 
-            # Create ChromaDB client (new API)
             self.client = chromadb.PersistentClient(
                 path=str(self.persist_directory)
             )
 
-            # Get or create collection
             self.collection = self.client.get_or_create_collection(
                 name=self.collection_name,
                 metadata={"description": "Structural design standards and regulations"}
@@ -214,48 +212,37 @@ class RAGEngine:
 
         return self.query(query_text, n_results=n_results)
 
-    def _split_text(self, text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
+    def _split_text(self, text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]:
         """
-        Split text into chunks with overlap
-
-        Args:
-            text: Text to split
-            chunk_size: Maximum chunk size in characters
-            overlap: Overlap between chunks in characters
-
-        Returns:
-            List of text chunks
+        Split text into chunks by markdown section headings first,
+        then by size if a section is still too large.
         """
         if not text:
             return []
 
+        import re
+        # Split on ## or ### headings to keep each section together
+        sections = re.split(r'(?=\n#{1,3} )', text)
         chunks = []
-        start = 0
-        text_length = len(text)
-
-        while start < text_length:
-            end = start + chunk_size
-
-            # Try to break at paragraph or sentence boundary
-            if end < text_length:
-                # Look for paragraph break
-                paragraph_break = text.rfind('\n\n', start, end)
-                if paragraph_break > start:
-                    end = paragraph_break
-                else:
-                    # Look for sentence break
-                    sentence_break = text.rfind('。', start, end)
-                    if sentence_break == -1:
-                        sentence_break = text.rfind('.', start, end)
-                    if sentence_break > start:
-                        end = sentence_break + 1
-
-            chunk = text[start:end].strip()
-            if chunk:
-                chunks.append(chunk)
-
-            start = end - overlap if end < text_length else text_length
-
+        for section in sections:
+            section = section.strip()
+            if not section:
+                continue
+            if len(section) <= chunk_size:
+                chunks.append(section)
+            else:
+                # Further split large sections by size
+                start = 0
+                while start < len(section):
+                    end = start + chunk_size
+                    if end < len(section):
+                        break_pos = section.rfind('\n', start, end)
+                        if break_pos > start:
+                            end = break_pos
+                    chunk = section[start:end].strip()
+                    if chunk:
+                        chunks.append(chunk)
+                    start = end - overlap if end < len(section) else len(section)
         return chunks
 
     def get_stats(self) -> Dict[str, Any]:
