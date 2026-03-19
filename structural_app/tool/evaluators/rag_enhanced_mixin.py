@@ -76,20 +76,23 @@ class RAGEnhancedEvaluatorMixin:
             )
 
             if results:
-                # Extract citation from first result
                 content = results[0]['content']
                 source = results[0]['metadata'].get('filename', 'Unknown')
-
-                # Try to extract standard number from source filename
                 standard_num = self._extract_standard_number(source)
 
-                # Format citation
-                if standard_num:
-                    citation = f"参考: {standard_num}"
-                else:
-                    citation = f"参考: {source}"
+                # Extract clause number and first meaningful sentence from content
+                clause = self._extract_clause_number(content)
+                snippet = self._extract_snippet(content)
 
-                return citation
+                parts = []
+                if standard_num:
+                    parts.append(standard_num)
+                if clause:
+                    parts.append(f"第{clause}条")
+                if snippet:
+                    parts.append(f"— {snippet}")
+
+                return " ".join(parts) if parts else f"参考: {source}"
 
             return None
 
@@ -143,27 +146,31 @@ class RAGEnhancedEvaluatorMixin:
             return []
 
     def _extract_standard_number(self, filename: str) -> Optional[str]:
-        """
-        Extract standard number from filename
-
-        Args:
-            filename: Filename (e.g., 'GB50010-2010_concrete_standard.md')
-
-        Returns:
-            Standard number (e.g., 'GB 50010-2010') or None
-        """
+        """Extract standard number from filename, e.g. 'GB 50010-2010'"""
         import re
-
-        # Pattern: GB50010-2010 or GB 50010-2010
         pattern = r'(GB\s*\d{5}-\d{4})'
         match = re.search(pattern, filename, re.IGNORECASE)
-
         if match:
             std_num = match.group(1)
-            # Normalize format: GB 50010-2010
             std_num = re.sub(r'GB\s*(\d{5})', r'GB \1', std_num, flags=re.IGNORECASE)
             return std_num
+        return None
 
+    def _extract_clause_number(self, content: str) -> Optional[str]:
+        """Extract first clause number (e.g. '9.1.1') from retrieved content."""
+        import re
+        match = re.search(r'\b(\d+\.\d+(?:\.\d+)?)\b', content)
+        return match.group(1) if match else None
+
+    def _extract_snippet(self, content: str, max_len: int = 40) -> Optional[str]:
+        """Extract first meaningful sentence from retrieved content."""
+        for line in content.splitlines():
+            line = line.strip()
+            # Skip headings, empty lines, table rows
+            if not line or line.startswith('#') or line.startswith('|') or line.startswith('-'):
+                continue
+            # Truncate to max_len
+            return line[:max_len] + ('…' if len(line) > max_len else '')
         return None
 
     def enhance_construction_issue_with_citation(
@@ -189,15 +196,10 @@ class RAGEnhancedEvaluatorMixin:
             check_type=check_type
         )
 
-        # Add citation to issue
+        # Add citation to issue only (do not append to message to avoid duplication)
         if citation:
             enhanced_issue = issue.copy()
             enhanced_issue['citation'] = citation
-
-            # Append citation to message
-            if 'message' in enhanced_issue:
-                enhanced_issue['message'] = f"{enhanced_issue['message']} ({citation})"
-
             return enhanced_issue
 
         return issue
