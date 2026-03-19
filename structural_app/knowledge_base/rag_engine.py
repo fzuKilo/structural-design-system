@@ -169,6 +169,24 @@ class RAGEngine:
             print(f"Error querying knowledge base: {e}")
             return []
 
+    # Chinese query map for common check types
+    _QUERY_MAP = {
+        'width_too_small':          '梁最小宽度要求 截面尺寸限值',
+        'height_too_small':         '梁最小高度要求 截面尺寸限值',
+        'height_span_ratio_low':    '梁高跨比要求 连续梁简支梁',
+        'height_span_ratio_high':   '梁高跨比要求 截面高度',
+        'width_height_ratio_high':  '梁宽高比要求 截面宽度高度',
+        'width_height_ratio_low':   '梁宽高比要求 截面宽度高度',
+        'slenderness_ratio':        '柱长细比要求 稳定性',
+        'axial_ratio':              '柱轴压比限值',
+        'deflection':               '受弯构件挠度限值',
+        'crack_width':              '裂缝宽度限值',
+        'shear':                    '斜截面受剪承载力',
+        'stress_ratio':             '应力比限值 强度验算',
+        'truss_slenderness':        '桁架杆件长细比要求',
+        'node_connection':          '节点连接构造要求',
+    }
+
     def query_standard(
         self,
         structure_type: str,
@@ -186,8 +204,13 @@ class RAGEngine:
         Returns:
             List of relevant standard clauses
         """
-        # Construct query
-        query_text = f"{structure_type} {check_type} requirements standard"
+        # Use Chinese query for better semantic match with Chinese documents
+        query_text = self._QUERY_MAP.get(check_type)
+        if not query_text:
+            # Fallback: translate structure_type to Chinese and use check_type as-is
+            type_cn = {'beam': '梁', 'frame': '框架', 'truss': '桁架',
+                       'cantilever_beam': '悬臂梁', 'continuous_beam': '连续梁'}.get(structure_type, structure_type)
+            query_text = f"{type_cn} {check_type} 构造要求"
 
         return self.query(query_text, n_results=n_results)
 

@@ -162,14 +162,21 @@ class RAGEnhancedEvaluatorMixin:
         match = re.search(r'\b(\d+\.\d+(?:\.\d+)?)\b', content)
         return match.group(1) if match else None
 
-    def _extract_snippet(self, content: str, max_len: int = 40) -> Optional[str]:
-        """Extract first meaningful sentence from retrieved content."""
+    def _extract_snippet(self, content: str, max_len: int = 50) -> Optional[str]:
+        """Extract first readable Chinese sentence from retrieved content."""
         for line in content.splitlines():
             line = line.strip()
-            # Skip headings, empty lines, table rows
+            # Skip empty, headings, table rows, bullet lines
             if not line or line.startswith('#') or line.startswith('|') or line.startswith('-'):
                 continue
-            # Truncate to max_len
+            # Skip lines with high ratio of replacement characters (encoding garbage)
+            garbage_ratio = line.count('\ufffd') / max(len(line), 1)
+            if garbage_ratio > 0.2:
+                continue
+            # Prefer lines that contain Chinese characters
+            chinese_chars = sum(1 for c in line if '\u4e00' <= c <= '\u9fff')
+            if chinese_chars < 3:
+                continue
             return line[:max_len] + ('…' if len(line) > max_len else '')
         return None
 
