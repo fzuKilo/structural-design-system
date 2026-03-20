@@ -44,6 +44,12 @@ except (FileNotFoundError, ModuleNotFoundError):
     EvaluationAgent = None
 
 try:
+    from structural_app.tool.evaluation_tool import EvaluationTool
+    _evaluation_tool_instance = EvaluationTool()
+except Exception:
+    _evaluation_tool_instance = None
+
+try:
     from structural_app.agent.report_generation_agent import ReportGenerationAgent
 except (FileNotFoundError, ModuleNotFoundError):
     ReportGenerationAgent = None
@@ -543,12 +549,10 @@ class PlanningFlow:
             print("Step 3: Evaluating design quality...")
             print("-" * 40)
 
-        evaluation_request = self._build_evaluation_request(
+        self.results["evaluation_report"] = await self._run_evaluation(
             self.results["design_proposal"],
             self.results["analysis_results"]
         )
-        evaluation_result = await self.evaluation_agent.run(evaluation_request)
-        self.results["evaluation_report"] = self._extract_evaluation_report(evaluation_result)
 
         if verbose and self.results["evaluation_report"]:
             status = self.results['evaluation_report'].get('status', 'unknown')
@@ -839,9 +843,7 @@ class PlanningFlow:
                     print(f"[优化] 方案{i+1}分析失败，跳过")
                 continue
 
-            eval_req = self._build_evaluation_request(new_design, new_analysis)
-            eval_resp = await self.evaluation_agent.run(eval_req)
-            new_evaluation = self._extract_evaluation_report(eval_resp)
+            new_evaluation = await self._run_evaluation(new_design, new_analysis)
             if not new_evaluation:
                 if verbose:
                     print(f"[优化] 方案{i+1}评估失败，跳过")
@@ -1115,9 +1117,10 @@ class PlanningFlow:
 
 要求：
 1. 生成3个方案，每个方案针对建议中的一个主要问题，优化方向必须与建议一致且符合上述约束规则。
-2. 每个方案输出完整的设计JSON，结构与原始设计完全一致，只修改相关参数。
-3. 材料参数单位：E使用Pa（如32500000000.0），fy使用Pa（如26800000.0）。
-4. 直接输出一个JSON数组，包含3个设计对象，不要包含任何其他文字。
+2. 3个方案之间不能完全相同（至少有一个参数不同）。
+3. 每个方案输出完整的设计JSON，结构与原始设计完全一致，只修改相关参数。
+4. 材料参数单位：E使用Pa（如32500000000.0），fy使用Pa（如26800000.0）。
+5. 直接输出一个JSON数组，包含3个设计对象，不要包含任何其他文字。
 
 示例输出格式：
 [
@@ -1135,7 +1138,7 @@ class PlanningFlow:
             response = client.chat.completions.create(
                 model=self.api_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000,
+                max_tokens=4000,
                 temperature=0.5,
             )
             content = response.choices[0].message.content.strip()
@@ -1163,8 +1166,10 @@ class PlanningFlow:
                             # 材料强度等级排序（越靠后越强）
                             mat_rank = ['C20','C25','C30','C35','C40','C45','C50','C55','C60',
                                         'Q235','Q345','Q390','Q420']
-                            orig_rank = mat_rank.index(orig_mat.get('name','C30')) if orig_mat.get('name') in mat_rank else 0
-                            cand_rank = mat_rank.index(cand_mat.get('name','C30')) if cand_mat.get('name') in mat_rank else 0
+                            orig_mat_name = orig_mat.get('material_name') or orig_mat.get('name', 'C30')
+                            cand_mat_name = cand_mat.get('material_name') or cand_mat.get('name', 'C30')
+                            orig_rank = mat_rank.index(orig_mat_name) if orig_mat_name in mat_rank else 0
+                            cand_rank = mat_rank.index(cand_mat_name) if cand_mat_name in mat_rank else 0
 
                             # 经济性差：禁止升级材料
                             if economy_score < 70 and cand_rank > orig_rank:
@@ -1208,13 +1213,108 @@ class PlanningFlow:
 
                             # 过滤与原方案完全相同的候选
                             if c == design:
+                                print(f"[DEBUG] 方案被过滤（与原方案完全相同）: {json.dumps(c.get('geometry'), ensure_ascii=False)} / {c.get('material', {}).get('material_name')}")
                                 continue
                             valid.append(c)
+
+                # 兜底：不足3个时按短板维度自动补充
+                if len(valid) < 3:
+                    valid = self._supplement_candidates(design, valid, economy_score, safety_score, efficiency_score, sustainability_score)
+
                 return valid
             return []
         except Exception as e:
             print(f"[ERROR] 生成候选方案失败: {e}")
             return []
+
+    def _supplement_candidates(
+        self,
+        design: Dict,
+        valid: List[Dict],
+        economy_score: float,
+        safety_score: float,
+        efficiency_score: float,
+        sustainability_score: float,
+    ) -> List[Dict]:
+        """当LLM生成的有效方案不足3个时，按短板维度自动补充。"""
+        import copy
+
+        mat_rank = ['C20','C25','C30','C35','C40','C45','C50','C55','C60',
+                    'Q235','Q345','Q390','Q420']
+
+        def is_duplicate(c):
+            if c == design:
+                return True
+            for v in valid:
+                if c == v:
+                    return True
+            return False
+
+        def make_candidate(geo_overrides=None, mat_overrides=None):
+            c = copy.deepcopy(design)
+            if geo_overrides:
+                c['geometry'].update(geo_overrides)
+            if mat_overrides:
+                c['material'].update(mat_overrides)
+            return c
+
+        # 按短板优先级确定补充规则列表
+        rules = []
+
+        if safety_score < 75:
+            # 安全性差：增大截面或升级材料
+            orig_h = design.get('geometry', {}).get('height', 0.3)
+            orig_w = design.get('geometry', {}).get('width', 0.2)
+            orig_mat_name = design.get('material', {}).get('material_name', 'C30')
+            rules.append(('增大梁宽20%', make_candidate(geo_overrides={'width': round(orig_w * 1.2, 4)})))
+            rules.append(('增大梁高和梁宽各15%', make_candidate(geo_overrides={'height': round(orig_h * 1.15, 4), 'width': round(orig_w * 1.15, 4)})))
+            if orig_mat_name in mat_rank and mat_rank.index(orig_mat_name) + 1 < len(mat_rank):
+                next_mat = mat_rank[mat_rank.index(orig_mat_name) + 1]
+                rules.append(('升级一级材料', make_candidate(mat_overrides={'material_name': next_mat})))
+
+        elif economy_score < 70:
+            # 经济性差：减小截面（安全允许范围内）
+            orig_h = design.get('geometry', {}).get('height', 0.3)
+            orig_w = design.get('geometry', {}).get('width', 0.2)
+            rules.append(('减小梁高10%', make_candidate(geo_overrides={'height': round(orig_h * 0.9, 4)})))
+            rules.append(('减小梁宽10%', make_candidate(geo_overrides={'width': round(orig_w * 0.9, 4)})))
+            rules.append(('同时减小梁高梁宽各10%', make_candidate(geo_overrides={'height': round(orig_h * 0.9, 4), 'width': round(orig_w * 0.9, 4)})))
+
+        elif efficiency_score < 60:
+            # 结构效率差：截面过于保守，减小截面
+            orig_h = design.get('geometry', {}).get('height', 0.3)
+            orig_w = design.get('geometry', {}).get('width', 0.2)
+            rules.append(('减小梁高15%', make_candidate(geo_overrides={'height': round(orig_h * 0.85, 4)})))
+            rules.append(('增大梁高减小梁宽提高截面效率', make_candidate(geo_overrides={'height': round(orig_h * 1.15, 4), 'width': round(orig_w * 0.9, 4)})))
+            rules.append(('减小梁宽15%', make_candidate(geo_overrides={'width': round(orig_w * 0.85, 4)})))
+
+        elif sustainability_score < 60:
+            # 可持续性差：减小截面降低用料
+            orig_h = design.get('geometry', {}).get('height', 0.3)
+            orig_w = design.get('geometry', {}).get('width', 0.2)
+            rules.append(('减小梁高10%', make_candidate(geo_overrides={'height': round(orig_h * 0.9, 4)})))
+            rules.append(('减小梁宽10%', make_candidate(geo_overrides={'width': round(orig_w * 0.9, 4)})))
+            rules.append(('同时减小梁高梁宽各10%', make_candidate(geo_overrides={'height': round(orig_h * 0.9, 4), 'width': round(orig_w * 0.9, 4)})))
+
+        else:
+            # 综合得分偏低但无明显短板：增大梁宽
+            orig_h = design.get('geometry', {}).get('height', 0.3)
+            orig_w = design.get('geometry', {}).get('width', 0.2)
+            orig_mat_name = design.get('material', {}).get('material_name', 'C30')
+            rules.append(('增大梁宽20%', make_candidate(geo_overrides={'width': round(orig_w * 1.2, 4)})))
+            rules.append(('增大梁高和梁宽各15%', make_candidate(geo_overrides={'height': round(orig_h * 1.15, 4), 'width': round(orig_w * 1.15, 4)})))
+            if orig_mat_name in mat_rank and mat_rank.index(orig_mat_name) + 1 < len(mat_rank):
+                next_mat = mat_rank[mat_rank.index(orig_mat_name) + 1]
+                rules.append(('升级一级材料', make_candidate(mat_overrides={'material_name': next_mat})))
+
+        for label, candidate in rules:
+            if len(valid) >= 3:
+                break
+            if not is_duplicate(candidate):
+                print(f"[优化] 自动补充方案（{label}）")
+                valid.append(candidate)
+
+        return valid
 
     def _ask_code_check_failure_action(self, code_check: dict, verbose: bool = True) -> str:
         """
@@ -1840,6 +1940,27 @@ class PlanningFlow:
                 return json.loads(balanced_json)
 
             return None
+        except Exception:
+            return None
+
+    async def _run_evaluation(
+        self,
+        design_proposal: Optional[Dict],
+        analysis_results: Optional[Dict]
+    ) -> Optional[Dict[str, Any]]:
+        """直接调用 EvaluationTool，绕过 LLM。"""
+        if _evaluation_tool_instance is None:
+            return None
+        result = await _evaluation_tool_instance.execute(
+            design_proposal=design_proposal,
+            analysis_results=analysis_results
+        )
+        if hasattr(result, 'output'):
+            raw = result.output
+        else:
+            raw = str(result)
+        try:
+            return json.loads(raw)
         except Exception:
             return None
 
