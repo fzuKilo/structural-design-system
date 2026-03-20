@@ -103,6 +103,7 @@ class PlanningFlow:
             "drawing_results": None,
             "evaluation_report": None,
             "report_results": None,
+            "bim_results": None,
         }
 
         # Load API configuration for LLM calls
@@ -152,7 +153,61 @@ class PlanningFlow:
 
         return api_key, provider, base_url, model
 
-    def _get_allowed_params(self, design: dict) -> str:
+    def _load_speckle_config(self) -> Optional[Dict]:
+        """从config.toml读取Speckle配置，enabled=false时返回None。"""
+        current_dir = Path(__file__).resolve().parent
+        config_path = current_dir.parent / "config.toml"
+        if config_path.exists():
+            try:
+                config = toml.load(config_path)
+                speckle = config.get('speckle', {})
+                if speckle.get('token') and speckle.get('project_id'):
+                    return speckle
+            except Exception:
+                pass
+        return None
+
+    async def _run_bim_export(self, verbose: bool = True) -> Optional[Dict]:
+        """可选的Speckle BIM导出步骤，询问用户是否导出。"""
+        speckle_cfg = self._load_speckle_config()
+        if not speckle_cfg:
+            return None
+
+        if verbose:
+            print()
+            print("Step 6: BIM Export (可选)")
+            print("-" * 40)
+            try:
+                choice = input("是否导出到Speckle BIM查看器？(y/n): ").strip().lower()
+            except EOFError:
+                choice = 'n'
+
+            if choice != 'y':
+                print("[跳过] BIM导出已跳过")
+                return None
+
+            print("[Speckle] 正在推送模型...")
+
+        try:
+            from structural_app.tool.exporters.speckle_exporter import SpeckleExporter
+            exporter = SpeckleExporter(speckle_cfg)
+            result = exporter.export(
+                self.results["design_proposal"],
+                self.results["analysis_results"],
+                self.results["evaluation_report"],
+            )
+            if result.get('status') == 'success' and verbose:
+                print(f"[OK] BIM导出成功")
+                print(f"[Speckle] 查看链接: {result['url']}")
+            elif result.get('status') == 'error' and verbose:
+                print(f"[ERROR] BIM导出失败: {result.get('error')}")
+            return result
+        except Exception as e:
+            if verbose:
+                print(f"[ERROR] BIM导出异常: {e}")
+            return {'status': 'error', 'error': str(e)}
+
+
         """
         根据结构类型生成允许修改的参数列表（含当前值），用于prompt约束。
 
@@ -636,6 +691,9 @@ class PlanningFlow:
         if verbose and self.results["report_results"]:
             status = self.results['report_results'].get('status', 'unknown')
             print(f"[OK] Report generated: {status}")
+
+        # Step 6: BIM Export (可选)
+        self.results["bim_results"] = await self._run_bim_export(verbose)
 
         if verbose:
             print()
