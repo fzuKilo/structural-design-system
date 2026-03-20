@@ -351,8 +351,8 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'weak_column',
                 'severity': 'severe',
-                'message': f'Column section may not satisfy strong column weak beam requirement',
-                'recommendation': 'Increase column section or reduce beam section'
+                'message': f'柱截面可能不满足强柱弱梁要求',
+                'recommendation': '增大柱截面或减小梁截面'
             })
 
         # Check 2: Column axial ratio
@@ -376,15 +376,15 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
                 issues.append({
                     'type': 'high_axial_ratio',
                     'severity': 'severe',
-                    'message': f'Column axial ratio too high ({axial_ratio:.2f} > 0.9)',
-                    'recommendation': 'Increase column section'
+                    'message': f'柱轴压比过高（{axial_ratio:.2f} > 0.9）',
+                    'recommendation': '增大柱截面'
                 })
             elif axial_ratio > 0.75:
                 issues.append({
                     'type': 'moderate_axial_ratio',
                     'severity': 'moderate',
-                    'message': f'Column axial ratio moderate ({axial_ratio:.2f} > 0.75)',
-                    'recommendation': 'Consider increasing column section for better safety margin'
+                    'message': f'柱轴压比偏高（{axial_ratio:.2f} > 0.75）',
+                    'recommendation': '建议增大柱截面以提高安全裕度'
                 })
 
         # Check 3: Story drift ratio
@@ -395,15 +395,15 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'excessive_drift',
                 'severity': 'severe',
-                'message': f'Story drift ratio exceeds limit ({max_drift_ratio:.6f} > {limit:.6f})',
-                'recommendation': 'Increase column/beam stiffness or reduce lateral loads'
+                'message': f'层间位移角超限（{max_drift_ratio:.6f} > {limit:.6f}）',
+                'recommendation': '增大柱/梁刚度或减小水平荷载'
             })
         elif max_drift_ratio > limit * 0.8:
             issues.append({
                 'type': 'high_drift',
                 'severity': 'moderate',
-                'message': f'Story drift ratio approaching limit ({max_drift_ratio:.6f} > {limit*0.8:.6f})',
-                'recommendation': 'Consider increasing stiffness for better serviceability'
+                'message': f'层间位移角接近限值（{max_drift_ratio:.6f} > {limit*0.8:.6f}）',
+                'recommendation': '建议适当增大刚度以提高使用性能'
             })
 
         # Check 4: Beam-column section compatibility
@@ -411,8 +411,8 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'beam_column_incompatible',
                 'severity': 'minor',
-                'message': f'Beam depth ({beam_depth}m) too close to column depth ({col_depth}m)',
-                'recommendation': 'Ensure proper connection detailing'
+                'message': f'梁高（{beam_depth}m）与柱高（{col_depth}m）过于接近',
+                'recommendation': '注意节点连接构造处理'
             })
 
         # Check 5: Beam height-span ratio (1/18 ~ 1/10, per DES v2.0)

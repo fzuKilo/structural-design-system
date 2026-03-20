@@ -362,8 +362,8 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
                 issues.append({
                     'type': 'compression_slenderness_high',
                     'severity': 'severe',
-                    'message': f'Compression member slenderness too high: λ={max_comp_slenderness:.1f} > 150 (GB 50017)',
-                    'recommendation': 'Increase cross-sectional area or reduce member length for compression members'
+                    'message': f'受压杆件长细比过大：λ={max_comp_slenderness:.1f} > 150（GB 50017）',
+                    'recommendation': '增大受压杆件截面面积或减小杆件长度'
                 })
 
             if tension_violations:
@@ -371,8 +371,8 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
                 issues.append({
                     'type': 'tension_slenderness_high',
                     'severity': 'moderate',
-                    'message': f'Tension member slenderness too high: λ={max_tens_slenderness:.1f} > 250 (GB 50017)',
-                    'recommendation': 'Consider increasing cross-sectional area for tension members to reduce vibration'
+                    'message': f'受拉杆件长细比过大：λ={max_tens_slenderness:.1f} > 250（GB 50017）',
+                    'recommendation': '建议增大受拉杆件截面以减小振动'
                 })
         else:
             # Fallback: use overall max_slenderness (conservative, assume compression)
@@ -380,15 +380,15 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
                 issues.append({
                     'type': 'slenderness_high',
                     'severity': 'severe',
-                    'message': f'Slenderness ratio too high: λ={max_slenderness:.1f} > 150 (compression limit)',
-                    'recommendation': 'Increase member cross-sectional area or reduce member length'
+                    'message': f'长细比过大：λ={max_slenderness:.1f} > 150（受压限值）',
+                    'recommendation': '增大杆件截面面积或减小杆件长度'
                 })
             elif max_slenderness > 120:
                 issues.append({
                     'type': 'slenderness_moderate',
                     'severity': 'moderate',
-                    'message': f'Slenderness ratio moderately high: λ={max_slenderness:.1f} > 120',
-                    'recommendation': 'Consider increasing member size for better stability'
+                    'message': f'长细比偏大：λ={max_slenderness:.1f} > 120',
+                    'recommendation': '建议增大杆件截面以提高稳定性'
                 })
 
         # 2. Check height-to-span ratio (1/6 to 1/10 is typical)
@@ -398,15 +398,15 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'height_span_ratio_low',
                 'severity': 'moderate',
-                'message': f'Height-to-span ratio too low: {height_span_ratio:.3f} < 1/12',
-                'recommendation': 'Increase truss height for better structural efficiency'
+                'message': f'高跨比过小：{height_span_ratio:.3f} < 1/12',
+                'recommendation': '增大桁架高度以提高结构效率'
             })
         elif height_span_ratio > 0.20:  # Greater than 1/5
             issues.append({
                 'type': 'height_span_ratio_high',
                 'severity': 'minor',
-                'message': f'Height-to-span ratio too high: {height_span_ratio:.3f} > 1/5',
-                'recommendation': 'Consider reducing truss height to improve economy'
+                'message': f'高跨比过大：{height_span_ratio:.3f} > 1/5',
+                'recommendation': '可适当减小桁架高度以提高经济性'
             })
 
         # 3. Check panel aspect ratio
@@ -417,15 +417,15 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'panel_aspect_low',
                 'severity': 'minor',
-                'message': f'Panel aspect ratio too low: {panel_aspect:.2f} < 0.5',
-                'recommendation': 'Reduce number of panels or increase truss height'
+                'message': f'节间长高比过小：{panel_aspect:.2f} < 0.5',
+                'recommendation': '减少节间数量或增大桁架高度'
             })
         elif panel_aspect > 2.5:  # Too wide
             issues.append({
                 'type': 'panel_aspect_high',
                 'severity': 'moderate',
-                'message': f'Panel aspect ratio too high: {panel_aspect:.2f} > 2.5',
-                'recommendation': 'Increase number of panels or reduce truss height'
+                'message': f'节间长高比过大：{panel_aspect:.2f} > 2.5',
+                'recommendation': '增加节间数量或减小桁架高度'
             })
 
         # 4. Check minimum member size
@@ -436,15 +436,15 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'member_size_small',
                 'severity': 'severe',
-                'message': f'Member size too small: Ø={diameter:.1f}mm < 20mm',
-                'recommendation': 'Increase member cross-sectional area'
+                'message': f'杆件截面过小：Ø={diameter:.1f}mm < 20mm',
+                'recommendation': '增大杆件截面面积'
             })
         elif diameter < 30:  # Less than 30mm
             issues.append({
                 'type': 'member_size_moderate',
                 'severity': 'minor',
-                'message': f'Member size relatively small: Ø={diameter:.1f}mm < 30mm',
-                'recommendation': 'Consider increasing member size for better durability'
+                'message': f'杆件截面偏小：Ø={diameter:.1f}mm < 30mm',
+                'recommendation': '建议增大杆件截面以提高耐久性'
             })
 
         return issues

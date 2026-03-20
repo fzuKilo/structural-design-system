@@ -318,15 +318,15 @@ class BeamEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'height_span_ratio_low',
                 'severity': 'moderate',
-                'message': f'Height-span ratio too small ({height_span_ratio:.3f} < {min_ratio:.3f})',
-                'recommendation': 'Increase beam height or reduce span'
+                'message': f'高跨比过小（{height_span_ratio:.3f} < {min_ratio:.3f}）',
+                'recommendation': '增大梁高或减小跨度'
             })
         elif height_span_ratio > max_ratio:
             issues.append({
                 'type': 'height_span_ratio_high',
                 'severity': 'minor',
-                'message': f'Height-span ratio too large ({height_span_ratio:.3f} > {max_ratio:.3f})',
-                'recommendation': 'Consider reducing beam height for economy'
+                'message': f'高跨比过大（{height_span_ratio:.3f} > {max_ratio:.3f}）',
+                'recommendation': '可适当减小梁高以提高经济性'
             })
 
         # Check 2: Width-height ratio
@@ -337,15 +337,15 @@ class BeamEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'width_height_ratio_low',
                 'severity': 'minor',
-                'message': f'Width-height ratio too small ({width_height_ratio:.2f} < {min_wh:.2f})',
-                'recommendation': 'Increase beam width for stability'
+                'message': f'宽高比过小（{width_height_ratio:.2f} < {min_wh:.2f}）',
+                'recommendation': '增大梁宽以提高稳定性'
             })
         elif width_height_ratio > max_wh:
             issues.append({
                 'type': 'width_height_ratio_high',
                 'severity': 'minor',
-                'message': f'Width-height ratio too large ({width_height_ratio:.2f} > {max_wh:.2f})',
-                'recommendation': 'Reduce beam width or increase height'
+                'message': f'宽高比过大（{width_height_ratio:.2f} > {max_wh:.2f}）',
+                'recommendation': '减小梁宽或增大梁高'
             })
 
         # Check 3: Minimum dimensions
@@ -356,8 +356,8 @@ class BeamEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             issues.append({
                 'type': 'section_too_small',
                 'severity': 'severe',
-                'message': f'Section dimensions too small ({width}m × {height}m)',
-                'recommendation': 'Increase section dimensions to meet minimum construction requirements'
+                'message': f'截面尺寸过小（{width}m × {height}m）',
+                'recommendation': '增大截面尺寸以满足最小构造要求'
             })
 
         return issues
