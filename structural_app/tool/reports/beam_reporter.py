@@ -78,7 +78,20 @@ class BeamReporter(BaseReporter):
         report.append("|------|-----|")
         structure_type = design.get('type', 'beam')
         report.append(f"| 结构类型 | {self.get_structure_display_name(structure_type)} |")
-        report.append(f"| 跨度 | {geometry.get('length', 0)} m |")
+        if structure_type == 'continuous_beam':
+            n_spans = geometry.get('n_spans', 2)
+            total_length = geometry.get('length', 0)
+            span_length = total_length / n_spans if n_spans > 0 else 0
+            report.append(f"| 总跨度 | {total_length} m |")
+            report.append(f"| 跨数 | {n_spans} 跨 |")
+            report.append(f"| 每跨跨度 | {span_length:.2f} m（均等）|")
+            support_desc = "、".join(
+                [f"支座{i+1}: {'铰支座' if i == 0 else '滚动支座'}"
+                 for i in range(n_spans + 1)]
+            )
+            report.append(f"| 支座配置 | {support_desc} |")
+        else:
+            report.append(f"| 跨度 | {geometry.get('length', 0)} m |")
         report.append(f"| 宽度 | {geometry.get('width', 0)} m |")
         report.append(f"| 高度 | {geometry.get('height', 0)} m |")
         report.append(f"| 单元数 | {geometry.get('n_elements', 0)} |")
@@ -243,7 +256,7 @@ class BeamReporter(BaseReporter):
                         report.append(f"| 材料用量指数 | {mat_idx:.3f} | 实际用量/理论最小用量，越接近1越省料 |")
                     vol = econ_ind.get('volume_m3', None)
                     if vol is not None:
-                        report.append(f"| 截面体积 | {vol:.4f} m³ | |")
+                        report.append(f"| 材料体积 | {vol:.4f} m³ | |")
                     report.append("")
 
                 # Efficiency indicators

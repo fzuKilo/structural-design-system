@@ -286,7 +286,7 @@ class FrameReporter(BaseReporter):
                         ('comprehensive_utilization', '综合利用率', '应力+挠度综合利用率，越接近1越经济'),
                         ('stress_utilization', '应力利用率', '实际应力/许用应力'),
                         ('material_usage_index', '材料用量指数', '实际用量/理论最小用量'),
-                        ('volume_m3', '截面体积 (m³)', ''),
+                        ('volume_m3', '材料体积 (m³)', ''),
                     ]:
                         val = econ_ind.get(key)
                         if val is not None:

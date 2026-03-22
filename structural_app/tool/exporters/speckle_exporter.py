@@ -1,7 +1,7 @@
 """
 SpeckleExporter - 将结构设计结果推送到Speckle BIM平台
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 
@@ -147,4 +147,182 @@ class SpeckleExporter:
         if nodes:
             base['nodes'] = [{'x': n[0], 'y': n[1], 'z': 0.0} for n in nodes]
 
+        # 3D几何体 — Speckle查看器可渲染
+        meshes = self._build_geometry(structure_type, design_proposal)
+        if meshes:
+            base['@displayValue'] = meshes
+
         return base
+
+    # ------------------------------------------------------------------
+    # 几何构建
+    # ------------------------------------------------------------------
+
+    def _box_mesh(self, x0: float, y0: float, z0: float,
+                  length: float, w: float, h: float):
+        """
+        沿X轴方向的长方体Mesh。
+
+        顶点布局（8点）：
+          底面：0(x0,y0-w/2,z0)  1(x0+L,y0-w/2,z0)
+                2(x0+L,y0+w/2,z0) 3(x0,y0+w/2,z0)
+          顶面：4-7 同上但 z+h
+        """
+        from specklepy.objects.geometry import Mesh
+        from specklepy.objects.other import RenderMaterial
+
+        hw = w / 2.0
+        x1 = x0 + length
+        z1 = z0 + h
+
+        verts = [
+            x0, y0 - hw, z0,   # 0
+            x1, y0 - hw, z0,   # 1
+            x1, y0 + hw, z0,   # 2
+            x0, y0 + hw, z0,   # 3
+            x0, y0 - hw, z1,   # 4
+            x1, y0 - hw, z1,   # 5
+            x1, y0 + hw, z1,   # 6
+            x0, y0 + hw, z1,   # 7
+        ]
+
+        # 6个四边形面（逆时针外法线）
+        faces = [
+            4, 0, 1, 2, 3,   # 底面
+            4, 7, 6, 5, 4,   # 顶面
+            4, 0, 4, 5, 1,   # 前面 (y-hw)
+            4, 3, 2, 6, 7,   # 后面 (y+hw)
+            4, 0, 3, 7, 4,   # 左面 (x0)
+            4, 1, 5, 6, 2,   # 右面 (x1)
+        ]
+
+        mesh = Mesh(vertices=verts, faces=faces, units='m')
+        return mesh
+
+    def _vertical_box_mesh(self, x: float, y0: float, z0: float,
+                           height: float, w: float, d: float):
+        """
+        沿Z轴方向的竖向长方体Mesh（柱）。
+
+        w: 截面宽（沿X），d: 截面深（沿Y）
+        """
+        from specklepy.objects.geometry import Mesh
+
+        hw = w / 2.0
+        hd = d / 2.0
+        z1 = z0 + height
+
+        verts = [
+            x - hw, y0 - hd, z0,   # 0
+            x + hw, y0 - hd, z0,   # 1
+            x + hw, y0 + hd, z0,   # 2
+            x - hw, y0 + hd, z0,   # 3
+            x - hw, y0 - hd, z1,   # 4
+            x + hw, y0 - hd, z1,   # 5
+            x + hw, y0 + hd, z1,   # 6
+            x - hw, y0 + hd, z1,   # 7
+        ]
+
+        faces = [
+            4, 0, 1, 2, 3,
+            4, 7, 6, 5, 4,
+            4, 0, 4, 5, 1,
+            4, 3, 2, 6, 7,
+            4, 0, 3, 7, 4,
+            4, 1, 5, 6, 2,
+        ]
+
+        mesh = Mesh(vertices=verts, faces=faces, units='m')
+        return mesh
+
+    def _build_geometry(self, structure_type: str, design_proposal: Dict) -> List:
+        """根据结构类型分发几何构建。"""
+        if structure_type in ('beam', 'cantilever_beam', 'continuous_beam'):
+            return self._beam_meshes(design_proposal)
+        elif structure_type == 'frame':
+            return self._frame_meshes(design_proposal)
+        elif structure_type == 'truss':
+            return self._truss_meshes(design_proposal)
+        return []
+
+    def _beam_meshes(self, design_proposal: Dict) -> List:
+        """梁类结构（单根水平长方体）。"""
+        geometry = design_proposal.get('geometry', {})
+        length = float(geometry.get('length', 5.0))
+        width = float(geometry.get('width', 0.3))
+        height = float(geometry.get('height', 0.5))
+        return [self._box_mesh(0.0, 0.0, 0.0, length, width, height)]
+
+    def _frame_meshes(self, design_proposal: Dict) -> List:
+        """框架结构：柱 + 梁。"""
+        geometry = design_proposal.get('geometry', {})
+        bay_widths = [float(b) for b in geometry.get('bay_widths', [5.0])]
+        story_heights = [float(h) for h in geometry.get('story_heights', [3.0])]
+        col_w = float(geometry.get('columns', {}).get('width', 0.4))
+        col_d = float(geometry.get('columns', {}).get('depth', 0.4))
+        beam_w = float(geometry.get('beams', {}).get('width', 0.3))
+        beam_d = float(geometry.get('beams', {}).get('depth', 0.5))
+
+        meshes = []
+
+        # 柱X坐标（含首尾节点）
+        col_x_positions = [0.0]
+        for bw in bay_widths:
+            col_x_positions.append(col_x_positions[-1] + bw)
+
+        # 生成柱
+        z_base = 0.0
+        for sh in story_heights:
+            for cx in col_x_positions:
+                meshes.append(self._vertical_box_mesh(cx, 0.0, z_base, sh, col_w, col_d))
+            z_base += sh
+
+        # 生成梁
+        z_base = 0.0
+        for sh in story_heights:
+            z_top = z_base + sh
+            beam_z = z_top - beam_d  # 梁顶齐楼层顶
+            x_start = 0.0
+            for bw in bay_widths:
+                meshes.append(self._box_mesh(x_start, 0.0, beam_z, bw, beam_w, beam_d))
+                x_start += bw
+            z_base += sh
+
+        return meshes
+
+    def _truss_meshes(self, design_proposal: Dict) -> List:
+        """桁架结构：下弦、上弦、腹杆。"""
+        geometry = design_proposal.get('geometry', {})
+        span = float(geometry.get('span', 10.0))
+        height = float(geometry.get('height', 2.0))
+        n_panels = int(geometry.get('n_panels', 4))
+        bar_size = 0.1  # 桁架杆件截面默认0.1m
+
+        panel_len = span / n_panels
+        meshes = []
+
+        # 下弦杆
+        for i in range(n_panels):
+            meshes.append(self._box_mesh(i * panel_len, 0.0, 0.0, panel_len, bar_size, bar_size))
+
+        # 上弦杆
+        for i in range(n_panels):
+            meshes.append(self._box_mesh(i * panel_len, 0.0, height, panel_len, bar_size, bar_size))
+
+        # 竖腹杆（含两端）
+        for i in range(n_panels + 1):
+            meshes.append(self._vertical_box_mesh(i * panel_len, 0.0, 0.0, height, bar_size, bar_size))
+
+        # 斜腹杆
+        for i in range(n_panels):
+            x0 = i * panel_len
+            x1 = x0 + panel_len
+            diag_len = (panel_len ** 2 + height ** 2) ** 0.5
+            # 用水平box近似（沿斜方向不旋转，视觉上够用）
+            # 奇偶交替方向
+            if i % 2 == 0:
+                meshes.append(self._box_mesh(x0, 0.0, 0.0, panel_len, bar_size, bar_size))
+            else:
+                meshes.append(self._box_mesh(x0, 0.0, height, panel_len, bar_size, bar_size))
+
+        return meshes

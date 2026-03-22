@@ -623,7 +623,9 @@ class ContinuousBeamDrawer(StructureDrawer):
             f"截面宽度 b = {width_mm} mm",
             f"截面高度 h = {height_mm} mm",
             f"材料: {material_name}",
-            "支座类型: 连续梁"
+            "支座: " + "支座1: 铰支座" + "".join(
+                f"，支座{i+1}: 滚动支座" for i in range(1, n_spans + 1)
+            )
         ]
 
         for i, text in enumerate(params):
