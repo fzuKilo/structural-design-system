@@ -235,6 +235,79 @@ class SpeckleExporter:
         mesh = Mesh(vertices=verts, faces=faces, units='m')
         return mesh
 
+    def _diagonal_box_mesh(self, x0: float, y0: float, z0: float,
+                           x1: float, y1: float, z1: float, size: float):
+        """
+        创建连接两点的斜向杆件Mesh。
+
+        Args:
+            x0, y0, z0: 起点坐标
+            x1, y1, z1: 终点坐标
+            size: 杆件截面尺寸（正方形截面）
+        """
+        from specklepy.objects.geometry import Mesh
+        import math
+
+        # 计算杆件方向向量
+        dx = x1 - x0
+        dy = y1 - y0
+        dz = z1 - z0
+        length = math.sqrt(dx**2 + dy**2 + dz**2)
+
+        if length < 1e-6:
+            return None
+
+        # 归一化方向向量
+        ux = dx / length
+        uy = dy / length
+        uz = dz / length
+
+        # 构建局部坐标系（使用简化方法）
+        # 找一个垂直于杆件的向量
+        if abs(ux) < 0.9:
+            vx, vy, vz = 1.0, 0.0, 0.0
+        else:
+            vx, vy, vz = 0.0, 1.0, 0.0
+
+        # 叉乘得到第一个垂直向量
+        wx = uy * vz - uz * vy
+        wy = uz * vx - ux * vz
+        wz = ux * vy - uy * vx
+        w_len = math.sqrt(wx**2 + wy**2 + wz**2)
+        wx /= w_len
+        wy /= w_len
+        wz /= w_len
+
+        # 再次叉乘得到第二个垂直向量
+        nx = uy * wz - uz * wy
+        ny = uz * wx - ux * wz
+        nz = ux * wy - uy * wx
+
+        # 生成8个顶点（矩形截面）
+        hs = size / 2.0
+        verts = []
+        for end_point in [(x0, y0, z0), (x1, y1, z1)]:
+            for i in [-1, 1]:
+                for j in [-1, 1]:
+                    verts.extend([
+                        end_point[0] + hs * i * wx + hs * j * nx,
+                        end_point[1] + hs * i * wy + hs * j * ny,
+                        end_point[2] + hs * i * wz + hs * j * nz
+                    ])
+
+        # 定义面（6个四边形面）
+        faces = [
+            4, 0, 1, 3, 2,   # 起点端面
+            4, 4, 6, 7, 5,   # 终点端面
+            4, 0, 4, 5, 1,   # 侧面1
+            4, 1, 5, 7, 3,   # 侧面2
+            4, 3, 7, 6, 2,   # 侧面3
+            4, 2, 6, 4, 0,   # 侧面4
+        ]
+
+        mesh = Mesh(vertices=verts, faces=faces, units='m')
+        return mesh
+
     def _build_geometry(self, structure_type: str, design_proposal: Dict) -> List:
         """根据结构类型分发几何构建。"""
         if structure_type in ('beam', 'cantilever_beam', 'continuous_beam'):
@@ -313,16 +386,16 @@ class SpeckleExporter:
         for i in range(n_panels + 1):
             meshes.append(self._vertical_box_mesh(i * panel_len, 0.0, 0.0, height, bar_size, bar_size))
 
-        # 斜腹杆
+        # 斜腹杆（使用真正的斜向杆件）
         for i in range(n_panels):
             x0 = i * panel_len
             x1 = x0 + panel_len
-            diag_len = (panel_len ** 2 + height ** 2) ** 0.5
-            # 用水平box近似（沿斜方向不旋转，视觉上够用）
-            # 奇偶交替方向
+            # 奇偶交替方向：偶数从下到上，奇数从上到下
             if i % 2 == 0:
-                meshes.append(self._box_mesh(x0, 0.0, 0.0, panel_len, bar_size, bar_size))
+                # 从下左到上右
+                meshes.append(self._diagonal_box_mesh(x0, 0.0, 0.0, x1, 0.0, height, bar_size))
             else:
-                meshes.append(self._box_mesh(x0, 0.0, height, panel_len, bar_size, bar_size))
+                # 从上左到下右
+                meshes.append(self._diagonal_box_mesh(x0, 0.0, height, x1, 0.0, 0.0, bar_size))
 
         return meshes
