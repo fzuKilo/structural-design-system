@@ -22,7 +22,8 @@ class BeamReporter(BaseReporter):
         self.structure_type = "beam"
 
     def generate_report(self, design: Dict[str, Any], results: Dict[str, Any],
-                       evaluation: Dict[str, Any] = None, drawings: Dict[str, Any] = None) -> str:
+                       evaluation: Dict[str, Any] = None, drawings: Dict[str, Any] = None,
+                       bim: Dict[str, Any] = None, ifc: Dict[str, Any] = None) -> str:
         """
         Generate a structured Markdown report for beam design
 
@@ -31,6 +32,8 @@ class BeamReporter(BaseReporter):
             results: Analysis results
             evaluation: Evaluation report (optional)
             drawings: Drawing results (optional)
+            bim: BIM export results (optional)
+            ifc: IFC export results (optional)
 
         Returns:
             Path to the generated report file
@@ -43,7 +46,7 @@ class BeamReporter(BaseReporter):
         report_path = os.path.join(self.output_dir, report_filename)
 
         # Build report content
-        report_content = self._build_report_content(design, results, evaluation, drawings)
+        report_content = self._build_report_content(design, results, evaluation, drawings, bim, ifc)
 
         # Write report file
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -52,7 +55,8 @@ class BeamReporter(BaseReporter):
         return report_path
 
     def _build_report_content(self, design: Dict[str, Any], results: Dict[str, Any],
-                             evaluation: Dict[str, Any] = None, drawings: Dict[str, Any] = None) -> str:
+                             evaluation: Dict[str, Any] = None, drawings: Dict[str, Any] = None,
+                             bim: Dict[str, Any] = None, ifc: Dict[str, Any] = None) -> str:
         """Build the Markdown report content"""
 
         # Extract data
@@ -346,6 +350,22 @@ class BeamReporter(BaseReporter):
                 report.append("|----------|----------|")
                 for drawing_type, filepath in files.items():
                     report.append(f"| {drawing_type} | {filepath} |")
+                report.append("")
+
+        # BIM/IFC Export Results
+        if bim or ifc:
+            report.append("## 5. BIM模型")
+            report.append("")
+
+            if bim and bim.get('status') == 'success':
+                report.append("### Speckle 3D模型")
+                report.append(f"- 查看链接: [{bim.get('url')}]({bim.get('url')})")
+                report.append(f"- Model ID: `{bim.get('model_id')}`")
+                report.append("")
+
+            if ifc and ifc.get('status') == 'success':
+                report.append("### IFC文件")
+                report.append(f"- 文件路径: `{ifc.get('path')}`")
                 report.append("")
 
         # Footer
