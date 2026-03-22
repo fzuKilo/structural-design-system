@@ -328,11 +328,11 @@ class IfcExporter:
         ifcopenshell.api.run('spatial.assign_container', model,
                              relating_structure=storey, products=[beam])
 
-        # 截面轮廓（YZ平面矩形）
+        # 截面轮廓（YZ平面矩形，中心在原点）
         profile = model.createIfcRectangleProfileDef(
             'AREA', None,
             model.createIfcAxis2Placement2D(
-                model.createIfcCartesianPoint([0.0, height / 2.0])
+                model.createIfcCartesianPoint([0.0, 0.0])
             ),
             width, height,
         )
