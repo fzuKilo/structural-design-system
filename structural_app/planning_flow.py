@@ -743,7 +743,9 @@ class PlanningFlow:
             self.results["design_proposal"],
             self.results["analysis_results"],
             self.results["evaluation_report"],
-            self.results["drawing_results"]
+            self.results["drawing_results"],
+            self.results.get("bim_results"),
+            self.results.get("ifc_results")
         )
         report_result = await self.report_agent.run(report_request)
         self.results["report_results"] = self._extract_report_results(report_result)
@@ -2179,7 +2181,9 @@ class PlanningFlow:
         design_proposal: Optional[Dict],
         analysis_results: Optional[Dict],
         evaluation_report: Optional[Dict],
-        drawing_results: Optional[Dict]
+        drawing_results: Optional[Dict],
+        bim_results: Optional[Dict] = None,
+        ifc_results: Optional[Dict] = None
     ) -> str:
         """Build request for report generation agent."""
         import copy
@@ -2197,6 +2201,8 @@ class PlanningFlow:
             "analysis_results_full": analysis_results_full,
             "evaluation_report": evaluation_report,
             "drawing_results": drawing_results,
+            "bim_results": bim_results,
+            "ifc_results": ifc_results,
         }
         return json.dumps(request, ensure_ascii=False)
 
