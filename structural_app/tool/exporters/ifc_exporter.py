@@ -297,15 +297,29 @@ class IfcExporter:
             )
             elements.append(m)
 
-        # 斜腹杆（用水平梁近似）
+        # 斜腹杆（真正的斜向杆件）
         for i in range(n_panels):
-            z0 = 0.0 if i % 2 == 0 else height
-            m = self._create_beam_member(
-                model, body_ctx, storey,
-                name=f'Diagonal-{i+1}',
-                x0=i * panel_len, y0=0.0, z0=z0,
-                length=panel_len, width=bar_size, height=bar_size,
-            )
+            x0 = i * panel_len
+            x1 = x0 + panel_len
+            # 奇偶交替方向
+            if i % 2 == 0:
+                # 从下左到上右
+                m = self._create_diagonal_member(
+                    model, body_ctx, storey,
+                    name=f'Diagonal-{i+1}',
+                    x0=x0, y0=0.0, z0=0.0,
+                    x1=x1, y1=0.0, z1=height,
+                    width=bar_size, depth=bar_size,
+                )
+            else:
+                # 从上左到下右
+                m = self._create_diagonal_member(
+                    model, body_ctx, storey,
+                    name=f'Diagonal-{i+1}',
+                    x0=x0, y0=0.0, z0=height,
+                    x1=x1, y1=0.0, z1=0.0,
+                    width=bar_size, depth=bar_size,
+                )
             elements.append(m)
 
         return elements
@@ -425,6 +439,74 @@ class IfcExporter:
         col.Representation = prod_def
 
         return col
+
+    def _create_diagonal_member(
+        self, model, body_ctx, storey,
+        name: str,
+        x0: float, y0: float, z0: float,
+        x1: float, y1: float, z1: float,
+        width: float, depth: float,
+    ):
+        """创建斜向杆件（连接两点）。"""
+        import ifcopenshell.api
+        import math
+
+        diag = ifcopenshell.api.run('root.create_entity', model,
+                                    ifc_class='IfcMember', name=name)
+        ifcopenshell.api.run('spatial.assign_container', model,
+                             relating_structure=storey, products=[diag])
+
+        # 计算长度和方向
+        dx = x1 - x0
+        dy = y1 - y0
+        dz = z1 - z0
+        length = math.sqrt(dx**2 + dy**2 + dz**2)
+
+        # 截面轮廓
+        profile = model.createIfcRectangleProfileDef(
+            'AREA', None,
+            model.createIfcAxis2Placement2D(
+                model.createIfcCartesianPoint([0.0, 0.0])
+            ),
+            width, depth,
+        )
+
+        # 拉伸方向：沿局部Z轴
+        extrusion_dir = model.createIfcDirection([0.0, 0.0, 1.0])
+
+        # 计算旋转角度和轴
+        # 局部Z轴应指向(dx, dy, dz)方向
+        axis_placement = model.createIfcAxis2Placement3D(
+            model.createIfcCartesianPoint([0.0, 0.0, 0.0]),
+            model.createIfcDirection([dx/length, dy/length, dz/length]),
+            model.createIfcDirection([1.0, 0.0, 0.0]) if abs(dz) > 0.01 else model.createIfcDirection([0.0, 1.0, 0.0]),
+        )
+
+        solid = model.createIfcExtrudedAreaSolid(
+            profile, axis_placement, extrusion_dir, length
+        )
+
+        shape_rep = model.createIfcShapeRepresentation(
+            body_ctx, 'Body', 'SweptSolid', [solid]
+        )
+        prod_def = model.createIfcProductDefinitionShape(
+            None, None, [shape_rep]
+        )
+
+        # 世界坐标放置（起点位置）
+        location = model.createIfcCartesianPoint([x0, y0, z0])
+        local_placement = model.createIfcLocalPlacement(
+            None,
+            model.createIfcAxis2Placement3D(
+                location,
+                model.createIfcDirection([0.0, 0.0, 1.0]),
+                model.createIfcDirection([1.0, 0.0, 0.0]),
+            )
+        )
+        diag.ObjectPlacement = local_placement
+        diag.Representation = prod_def
+
+        return diag
 
     # ------------------------------------------------------------------
     # 材料
