@@ -841,35 +841,26 @@ class PlanningFlow:
                 print("Step 4: 跳过绘图（report_only 模式）")
             self.results["drawing_results"] = {"status": "skipped", "files": {}}
 
-        # Step 5: Visualization + BIM/IFC Export + Report Generation
+        # Step 5: BIM/IFC Export + Report Generation
         if verbose:
             print()
-            print("Step 5: Visualization, BIM/IFC Export, and Report Generation...")
+            print("Step 5: BIM/IFC Export and Report Generation...")
             print("-" * 40)
 
-        # 5.1: Visualization (unless report_only mode)
-        if not self.skip_drawing:
-            visualization_results = await self._run_visualization(verbose)
-            self.results["visualization_results"] = visualization_results
-        else:
-            if verbose:
-                print("Step 5.1: 跳过可视化（report_only 模式）")
-            self.results["visualization_results"] = {"status": "skipped"}
-
-        # 5.2: BIM/IFC Export (unless report_only mode)
+        # 5.1: BIM/IFC Export (unless report_only mode)
         if not self.skip_drawing:
             bim_result, ifc_result = await self._run_bim_and_ifc_export(verbose)
             self.results["bim_results"] = bim_result
             self.results["ifc_results"] = ifc_result
         else:
             if verbose:
-                print("Step 5.2: 跳过BIM/IFC导出（report_only 模式）")
+                print("Step 5.1: 跳过BIM/IFC导出（report_only 模式）")
             self.results["bim_results"] = None
             self.results["ifc_results"] = None
 
-        # 5.3: Report Generation (always)
+        # 5.2: Report Generation (always, report agent handles visualization)
         if verbose:
-            print("Step 5.3: Generating comprehensive report...")
+            print("Step 5.2: Generating comprehensive report...")
 
         report_request = self._build_report_request(
             self.results["design_proposal"],
