@@ -132,7 +132,7 @@ class ReportGenerationAgent(ToolCallAgent):
 Your task is to generate comprehensive design reports using the report and visualization tools.
 
 INPUT FORMAT:
-You will receive DesignProposal, AnalysisResults, EvaluationReport, and DrawingResults in the conversation history.
+You will receive DesignProposal, AnalysisResults, EvaluationReport, DrawingResults, and optionally BimResults and IfcResults in the conversation history.
 
 DesignProposal format:
 {
@@ -183,6 +183,19 @@ DrawingResults format:
   "metadata": {...}
 }
 
+BimResults format (optional):
+{
+  "status": "success",
+  "url": "<speckle_url>",
+  "model_id": "<model_id>"
+}
+
+IfcResults format (optional):
+{
+  "status": "success",
+  "path": "<ifc_file_path>"
+}
+
 OUTPUT FORMAT:
 You MUST use the tools to generate the report.
 
@@ -193,7 +206,8 @@ Step 1: ALWAYS call visualization tool first to generate NEW visualizations
         - ALWAYS generate fresh visualizations for each report
         - Pass design_proposal and analysis_results to the tool
 Step 2: Call report tool to generate the comprehensive Markdown report
-        - Pass all four objects: design_proposal, analysis_results, evaluation_report, drawing_results
+        - Pass all objects: design_proposal, analysis_results, evaluation_report, drawing_results, bim_results (if available), ifc_results (if available)
+        - The report tool will include BIM links and IFC file paths in the report if provided
 Step 3: Return ReportResults in this format:
 {
   "status": "success",
@@ -233,6 +247,8 @@ The input request is a JSON object containing:
 - "analysis_results": The analysis results object
 - "evaluation_report": The evaluation report object
 - "drawing_results": The drawing results object
+- "bim_results": The BIM export results (optional, may be null)
+- "ifc_results": The IFC export results (optional, may be null)
 
 EXAMPLE CALL:
 If the input is:

@@ -53,7 +53,7 @@ class ReportTool(BaseTool):
             "properties": {
                 "report_data": {
                     "type": "string",
-                    "description": "Complete report data in JSON format containing 'design_proposal', 'analysis_results', 'evaluation_report', and 'drawing_results'."
+                    "description": "Complete report data in JSON format containing 'design_proposal', 'analysis_results', 'evaluation_report', 'drawing_results', 'bim_results', and 'ifc_results'."
                 },
                 "structure_type": {
                     "type": "string",
@@ -74,6 +74,14 @@ class ReportTool(BaseTool):
                 "drawing_results": {
                     "type": "object",
                     "description": "Drawing results (optional)."
+                },
+                "bim_results": {
+                    "type": "object",
+                    "description": "BIM export results with Speckle URL (optional)."
+                },
+                "ifc_results": {
+                    "type": "object",
+                    "description": "IFC export results with file path (optional)."
                 }
             },
             "required": []
@@ -107,6 +115,8 @@ class ReportTool(BaseTool):
                     analysis_results = parsed_data.get('analysis_results')
                     evaluation_report = parsed_data.get('evaluation_report')
                     drawing_results = parsed_data.get('drawing_results')
+                    bim_results = parsed_data.get('bim_results')
+                    ifc_results = parsed_data.get('ifc_results')
                 except json.JSONDecodeError as e:
                     return ToolResult(output=json.dumps({
                         'status': 'error',
@@ -117,6 +127,8 @@ class ReportTool(BaseTool):
                 analysis_results = kwargs.get('analysis_results')
                 evaluation_report = kwargs.get('evaluation_report')
                 drawing_results = kwargs.get('drawing_results')
+                bim_results = kwargs.get('bim_results')
+                ifc_results = kwargs.get('ifc_results')
 
             # Validate required data
             if not design_proposal:
@@ -157,7 +169,9 @@ class ReportTool(BaseTool):
                 design_proposal,
                 analysis_results,
                 evaluation_report,
-                drawing_results
+                drawing_results,
+                bim_results,
+                ifc_results
             )
 
             # Format results
