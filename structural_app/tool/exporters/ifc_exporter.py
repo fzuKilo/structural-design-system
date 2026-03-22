@@ -328,7 +328,8 @@ class IfcExporter:
         ifcopenshell.api.run('spatial.assign_container', model,
                              relating_structure=storey, products=[beam])
 
-        # 截面轮廓（YZ平面矩形，中心在原点）
+        # 截面轮廓（矩形，中心在原点）
+        # XDim对应宽度，YDim对应高度
         profile = model.createIfcRectangleProfileDef(
             'AREA', None,
             model.createIfcAxis2Placement2D(
@@ -337,16 +338,14 @@ class IfcExporter:
             width, height,
         )
 
-        # 拉伸方向：沿 X
-        extrusion_dir = model.createIfcDirection([1.0, 0.0, 0.0])
-        placement_2d = model.createIfcAxis2Placement2D(
-            model.createIfcCartesianPoint([0.0, 0.0])
-        )
-        # 截面放置在构件局部坐标的 YZ 平面
+        # 拉伸方向：沿 Z 轴（垂直于XY平面）
+        extrusion_dir = model.createIfcDirection([0.0, 0.0, 1.0])
+        # Position定义拉伸的局部坐标系
+        # 将局部坐标系旋转90度，使Z轴指向X方向
         axis_placement = model.createIfcAxis2Placement3D(
             model.createIfcCartesianPoint([0.0, 0.0, 0.0]),
-            model.createIfcDirection([0.0, 0.0, 1.0]),
-            model.createIfcDirection([1.0, 0.0, 0.0]),
+            model.createIfcDirection([1.0, 0.0, 0.0]),  # Z轴指向X方向
+            model.createIfcDirection([0.0, 1.0, 0.0]),  # X轴指向Y方向
         )
         solid = model.createIfcExtrudedAreaSolid(
             profile, axis_placement, extrusion_dir, length
