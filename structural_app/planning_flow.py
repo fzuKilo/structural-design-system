@@ -74,6 +74,7 @@ class PlanningFlow:
         evaluation_agent: Optional[EvaluationAgent] = None,
         report_agent: Optional[ReportGenerationAgent] = None,
         output_dir: str = "output",
+        websocket_callback=None,
     ):
         """
         Initialize PlanningFlow with agents.
@@ -85,7 +86,9 @@ class PlanningFlow:
             evaluation_agent: EvaluationAgent instance
             report_agent: ReportGenerationAgent instance
             output_dir: Base directory for output files
+            websocket_callback: Async callback function for WebSocket updates
         """
+        self.websocket_callback = websocket_callback
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -120,6 +123,25 @@ class PlanningFlow:
             self.alert_config = ALERT_THRESHOLDS
         except ImportError:
             self.alert_config = {"default": {"safety_severe": 60, "safety_warning": 70, "economy_severe": 60, "economy_warning": 70}}
+
+    async def _broadcast_stage(self, stage: str, status: str, message: str = ""):
+        """
+        Broadcast stage update via WebSocket
+
+        Args:
+            stage: Stage name (design_proposal, fe_analysis, evaluation, cad_drawing, report_generation)
+            status: Status (started, completed, failed)
+            message: Optional message
+        """
+        if self.websocket_callback:
+            from datetime import datetime
+            await self.websocket_callback({
+                "type": "stage",
+                "stage": stage,
+                "status": status,
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            })
 
     def _load_api_config(self) -> tuple:
         """
