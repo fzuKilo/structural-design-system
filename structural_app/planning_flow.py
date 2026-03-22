@@ -227,6 +227,48 @@ class PlanningFlow:
                 pass
         return None
 
+    async def _run_visualization(self, verbose: bool = True) -> Dict:
+        """运行可视化工具生成静态和交互式图表。"""
+        if verbose:
+            print("Step 5.1: Generating visualizations...")
+
+        try:
+            structure_type = self.results["design_proposal"].get("type", "beam")
+
+            if structure_type == "truss":
+                from structural_app.tool.visualizations.truss_visualizer import TrussVisualizer
+                visualizer = TrussVisualizer()
+            elif structure_type == "frame":
+                from structural_app.tool.visualizations.frame_visualizer import FrameVisualizer
+                visualizer = FrameVisualizer()
+            else:
+                from structural_app.tool.visualizations.beam_visualizer import BeamVisualizer
+                visualizer = BeamVisualizer()
+
+            visualizer.set_output_dir(str(self.main_output_dir / "visualizations"))
+
+            static_files = visualizer.generate_static_visualizations(
+                self.results["design_proposal"],
+                self.results["analysis_results"]
+            )
+            interactive_files = visualizer.generate_interactive_visualizations(
+                self.results["design_proposal"],
+                self.results["analysis_results"]
+            )
+
+            if verbose:
+                print(f"[OK] Visualizations generated: {len(static_files)} static, {len(interactive_files)} interactive")
+
+            return {
+                "status": "success",
+                "static": static_files,
+                "interactive": interactive_files
+            }
+        except Exception as e:
+            if verbose:
+                print(f"[ERROR] Visualization failed: {e}")
+            return {"status": "error", "error": str(e)}
+
     async def _run_bim_export(self, verbose: bool = True) -> Optional[Dict]:
         """可选的Speckle BIM导出步骤，询问用户是否导出。"""
         speckle_cfg = self._load_speckle_config()
@@ -733,11 +775,34 @@ class PlanningFlow:
                 print("Step 4: 跳过绘图（report_only 模式）")
             self.results["drawing_results"] = {"status": "skipped", "files": {}}
 
-        # Step 5: Report Generation
+        # Step 5: Visualization + BIM/IFC Export + Report Generation
         if verbose:
             print()
-            print("Step 5: Generating comprehensive report...")
+            print("Step 5: Visualization, BIM/IFC Export, and Report Generation...")
             print("-" * 40)
+
+        # 5.1: Visualization (unless report_only mode)
+        if not self.skip_drawing:
+            visualization_results = await self._run_visualization(verbose)
+            self.results["visualization_results"] = visualization_results
+        else:
+            if verbose:
+                print("Step 5.1: 跳过可视化（report_only 模式）")
+            self.results["visualization_results"] = {"status": "skipped"}
+
+        # 5.2: BIM/IFC Export (unless report_only mode)
+        if not self.skip_drawing:
+            self.results["bim_results"] = await self._run_bim_export(verbose)
+            self.results["ifc_results"] = await self._run_ifc_export(verbose)
+        else:
+            if verbose:
+                print("Step 5.2: 跳过BIM/IFC导出（report_only 模式）")
+            self.results["bim_results"] = None
+            self.results["ifc_results"] = None
+
+        # 5.3: Report Generation (always)
+        if verbose:
+            print("Step 5.3: Generating comprehensive report...")
 
         report_request = self._build_report_request(
             self.results["design_proposal"],
@@ -753,12 +818,6 @@ class PlanningFlow:
         if verbose and self.results["report_results"]:
             status = self.results['report_results'].get('status', 'unknown')
             print(f"[OK] Report generated: {status}")
-
-        # Step 6: BIM Export (可选)
-        self.results["bim_results"] = await self._run_bim_export(verbose)
-
-        # Step 7: IFC Export (可选)
-        self.results["ifc_results"] = await self._run_ifc_export(verbose)
 
         if verbose:
             print()
