@@ -453,6 +453,6 @@ class IfcExporter:
             ifcopenshell.api.run('pset.edit_pset', model,
                                  pset=pset, properties={k: str(v) for k, v in props.items()})
 
-        for element in elements:
-            ifcopenshell.api.run('material.assign_material', model,
-                                 product=element, material=material)
+        # 一次性分配材料给所有元素（更高效）
+        ifcopenshell.api.run('material.assign_material', model,
+                             products=elements, material=material)
