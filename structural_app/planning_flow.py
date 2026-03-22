@@ -9,7 +9,7 @@ This module orchestrates the multi-agent workflow for structural design:
 5. ReportGenerationAgent - Generates comprehensive reports
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 import json
 import os
 from pathlib import Path
@@ -245,7 +245,7 @@ class PlanningFlow:
                 from structural_app.tool.visualizations.beam_visualizer import BeamVisualizer
                 visualizer = BeamVisualizer()
 
-            visualizer.set_output_dir(str(self.main_output_dir / "visualizations"))
+            visualizer.set_output_directory(str(self.main_output_dir / "visualizations"))
 
             static_files = visualizer.generate_static_visualizations(
                 self.results["design_proposal"],
@@ -268,6 +268,72 @@ class PlanningFlow:
             if verbose:
                 print(f"[ERROR] Visualization failed: {e}")
             return {"status": "error", "error": str(e)}
+
+    async def _run_bim_and_ifc_export(self, verbose: bool = True) -> Tuple[Optional[Dict], Optional[Dict]]:
+        """合并询问BIM和IFC导出。"""
+        speckle_cfg = self._load_speckle_config()
+        ifc_cfg = self._load_ifc_config()
+
+        if not speckle_cfg and not ifc_cfg:
+            return None, None
+
+        if verbose:
+            print()
+            print("Step 5.2: BIM/IFC Export (可选)")
+            print("-" * 40)
+            try:
+                choice = input("是否导出BIM模型（Speckle + IFC）？(y/n): ").strip().lower()
+            except EOFError:
+                choice = 'n'
+
+            if choice != 'y':
+                print("[跳过] BIM/IFC导出已跳过")
+                return None, None
+
+        bim_result = None
+        ifc_result = None
+
+        # Speckle导出
+        if speckle_cfg:
+            if verbose:
+                print("[Speckle] 正在推送模型...")
+            try:
+                from structural_app.tool.exporters.speckle_exporter import SpeckleExporter
+                exporter = SpeckleExporter(speckle_cfg)
+                bim_result = exporter.export(
+                    self.results["design_proposal"],
+                    self.results["analysis_results"],
+                    self.results["evaluation_report"],
+                )
+                if bim_result.get('status') == 'success' and verbose:
+                    print(f"[OK] Speckle导出成功: {bim_result['url']}")
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] Speckle导出失败: {e}")
+                bim_result = {'status': 'error', 'error': str(e)}
+
+        # IFC导出
+        if ifc_cfg:
+            if verbose:
+                print("[IFC] 正在生成IFC文件...")
+            ifc_cfg = dict(ifc_cfg)
+            if hasattr(self, 'main_output_dir'):
+                ifc_cfg['output_dir'] = str(self.main_output_dir / "ifc")
+            try:
+                from structural_app.tool.exporters.ifc_exporter import IfcExporter
+                exporter = IfcExporter(ifc_cfg)
+                ifc_result = exporter.export(
+                    self.results["design_proposal"],
+                    self.results["analysis_results"],
+                )
+                if ifc_result.get('status') == 'success' and verbose:
+                    print(f"[OK] IFC导出成功: {ifc_result['path']}")
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] IFC导出失败: {e}")
+                ifc_result = {'status': 'error', 'error': str(e)}
+
+        return bim_result, ifc_result
 
     async def _run_bim_export(self, verbose: bool = True) -> Optional[Dict]:
         """可选的Speckle BIM导出步骤，询问用户是否导出。"""
@@ -792,8 +858,9 @@ class PlanningFlow:
 
         # 5.2: BIM/IFC Export (unless report_only mode)
         if not self.skip_drawing:
-            self.results["bim_results"] = await self._run_bim_export(verbose)
-            self.results["ifc_results"] = await self._run_ifc_export(verbose)
+            bim_result, ifc_result = await self._run_bim_and_ifc_export(verbose)
+            self.results["bim_results"] = bim_result
+            self.results["ifc_results"] = ifc_result
         else:
             if verbose:
                 print("Step 5.2: 跳过BIM/IFC导出（report_only 模式）")
