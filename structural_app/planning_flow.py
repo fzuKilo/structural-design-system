@@ -104,6 +104,7 @@ class PlanningFlow:
             "evaluation_report": None,
             "report_results": None,
             "bim_results": None,
+            "ifc_results": None,
         }
 
         # Load API configuration for LLM calls
@@ -152,6 +153,65 @@ class PlanningFlow:
         model = "claude-sonnet-4-6" if provider == "anthropic" else "gpt-4"
 
         return api_key, provider, base_url, model
+
+    def _load_ifc_config(self) -> Optional[Dict]:
+        """从config.toml读取IFC配置，enabled=false或无配置时返回None。"""
+        current_dir = Path(__file__).resolve().parent
+        config_path = current_dir.parent / "config.toml"
+        if config_path.exists():
+            try:
+                config = toml.load(config_path)
+                ifc = config.get('ifc', {})
+                if ifc.get('enabled', False):
+                    return ifc
+            except Exception:
+                pass
+        return None
+
+    async def _run_ifc_export(self, verbose: bool = True) -> Optional[Dict]:
+        """可选的IFC导出步骤，询问用户是否导出。"""
+        ifc_cfg = self._load_ifc_config()
+        if not ifc_cfg:
+            return None
+
+        if verbose:
+            print()
+            print("Step 7: IFC Export (可选)")
+            print("-" * 40)
+            try:
+                choice = input("是否导出为IFC文件（BIM）？(y/n): ").strip().lower()
+            except EOFError:
+                choice = 'n'
+
+            if choice != 'y':
+                print("[跳过] IFC导出已跳过")
+                return None
+
+            print("[IFC] 正在生成IFC文件...")
+
+        # 将输出目录放到本次运行的 main_output_dir 下
+        if hasattr(self, 'main_output_dir'):
+            ifc_cfg = dict(ifc_cfg)
+            ifc_cfg['output_dir'] = str(self.main_output_dir / "ifc")
+
+        try:
+            from structural_app.tool.exporters.ifc_exporter import IfcExporter
+            exporter = IfcExporter(ifc_cfg)
+            result = exporter.export(
+                self.results["design_proposal"],
+                self.results["analysis_results"],
+                self.results["evaluation_report"],
+            )
+            if result.get('status') == 'success' and verbose:
+                print(f"[OK] IFC导出成功")
+                print(f"[IFC] 文件路径: {result['path']}")
+            elif result.get('status') == 'error' and verbose:
+                print(f"[ERROR] IFC导出失败: {result.get('error')}")
+            return result
+        except Exception as e:
+            if verbose:
+                print(f"[ERROR] IFC导出异常: {e}")
+            return {'status': 'error', 'error': str(e)}
 
     def _load_speckle_config(self) -> Optional[Dict]:
         """从config.toml读取Speckle配置，enabled=false时返回None。"""
@@ -207,7 +267,7 @@ class PlanningFlow:
                 print(f"[ERROR] BIM导出异常: {e}")
             return {'status': 'error', 'error': str(e)}
 
-
+    def _get_allowed_params(self, design: dict) -> str:
         """
         根据结构类型生成允许修改的参数列表（含当前值），用于prompt约束。
 
@@ -694,6 +754,9 @@ class PlanningFlow:
 
         # Step 6: BIM Export (可选)
         self.results["bim_results"] = await self._run_bim_export(verbose)
+
+        # Step 7: IFC Export (可选)
+        self.results["ifc_results"] = await self._run_ifc_export(verbose)
 
         if verbose:
             print()
