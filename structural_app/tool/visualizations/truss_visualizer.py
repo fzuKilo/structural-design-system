@@ -360,11 +360,17 @@ class TrussVisualizer(BaseVisualizer):
                 ax.plot([nodes[i, 0], nodes[offset+i, 0]],
                        [nodes[i, 1], nodes[offset+i, 1]], **kwargs)
 
-        # Diagonal members (Pratt truss pattern)
+        # Diagonal members (alternating V-pattern)
         for i in range(n_panels):
             if offset + i + 1 < len(nodes):
-                ax.plot([nodes[i, 0], nodes[offset+i+1, 0]],
-                       [nodes[i, 1], nodes[offset+i+1, 1]], **kwargs)
+                if i % 2 == 0:
+                    # Even: bottom-left to top-right
+                    ax.plot([nodes[i, 0], nodes[offset+i+1, 0]],
+                           [nodes[i, 1], nodes[offset+i+1, 1]], **kwargs)
+                else:
+                    # Odd: top-left to bottom-right
+                    ax.plot([nodes[offset+i, 0], nodes[i+1, 0]],
+                           [nodes[offset+i, 1], nodes[i+1, 1]], **kwargs)
 
     def _get_member_lines(self, nodes, stresses, n_panels):
         """Get member line segments and corresponding stresses"""
@@ -397,11 +403,19 @@ class TrussVisualizer(BaseVisualizer):
                 member_stresses.append(abs(stresses[stress_idx]))
                 stress_idx += 1
 
-        # Diagonal members
+        # Diagonal members (alternating V-pattern)
         for i in range(n_panels):
-            if offset + i + 1 < len(nodes) and stress_idx < len(stresses):
-                member_lines.append([nodes[i], nodes[offset+i+1]])
-                member_stresses.append(abs(stresses[stress_idx]))
+            if stress_idx < len(stresses):
+                if i % 2 == 0:
+                    # Even: bottom-left to top-right
+                    if offset + i + 1 < len(nodes):
+                        member_lines.append([nodes[i], nodes[offset+i+1]])
+                        member_stresses.append(abs(stresses[stress_idx]))
+                else:
+                    # Odd: top-left to bottom-right
+                    if offset + i < len(nodes) and i + 1 < len(nodes):
+                        member_lines.append([nodes[offset+i], nodes[i+1]])
+                        member_stresses.append(abs(stresses[stress_idx]))
                 stress_idx += 1
 
         return member_lines, member_stresses
@@ -549,17 +563,29 @@ class TrussVisualizer(BaseVisualizer):
                     hoverinfo='skip'
                 ))
 
-        # Diagonal members
+        # Diagonal members (alternating V-pattern)
         for i in range(n_panels):
             if offset + i + 1 < len(nodes):
-                traces.append(go.Scatter(
-                    x=[nodes[i, 0], nodes[offset+i+1, 0]],
-                    y=[nodes[i, 1], nodes[offset+i+1, 1]],
-                    mode='lines',
-                    line=dict(width=2, color='gray'),
-                    showlegend=False,
-                    hoverinfo='skip'
-                ))
+                if i % 2 == 0:
+                    # Even: bottom-left to top-right
+                    traces.append(go.Scatter(
+                        x=[nodes[i, 0], nodes[offset+i+1, 0]],
+                        y=[nodes[i, 1], nodes[offset+i+1, 1]],
+                        mode='lines',
+                        line=dict(width=2, color='gray'),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                else:
+                    # Odd: top-left to bottom-right
+                    traces.append(go.Scatter(
+                        x=[nodes[offset+i, 0], nodes[i+1, 0]],
+                        y=[nodes[offset+i, 1], nodes[i+1, 1]],
+                        mode='lines',
+                        line=dict(width=2, color='gray'),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
 
         return traces
 

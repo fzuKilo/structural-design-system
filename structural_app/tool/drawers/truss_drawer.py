@@ -143,12 +143,17 @@ class TrussDrawer(StructureDrawer):
                 end = top_nodes[i]
                 msp.add_line(start, end, dxfattribs={'color': colors.BLUE, 'lineweight': 25})
 
-            # Draw diagonal web members (Pratt truss pattern)
+            # Draw diagonal web members (交替方向的V字形斜杆)
             if truss_type == 'pratt':
                 for i in range(n_panels):
-                    # Diagonal from bottom left to top right
-                    start = bottom_nodes[i]
-                    end = top_nodes[i + 1]
+                    if i % 2 == 0:
+                        # 偶数：从下左到上右
+                        start = bottom_nodes[i]
+                        end = top_nodes[i + 1]
+                    else:
+                        # 奇数：从上左到下右
+                        start = top_nodes[i]
+                        end = bottom_nodes[i + 1]
                     msp.add_line(start, end, dxfattribs={'color': colors.RED, 'lineweight': 25})
 
             # Draw support symbols
