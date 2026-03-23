@@ -5,12 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+import redis
 from backend.database import get_db, User, Task
 from backend.api.models import (
-    DesignCreateRequest, TaskResponse, TaskDetailResponse, MessageResponse
+    DesignCreateRequest, AskHumanResponse, TaskResponse, TaskDetailResponse, MessageResponse
 )
 from backend.api.middleware import get_current_user
 from backend.tasks.design_task import run_design_task
+from backend.api.config import settings
+
+_redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 router = APIRouter(prefix="/design", tags=["设计任务"])
 
@@ -58,6 +62,25 @@ async def get_task_status(
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return task
+
+
+@router.post("/{task_id}/respond", response_model=MessageResponse)
+async def respond_ask_human(
+    task_id: UUID,
+    body: AskHumanResponse,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """响应 AskHuman 问题，将答案写入 Redis 供 Celery 任务读取"""
+    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status != "running":
+        raise HTTPException(status_code=400, detail="任务当前不在等待输入状态")
+
+    redis_key = f"ask_human:{task_id}"
+    _redis.set(redis_key, body.answer, ex=300)  # 5分钟过期
+    return MessageResponse(message="已提交回答")
 
 
 @router.delete("/{task_id}", response_model=MessageResponse)

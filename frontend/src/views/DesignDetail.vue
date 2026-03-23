@@ -35,21 +35,7 @@
 
         <!-- Results (shown when completed) -->
         <a-col v-if="task?.status === 'success'" :span="24">
-          <a-card title="设计结果">
-            <a-tabs>
-              <a-tab-pane key="report" tab="设计报告">
-                <div v-if="task?.result_json?.report_file">
-                  <a-button type="primary" :href="`/api/file/download?path=${task.result_json.report_file}`" target="_blank">
-                    下载报告
-                  </a-button>
-                </div>
-                <a-empty v-else description="暂无报告" />
-              </a-tab-pane>
-              <a-tab-pane key="raw" tab="原始数据">
-                <pre style="font-size: 12px; overflow: auto; max-height: 400px;">{{ JSON.stringify(task?.result_json, null, 2) }}</pre>
-              </a-tab-pane>
-            </a-tabs>
-          </a-card>
+          <ResultViewer :result="task.result_json" :task-id="route.params.id as string" />
         </a-col>
       </a-row>
     </a-layout-content>
@@ -69,6 +55,7 @@ import { WebSocketManager } from '@/utils/websocket'
 import { getStageMessage } from '@/utils/i18n'
 import ProgressTracker from '@/components/design/ProgressTracker.vue'
 import AskHumanModal from '@/components/design/AskHumanModal.vue'
+import ResultViewer from '@/components/design/ResultViewer.vue'
 import type { WebSocketMessage } from '@/types/task'
 import axios from 'axios'
 
