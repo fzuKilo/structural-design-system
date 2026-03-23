@@ -75,6 +75,8 @@ class PlanningFlow:
         report_agent: Optional[ReportGenerationAgent] = None,
         output_dir: str = "output",
         websocket_callback=None,
+        task_id: Optional[str] = None,
+        redis_url: str = "redis://localhost:6379/0",
     ):
         """
         Initialize PlanningFlow with agents.
@@ -87,8 +89,12 @@ class PlanningFlow:
             report_agent: ReportGenerationAgent instance
             output_dir: Base directory for output files
             websocket_callback: Async callback function for WebSocket updates
+            task_id: Task UUID (enables WebAskHuman mode when provided)
+            redis_url: Redis URL for WebAskHuman answer polling
         """
         self.websocket_callback = websocket_callback
+        self.task_id = task_id
+        self.redis_url = redis_url
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -98,6 +104,10 @@ class PlanningFlow:
         self.drawing_agent = drawing_agent if drawing_agent is not None else (CADDrawingAgent() if CADDrawingAgent else None)
         self.evaluation_agent = evaluation_agent if evaluation_agent is not None else (EvaluationAgent() if EvaluationAgent else None)
         self.report_agent = report_agent if report_agent is not None else (ReportGenerationAgent() if ReportGenerationAgent else None)
+
+        # In web mode, replace AskHuman with WebAskHuman in all agents
+        if task_id and websocket_callback:
+            self._inject_web_ask_human()
 
         # Store results from each step
         self.results = {
@@ -123,6 +133,43 @@ class PlanningFlow:
             self.alert_config = ALERT_THRESHOLDS
         except ImportError:
             self.alert_config = {"default": {"safety_severe": 60, "safety_warning": 70, "economy_severe": 60, "economy_warning": 70}}
+
+    def _inject_web_ask_human(self):
+        """Replace AskHuman with WebAskHuman in all agents' tool collections."""
+        try:
+            from structural_app.tool.web_ask_human import WebAskHuman
+        except ImportError:
+            return
+
+        web_ask_human = WebAskHuman(
+            task_id=self.task_id,
+            websocket_callback=self.websocket_callback,
+            redis_url=self.redis_url,
+        )
+
+        agents = [
+            self.design_agent,
+            self.analysis_agent,
+            self.drawing_agent,
+            self.evaluation_agent,
+            self.report_agent,
+        ]
+
+        for agent in agents:
+            if agent is None:
+                continue
+            # ToolCollection stores tools in .tools (list) and .__tools_map__ (dict)
+            tool_collection = getattr(agent, 'available_tools', None)
+            if tool_collection is None:
+                continue
+            tools = getattr(tool_collection, 'tools', [])
+            new_tools = [web_ask_human if getattr(t, 'name', '') == 'ask_human' else t for t in tools]
+            # If ask_human wasn't in the list, no replacement needed
+            if new_tools != tools:
+                tool_collection.tools = new_tools
+                # Rebuild the name→tool map if it exists
+                if hasattr(tool_collection, '__tools_map__'):
+                    tool_collection.__tools_map__['ask_human'] = web_ask_human
 
     async def _broadcast_stage(self, stage: str, status: str, message: str = ""):
         """

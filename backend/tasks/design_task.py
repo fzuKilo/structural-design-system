@@ -5,6 +5,7 @@ import asyncio
 from backend.tasks.celery_app import celery_app
 from backend.database import get_db_context, Task
 from backend.api.services import ws_manager
+from backend.api.config import settings
 from structural_app.planning_flow import PlanningFlow
 
 
@@ -45,8 +46,12 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback):
                 "message": "开始生成设计方案"
             })
 
-            # Initialize PlanningFlow with WebSocket callback
-            flow = PlanningFlow(websocket_callback=ws_callback)
+            # Initialize PlanningFlow with WebSocket callback and task_id for WebAskHuman
+            flow = PlanningFlow(
+                websocket_callback=ws_callback,
+                task_id=task_id,
+                redis_url=settings.REDIS_URL,
+            )
 
             # Run workflow
             result = await flow.run(user_request)
