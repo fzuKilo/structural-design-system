@@ -1,6 +1,6 @@
 <template>
-  <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f2f5;">
-    <a-card title="用户登录" style="width: 400px;">
+  <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f2f5; padding: 16px;">
+    <a-card title="用户登录" style="width: 100%; max-width: 400px;">
       <a-form :model="form" @finish="handleLogin">
         <a-form-item name="username" :rules="[{ required: true, message: '请输入用户名' }]">
           <a-input v-model:value="form.username" placeholder="用户名" size="large" />

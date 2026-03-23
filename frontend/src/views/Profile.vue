@@ -1,11 +1,11 @@
 <template>
   <a-layout style="min-height: 100vh;">
-    <a-layout-header style="background: #fff; padding: 0 24px; display: flex; align-items: center; gap: 16px;">
-      <a-button @click="$router.push('/')">← 返回</a-button>
-      <h2 style="margin: 0;">用户设置</h2>
+    <a-layout-header style="background: #fff; padding: 0 16px; display: flex; align-items: center; gap: 8px;">
+      <a-button size="small" @click="$router.push('/')">← 返回</a-button>
+      <h2 style="margin: 0; font-size: clamp(14px, 3.5vw, 18px);">用户设置</h2>
     </a-layout-header>
 
-    <a-layout-content style="padding: 24px; max-width: 700px; margin: 0 auto; width: 100%;">
+    <a-layout-content style="padding: 12px; max-width: 700px; margin: 0 auto; width: 100%;">
       <a-row :gutter="[0, 16]">
 
         <!-- 账户信息 -->

@@ -1,19 +1,26 @@
 <template>
   <a-layout style="min-height: 100vh;">
-    <a-layout-header style="background: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center;">
-      <h2>OpenManus 结构设计系统</h2>
-      <a-space>
-        <span>{{ authStore.user?.username }}</span>
-        <a-button @click="$router.push('/profile')">设置</a-button>
-        <a-button @click="handleLogout">退出</a-button>
+    <a-layout-header style="background: #fff; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <h2 style="margin: 0; font-size: clamp(16px, 4vw, 20px);">OpenManus 结构设计系统</h2>
+      <a-space :size="8">
+        <span style="display: none; font-size: 14px;">{{ authStore.user?.username }}</span>
+        <a-button size="small" @click="$router.push('/profile')">设置</a-button>
+        <a-button size="small" @click="handleLogout">退出</a-button>
       </a-space>
     </a-layout-header>
-    <a-layout-content style="padding: 24px;">
+    <a-layout-content style="padding: 16px;">
       <a-card title="我的设计任务">
         <template #extra>
-          <a-button type="primary" @click="$router.push('/design/create')">新建设计</a-button>
+          <a-button type="primary" size="small" @click="$router.push('/design/create')">新建设计</a-button>
         </template>
-        <a-table :dataSource="tasks" :columns="columns" :loading="loading" rowKey="id">
+        <a-table
+          :dataSource="tasks"
+          :columns="columns"
+          :loading="loading"
+          rowKey="id"
+          :scroll="{ x: 800 }"
+          :pagination="{ pageSize: 10, showSizeChanger: false }"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
               <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
