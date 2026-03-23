@@ -6,7 +6,10 @@ from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 from backend.api.config import settings
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+# SQLite needs check_same_thread=False; PostgreSQL needs pool_pre_ping=True
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+_connect_args = {"check_same_thread": False} if _is_sqlite else {}
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=not _is_sqlite, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

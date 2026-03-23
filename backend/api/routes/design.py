@@ -4,7 +4,6 @@ Design Task Routes
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from uuid import UUID
 import redis
 from backend.database import get_db, User, Task
 from backend.api.models import (
@@ -53,7 +52,7 @@ async def list_tasks(
 
 @router.get("/{task_id}/status", response_model=TaskDetailResponse)
 async def get_task_status(
-    task_id: UUID,
+    task_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -66,7 +65,7 @@ async def get_task_status(
 
 @router.post("/{task_id}/respond", response_model=MessageResponse)
 async def respond_ask_human(
-    task_id: UUID,
+    task_id: str,
     body: AskHumanResponse,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -79,13 +78,13 @@ async def respond_ask_human(
         raise HTTPException(status_code=400, detail="任务当前不在等待输入状态")
 
     redis_key = f"ask_human:{task_id}"
-    _redis.set(redis_key, body.answer, ex=300)  # 5分钟过期
+    _redis.set(redis_key, body.answer, ex=300)
     return MessageResponse(message="已提交回答")
 
 
 @router.delete("/{task_id}", response_model=MessageResponse)
 async def delete_task(
-    task_id: UUID,
+    task_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
