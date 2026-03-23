@@ -23,8 +23,8 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     api_key_encrypted = Column(Text, nullable=True)
-    quota_daily = Column(Integer, default=10)
-    quota_monthly = Column(Integer, default=100)
+    quota_daily = Column(Integer, default=100)  # 增加到100次/天
+    quota_monthly = Column(Integer, default=1000)  # 增加到1000次/月
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")

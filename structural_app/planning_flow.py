@@ -855,7 +855,7 @@ class PlanningFlow:
         # Step 3.5: Evaluation Alert（预警与优化决策）
         self.skip_drawing = False
         if self.results["evaluation_report"]:
-            action = self._handle_evaluation_alert(self.results["evaluation_report"])
+            action = await self._handle_evaluation_alert(self.results["evaluation_report"])
 
             if action == "terminate":
                 if verbose:
@@ -1055,7 +1055,7 @@ class PlanningFlow:
             return "No design proposal available for analysis."
         return json.dumps(design_proposal, ensure_ascii=False)
 
-    def _handle_evaluation_alert(self, evaluation_report: Dict) -> str:
+    async def _handle_evaluation_alert(self, evaluation_report: Dict) -> str:
         """
         根据评估报告生成差异化预警，询问用户后续操作。
         返回: "continue", "optimize", "report_only", "terminate"
@@ -1100,6 +1100,14 @@ class PlanningFlow:
         print("  4 - terminate  : 终止工作流")
         print("=" * 60)
 
+        # Use WebSocket callback if available (Web mode)
+        print(f"[DEBUG] websocket_callback={self.websocket_callback}, task_id={self.task_id}")
+        if self.websocket_callback and self.task_id:
+            print("[DEBUG] Using Web mode for user choice")
+            return await self._ask_user_choice_web()
+
+        # Fallback to CLI input
+        print("[DEBUG] Using CLI mode for user choice")
         while True:
             try:
                 choice = input("请输入选项 (1/2/3/4): ").strip().lower()
@@ -1115,6 +1123,51 @@ class PlanningFlow:
             except (EOFError, KeyboardInterrupt):
                 print("\n用户中断，默认选择 continue")
                 return "continue"
+
+    async def _ask_user_choice_web(self) -> str:
+        """Ask user for choice via WebSocket + Redis"""
+        import asyncio
+        import redis
+
+        # Broadcast ask_human message
+        await self.websocket_callback({
+            "type": "ask_human",
+            "question": "请选择后续操作",
+            "options": [
+                "continue - 继续生成图纸和完整报告",
+                "optimize - 尝试自动优化（推荐）",
+                "report_only - 仅生成报告（跳过绘图）",
+                "terminate - 终止工作流"
+            ],
+            "default": "optimize"
+        })
+
+        # Wait for answer from Redis (using sync client in async context)
+        redis_key = f"ask_human:{self.task_id}"
+        client = redis.from_url(self.redis_url, decode_responses=True)
+
+        try:
+            timeout = 300  # 5 minutes
+            elapsed = 0
+            while elapsed < timeout:
+                answer = client.get(redis_key)
+                if answer is not None:
+                    client.delete(redis_key)
+                    # Parse answer
+                    mapping = {
+                        "1": "continue", "continue": "continue",
+                        "2": "optimize", "optimize": "optimize",
+                        "3": "report_only", "report_only": "report_only",
+                        "4": "terminate", "terminate": "terminate",
+                    }
+                    return mapping.get(answer.strip().lower(), "continue")
+                await asyncio.sleep(1)
+                elapsed += 1
+        finally:
+            client.close()
+
+        # Timeout - default to continue
+        return "continue"
 
     async def _parallel_optimization(
         self,
