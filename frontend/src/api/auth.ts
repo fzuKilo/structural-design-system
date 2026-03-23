@@ -12,5 +12,8 @@ export const authApi = {
     request.post<any, UserResponse>('/auth/register', data),
 
   getProfile: () =>
-    request.get<any, UserResponse>('/auth/profile')
+    request.get<any, UserResponse>('/auth/profile'),
+
+  updateProfile: (data: { api_key?: string }) =>
+    request.put<any, UserResponse>('/auth/profile', data)
 }

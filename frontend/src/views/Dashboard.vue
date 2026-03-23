@@ -4,6 +4,7 @@
       <h2>OpenManus 结构设计系统</h2>
       <a-space>
         <span>{{ authStore.user?.username }}</span>
+        <a-button @click="$router.push('/profile')">设置</a-button>
         <a-button @click="handleLogout">退出</a-button>
       </a-space>
     </a-layout-header>
