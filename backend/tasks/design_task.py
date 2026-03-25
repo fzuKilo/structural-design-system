@@ -54,6 +54,10 @@ def run_design_task(task_id: str, user_request: str):
 async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
     """Run the actual workflow"""
     import os
+    import redis
+
+    # Create Redis client inside function scope
+    redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
     # Create async wrapper for sync callback
     async def ws_callback(message: dict):
@@ -66,6 +70,11 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
     with get_db_context() as db:
         task = db.query(Task).filter(Task.id == task_id).first()
         if not task:
+            return
+
+        # Check if already cancelled before starting
+        if redis_client.exists(f"cancel:{task_id}") or task.status == "failed":
+            print(f"[INFO] Task {task_id} was cancelled, skipping")
             return
 
         try:
@@ -95,18 +104,32 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
 
             # API configuration from user settings
             api_config = {
-                "api_key": user.api_key_encrypted,  # TODO: decrypt if encrypted
+                "api_key": user.api_key_encrypted,
                 "provider": "openai",
                 "base_url": "https://api.deepseek.com/v1",
                 "model": "deepseek-chat"
             }
 
-            # Initialize agents with API config
-            design_agent = StructuralDesignAgent(**api_config)
-            analysis_agent = FEAnalysisAgent(**api_config)
-            drawing_agent = CADDrawingAgent(**api_config)
-            evaluation_agent = EvaluationAgent(**api_config)
-            report_agent = ReportGenerationAgent(**api_config)
+            # Create WebAskHuman tool first
+            from structural_app.tool.web_ask_human import WebAskHuman
+            web_ask_human = WebAskHuman(
+                task_id=task_id,
+                websocket_callback=ws_callback,
+                redis_url=settings.REDIS_URL,
+            )
+
+            # Initialize agents with API config and WebAskHuman tool
+            from structural_app.agent.structural_design_agent import StructuralDesignAgent
+            from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
+            from structural_app.agent.cad_drawing_agent import CADDrawingAgent
+            from structural_app.agent.evaluation_agent import EvaluationAgent
+            from structural_app.agent.report_generation_agent import ReportGenerationAgent
+
+            design_agent = StructuralDesignAgent(tools=[web_ask_human], **api_config)
+            analysis_agent = FEAnalysisAgent(tools=[web_ask_human], **api_config)
+            drawing_agent = CADDrawingAgent(tools=[web_ask_human], **api_config)
+            evaluation_agent = EvaluationAgent(tools=[web_ask_human], **api_config)
+            report_agent = ReportGenerationAgent(tools=[web_ask_human], **api_config)
 
             # Initialize PlanningFlow with pre-configured agents
             flow = PlanningFlow(
@@ -120,15 +143,55 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 redis_url=settings.REDIS_URL,
             )
 
-            # Manually inject WebAskHuman since agents were created before PlanningFlow
-            flow._inject_web_ask_human()
-
             # Run workflow
             result = await flow.run_full_design(user_request)
 
+            # Extract actual visualization paths from output directory
+            import glob
+            output_dir = result.get("main_output_dir", "")
+            vis_dir = os.path.join(output_dir, "visualizations")
+
+            actual_visualizations = {"static": {}, "interactive": {}}
+            if os.path.exists(vis_dir):
+                # Static images
+                for png in glob.glob(os.path.join(vis_dir, "*.png")):
+                    basename = os.path.basename(png)
+                    if "displacement_cloud" in basename or "displacement" in basename and "cloud" in basename:
+                        actual_visualizations["static"]["displacement_contour"] = png
+                    elif "moment_cloud" in basename:
+                        actual_visualizations["static"]["moment_contour"] = png
+                    elif "stress_cloud" in basename:
+                        actual_visualizations["static"]["stress_contour"] = png
+                    elif "moment_diagram" in basename:
+                        actual_visualizations["static"]["moment_diagram"] = png
+
+                # Interactive HTML
+                for html in glob.glob(os.path.join(vis_dir, "*.html")):
+                    basename = os.path.basename(html)
+                    if "displacement" in basename:
+                        actual_visualizations["interactive"]["displacement_html"] = html
+                    elif "moment" in basename:
+                        actual_visualizations["interactive"]["moment_html"] = html
+                    elif "stress" in basename:
+                        actual_visualizations["interactive"]["stress_html"] = html
+
+            # Flatten result structure for frontend compatibility
+            flattened_result = {
+                "report_file": result.get("report_results", {}).get("report_file", "").replace("\\", "/"),
+                "files": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in result.get("drawing_results", {}).get("files", {}).items()},
+                "visualizations": {
+                    "static": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("static", {}).items()},
+                    "interactive": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("interactive", {}).items()}
+                },
+                "evaluation": result.get("evaluation_report"),
+                "bim_url": result.get("bim_results", {}).get("url"),
+                "ifc_path": result.get("ifc_results", {}).get("path", "").replace("\\", "/"),
+                "raw": result
+            }
+
             # Update task with results
             task.status = "success"
-            task.result_json = result
+            task.result_json = flattened_result
             db.commit()
 
             # Broadcast completion

@@ -37,6 +37,7 @@ class Task(Base):
     id = Column(String(36), primary_key=True, default=_uuid_default)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     status = Column(String(20), default="pending", index=True)
+    celery_task_id = Column(String(255), nullable=True)
     request_text = Column(Text, nullable=False)
     structure_type = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

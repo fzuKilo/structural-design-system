@@ -43,7 +43,9 @@ watch(() => props.request, (req) => {
 
 const handleSubmit = () => {
   if (answer.value) {
-    emit('submit', answer.value)
+    // 提取简短值：如果是 "continue - 继续..." 格式，取 "continue"
+    const shortValue = answer.value.split(' - ')[0].trim()
+    emit('submit', shortValue)
     answer.value = ''
   }
 }

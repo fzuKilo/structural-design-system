@@ -12,6 +12,7 @@ async def websocket_endpoint(websocket: WebSocket, task_id: str, token: str = Qu
     """WebSocket 连接端点"""
     payload = decode_token(token)
     if not payload:
+        await websocket.accept()
         await websocket.close(code=1008)
         return
 

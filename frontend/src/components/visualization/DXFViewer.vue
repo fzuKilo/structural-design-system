@@ -68,9 +68,10 @@ const dragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const containerRef = ref<HTMLElement | null>(null)
 
-const downloadUrl = computed(() =>
-  `/api/file/download?path=${encodeURIComponent(props.src)}`
-)
+const downloadUrl = computed(() => {
+  const token = localStorage.getItem('token')
+  return `/api/file/download?path=${encodeURIComponent(props.src)}&token=${token}`
+})
 
 const loadDxf = async () => {
   if (!props.src) return

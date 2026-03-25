@@ -8,9 +8,10 @@ Instead of blocking on input(), this tool:
 """
 import asyncio
 from app.tool import BaseTool
+from app.tool.ask_human import AskHuman
 
 
-class WebAskHuman(BaseTool):
+class WebAskHuman(AskHuman):
     """AskHuman tool that communicates via WebSocket + Redis instead of stdin."""
 
     name: str = "ask_human"
@@ -40,17 +41,20 @@ class WebAskHuman(BaseTool):
         Broadcast question via WebSocket, then poll Redis for the answer.
         Falls back to empty string on timeout.
         """
-        # Parse question and options from inquire string
-        question, options = self._parse_inquire(inquire)
+        print(f"[WebAskHuman] execute() called with inquire: {inquire[:100]}...")
+        print(f"[WebAskHuman] task_id={self.task_id}, has_callback={self.websocket_callback is not None}")
 
-        # Broadcast ask_human event to frontend
+        # Broadcast ask_human event to frontend (no options, use free text input)
         if self.websocket_callback and self.task_id:
+            print(f"[WebAskHuman] Broadcasting ask_human message via WebSocket")
             await self.websocket_callback({
                 "type": "ask_human",
-                "question": question,
-                "options": options,
-                "default": options[0] if options else ""
+                "question": inquire,
+                "options": [],  # Empty options = free text input
+                "default": ""
             })
+        else:
+            print(f"[WebAskHuman] WARNING: Cannot broadcast - missing task_id or callback")
 
         # If no task_id/redis configured, fall back to empty
         if not self.task_id:
@@ -58,6 +62,7 @@ class WebAskHuman(BaseTool):
 
         # Poll Redis for answer
         answer = await self._wait_for_answer()
+        print(f"[WebAskHuman] Received answer: {answer}")
         return answer
 
     def _parse_inquire(self, inquire: str) -> tuple[str, list[str]]:

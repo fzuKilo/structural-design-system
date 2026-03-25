@@ -4,6 +4,16 @@
       <a-button size="small" @click="$router.push('/')">← 返回</a-button>
       <h2 style="margin: 0; font-size: clamp(14px, 3.5vw, 18px); flex: 1; min-width: 0;">设计任务详情</h2>
       <a-tag :color="getStatusColor(task?.status)">{{ getStatusText(task?.status) }}</a-tag>
+      <a-popconfirm
+        v-if="task?.status === 'running' || task?.status === 'pending'"
+        title="确认停止该任务吗？停止后无法恢复。"
+        ok-text="停止"
+        cancel-text="取消"
+        ok-type="danger"
+        @confirm="handleCancel"
+      >
+        <a-button size="small" danger :loading="cancelling">停止任务</a-button>
+      </a-popconfirm>
     </a-layout-header>
 
     <a-layout-content style="padding: 12px;">
@@ -65,6 +75,7 @@ const authStore = useAuthStore()
 const task = ref<any>(null)
 const logs = ref<{ time: string; message: string; color: string }[]>([])
 const logRef = ref<HTMLElement | null>(null)
+const cancelling = ref(false)
 let wsManager: WebSocketManager | null = null
 
 const getStatusColor = (status?: string) => {
@@ -83,6 +94,20 @@ const addLog = (message: string, color = '#333') => {
   nextTick(() => {
     if (logRef.value) logRef.value.scrollTop = logRef.value.scrollHeight
   })
+}
+
+const handleCancel = async () => {
+  cancelling.value = true
+  try {
+    await designApi.cancel(route.params.id as string)
+    addLog('任务已停止', '#f5222d')
+    wsManager?.disconnect()
+    await loadTask()
+  } catch (e: any) {
+    addLog(`停止失败: ${e.response?.data?.detail || e.message}`, '#f5222d')
+  } finally {
+    cancelling.value = false
+  }
 }
 
 const handleWsMessage = (msg: WebSocketMessage) => {

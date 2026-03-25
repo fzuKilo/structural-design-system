@@ -51,27 +51,42 @@ class WebSocketManager:
 
     async def _listen_redis(self, task_id: str):
         """Listen to Redis pub/sub for a task (non-blocking)"""
-        import asyncio
+        try:
+            import redis.asyncio as aioredis
+        except ImportError:
+            import aioredis
 
         channel = f"task:{task_id}"
-        pubsub = self.redis_client.pubsub()
-        pubsub.subscribe(channel)
+        # Use the same redis_url from initialization
+        redis_url = self.redis_client.connection_pool.connection_kwargs.get('host', 'localhost')
+        redis_port = self.redis_client.connection_pool.connection_kwargs.get('port', 6379)
+        redis_db = self.redis_client.connection_pool.connection_kwargs.get('db', 0)
+        full_url = f"redis://{redis_url}:{redis_port}/{redis_db}"
+
+        client = aioredis.from_url(full_url, decode_responses=True)
+        pubsub = client.pubsub()
 
         try:
-            while task_id in self.active_connections:
-                # Non-blocking check for messages
-                message = pubsub.get_message(ignore_subscribe_messages=True)
-                if message and message['type'] == 'message':
-                    data = json.loads(message['data'])
-                    await self.broadcast(task_id, data)
+            await pubsub.subscribe(channel)
+            print(f"[WebSocket] Subscribed to Redis channel: {channel}")
 
-                # Small delay to avoid busy loop
-                await asyncio.sleep(0.1)
+            while task_id in self.active_connections:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if message and message['type'] == 'message':
+                        data = json.loads(message['data'])
+                        print(f"[WebSocket] Broadcasting to {len(self.active_connections[task_id])} clients")
+                        await self.broadcast(task_id, data)
+                except Exception as e:
+                    print(f"[WebSocket] Error: {e}")
+                    await asyncio.sleep(0.1)
         finally:
-            pubsub.unsubscribe(channel)
-            pubsub.close()
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+            await client.close()
 
 
 # Global WebSocket manager instance
-ws_manager = WebSocketManager()
+from backend.api.config import settings
+ws_manager = WebSocketManager(redis_url=settings.REDIS_URL)
 

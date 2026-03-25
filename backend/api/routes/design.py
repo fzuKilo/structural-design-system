@@ -34,8 +34,10 @@ async def create_design(
     db.commit()
     db.refresh(task)
 
-    # Queue Celery task
-    run_design_task.delay(str(task.id), request.request_text)
+    # Queue Celery task and save celery_task_id
+    celery_result = run_design_task.delay(str(task.id), request.request_text)
+    task.celery_task_id = celery_result.id
+    db.commit()
 
     return task
 
@@ -80,6 +82,35 @@ async def respond_ask_human(
     redis_key = f"ask_human:{task_id}"
     _redis.set(redis_key, body.answer, ex=300)
     return MessageResponse(message="已提交回答")
+
+
+@router.post("/{task_id}/cancel", response_model=MessageResponse)
+async def cancel_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """取消运行中的任务"""
+    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status not in ("pending", "running"):
+        raise HTTPException(status_code=400, detail="任务不在可取消状态")
+
+    # Revoke Celery task
+    if task.celery_task_id:
+        from backend.tasks.celery_app import celery_app
+        celery_app.control.revoke(task.celery_task_id, terminate=True, signal="SIGTERM")
+
+    # Mark cancelled in DB
+    task.status = "failed"
+    db.commit()
+
+    # Clean up Redis keys
+    _redis.delete(f"ask_human:{task_id}")
+    _redis.set(f"cancel:{task_id}", "1", ex=600)
+
+    return MessageResponse(message="任务已取消")
 
 
 @router.delete("/{task_id}", response_model=MessageResponse)

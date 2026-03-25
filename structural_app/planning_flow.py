@@ -77,6 +77,7 @@ class PlanningFlow:
         websocket_callback=None,
         task_id: Optional[str] = None,
         redis_url: str = "redis://localhost:6379/0",
+        api_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize PlanningFlow with agents.
@@ -91,6 +92,7 @@ class PlanningFlow:
             websocket_callback: Async callback function for WebSocket updates
             task_id: Task UUID (enables WebAskHuman mode when provided)
             redis_url: Redis URL for WebAskHuman answer polling
+            api_config: API configuration dict for creating agents
         """
         self.websocket_callback = websocket_callback
         self.task_id = task_id
@@ -98,12 +100,39 @@ class PlanningFlow:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create agents if not provided (handle None imports gracefully)
-        self.design_agent = design_agent if design_agent is not None else (StructuralDesignAgent() if StructuralDesignAgent else None)
-        self.analysis_agent = analysis_agent if analysis_agent is not None else (FEAnalysisAgent() if FEAnalysisAgent else None)
-        self.drawing_agent = drawing_agent if drawing_agent is not None else (CADDrawingAgent() if CADDrawingAgent else None)
-        self.evaluation_agent = evaluation_agent if evaluation_agent is not None else (EvaluationAgent() if EvaluationAgent else None)
-        self.report_agent = report_agent if report_agent is not None else (ReportGenerationAgent() if ReportGenerationAgent else None)
+        # Create agents if not provided
+        if api_config is None:
+            api_config = {}
+
+        try:
+            self.design_agent = design_agent if design_agent is not None else (StructuralDesignAgent(**api_config) if StructuralDesignAgent else None)
+        except Exception as e:
+            print(f"[PlanningFlow] Failed to create StructuralDesignAgent: {e}")
+            self.design_agent = None
+
+        try:
+            self.analysis_agent = analysis_agent if analysis_agent is not None else (FEAnalysisAgent(**api_config) if FEAnalysisAgent else None)
+        except Exception as e:
+            print(f"[PlanningFlow] Failed to create FEAnalysisAgent: {e}")
+            self.analysis_agent = None
+
+        try:
+            self.drawing_agent = drawing_agent if drawing_agent is not None else (CADDrawingAgent(**api_config) if CADDrawingAgent else None)
+        except Exception as e:
+            print(f"[PlanningFlow] Failed to create CADDrawingAgent: {e}")
+            self.drawing_agent = None
+
+        try:
+            self.evaluation_agent = evaluation_agent if evaluation_agent is not None else (EvaluationAgent(**api_config) if EvaluationAgent else None)
+        except Exception as e:
+            print(f"[PlanningFlow] Failed to create EvaluationAgent: {e}")
+            self.evaluation_agent = None
+
+        try:
+            self.report_agent = report_agent if report_agent is not None else (ReportGenerationAgent(**api_config) if ReportGenerationAgent else None)
+        except Exception as e:
+            print(f"[PlanningFlow] Failed to create ReportGenerationAgent: {e}")
+            self.report_agent = None
 
         # In web mode, replace AskHuman with WebAskHuman in all agents
         if task_id and websocket_callback:
@@ -247,10 +276,13 @@ class PlanningFlow:
             print()
             print("Step 7: IFC Export (可选)")
             print("-" * 40)
-            try:
-                choice = input("是否导出为IFC文件（BIM）？(y/n): ").strip().lower()
-            except EOFError:
-                choice = 'n'
+            choice = await self._ask_web_or_cli(
+                question="是否导出为IFC文件（BIM）？",
+                options=["y - 是，导出IFC", "n - 否，跳过"],
+                default="n",
+                mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
+                cli_prompt="是否导出为IFC文件（BIM）？(y/n): ",
+            )
 
             if choice != 'y':
                 print("[跳过] IFC导出已跳过")
@@ -350,10 +382,13 @@ class PlanningFlow:
             print()
             print("Step 5.2: BIM/IFC Export (可选)")
             print("-" * 40)
-            try:
-                choice = input("是否导出BIM模型（Speckle + IFC）？(y/n): ").strip().lower()
-            except EOFError:
-                choice = 'n'
+            choice = await self._ask_web_or_cli(
+                question="是否导出BIM模型（Speckle + IFC）？",
+                options=["y - 是，导出BIM/IFC", "n - 否，跳过"],
+                default="n",
+                mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
+                cli_prompt="是否导出BIM模型（Speckle + IFC）？(y/n): ",
+            )
 
             if choice != 'y':
                 print("[跳过] BIM/IFC导出已跳过")
@@ -414,10 +449,13 @@ class PlanningFlow:
             print()
             print("Step 6: BIM Export (可选)")
             print("-" * 40)
-            try:
-                choice = input("是否导出到Speckle BIM查看器？(y/n): ").strip().lower()
-            except EOFError:
-                choice = 'n'
+            choice = await self._ask_web_or_cli(
+                question="是否导出到Speckle BIM查看器？",
+                options=["y - 是，导出BIM", "n - 否，跳过"],
+                default="n",
+                mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
+                cli_prompt="是否导出到Speckle BIM查看器？(y/n): ",
+            )
 
             if choice != 'y':
                 print("[跳过] BIM导出已跳过")
@@ -653,11 +691,14 @@ class PlanningFlow:
             print("Step 1: Generating design proposal...")
             print("-" * 40)
 
+        await self._broadcast_stage("design_proposal", "started", "开始生成设计方案")
         design_result = await self.design_agent.run(request)
         self.results["design_proposal"] = self._extract_design_proposal(design_result)
 
         if verbose and self.results["design_proposal"]:
             print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
+
+        await self._broadcast_stage("design_proposal", "completed", "设计方案生成完成")
 
         # Create output directory with structure type name
         structure_type = self.results["design_proposal"].get("type", "unknown") if self.results["design_proposal"] else "unknown"
@@ -696,6 +737,7 @@ class PlanningFlow:
             print("Step 2: Performing finite element analysis...")
             print("-" * 40)
 
+        await self._broadcast_stage("fe_analysis", "started", "开始有限元分析")
         analysis_request = self._build_analysis_request(self.results["design_proposal"])
         analysis_result = await self.analysis_agent.run(analysis_request)
         self.results["analysis_results"] = self._extract_analysis_results(analysis_result)
@@ -703,6 +745,8 @@ class PlanningFlow:
         if verbose and self.results["analysis_results"]:
             status = self.results['analysis_results'].get('status', 'unknown')
             print(f"[OK] FE analysis completed: {status}")
+
+        await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成")
 
         # Check if analysis failed (e.g., unsupported structure type)
         if self.results["analysis_results"]:
@@ -782,7 +826,7 @@ class PlanningFlow:
             code_check = self.results["analysis_results"].get('code_check', {})
             if not code_check.get('compliant', True):
                 # Code check failed - ask user for action
-                user_choice = self._ask_code_check_failure_action(code_check, verbose)
+                user_choice = await self._ask_code_check_failure_action(code_check, verbose)
 
                 if user_choice == "manual":
                     # Option 1: Manual improvement loop with LLM suggestions
@@ -841,6 +885,7 @@ class PlanningFlow:
             print("Step 3: Evaluating design quality...")
             print("-" * 40)
 
+        await self._broadcast_stage("evaluation", "started", "开始设计评估")
         self.results["evaluation_report"] = await self._run_evaluation(
             self.results["design_proposal"],
             self.results["analysis_results"]
@@ -851,6 +896,8 @@ class PlanningFlow:
             grade = self.results['evaluation_report'].get('grade', 'N/A')
             score = self.results['evaluation_report'].get('comprehensive_score', 0)
             print(f"[OK] Evaluation completed: {status}, Grade: {grade}, Score: {score}")
+
+        await self._broadcast_stage("evaluation", "completed", "设计评估完成")
 
         # Step 3.5: Evaluation Alert（预警与优化决策）
         self.skip_drawing = False
@@ -890,6 +937,7 @@ class PlanningFlow:
                 print("Step 4: Generating CAD drawings...")
                 print("-" * 40)
 
+            await self._broadcast_stage("cad_drawing", "started", "开始生成CAD图纸")
             drawing_request = self._build_drawing_request(
                 self.results["design_proposal"],
                 self.results["analysis_results"]
@@ -904,6 +952,8 @@ class PlanningFlow:
                 else:
                     print(f"[WARNING] Failed to extract drawing results from response")
                     print(f"[DEBUG] Drawing agent response (first 500 chars): {str(drawing_result)[:500]}")
+
+            await self._broadcast_stage("cad_drawing", "completed", "CAD图纸生成完成")
         else:
             if verbose:
                 print()
@@ -915,6 +965,8 @@ class PlanningFlow:
             print()
             print("Step 5: BIM/IFC Export and Report Generation...")
             print("-" * 40)
+
+        await self._broadcast_stage("report_generation", "started", "开始生成报告")
 
         # 5.1: BIM/IFC Export (unless report_only mode)
         if not self.skip_drawing:
@@ -946,6 +998,8 @@ class PlanningFlow:
         if verbose and self.results["report_results"]:
             status = self.results['report_results'].get('status', 'unknown')
             print(f"[OK] Report generated: {status}")
+
+        await self._broadcast_stage("report_generation", "completed", "报告生成完成")
 
         if verbose:
             print()
@@ -1124,50 +1178,73 @@ class PlanningFlow:
                 print("\n用户中断，默认选择 continue")
                 return "continue"
 
-    async def _ask_user_choice_web(self) -> str:
-        """Ask user for choice via WebSocket + Redis"""
+    async def _ask_web_or_cli(
+        self,
+        question: str,
+        options: list,
+        default: str,
+        mapping: dict = None,
+        cli_prompt: str = "请输入选项: ",
+    ) -> str:
+        """通用询问方法：Web模式走WebSocket+Redis，CLI模式走input()"""
         import asyncio
-        import redis
 
-        # Broadcast ask_human message
-        await self.websocket_callback({
-            "type": "ask_human",
-            "question": "请选择后续操作",
-            "options": [
+        if self.websocket_callback and self.task_id:
+            import redis as redis_lib
+            await self.websocket_callback({
+                "type": "ask_human",
+                "question": question,
+                "options": options,
+                "default": default,
+            })
+            redis_key = f"ask_human:{self.task_id}"
+            client = redis_lib.from_url(self.redis_url, decode_responses=True)
+            try:
+                timeout = 300
+                elapsed = 0
+                while elapsed < timeout:
+                    answer = client.get(redis_key)
+                    if answer is not None:
+                        client.delete(redis_key)
+                        answer = answer.strip().lower()
+                        return mapping.get(answer, default) if mapping else answer
+                    await asyncio.sleep(1)
+                    elapsed += 1
+            finally:
+                client.close()
+            return default
+        else:
+            while True:
+                try:
+                    answer = input(cli_prompt).strip().lower()
+                    if mapping:
+                        if answer in mapping:
+                            return mapping[answer]
+                        print("无效选项，请重新输入")
+                    else:
+                        return answer
+                except (EOFError, KeyboardInterrupt):
+                    return default
+
+    async def _ask_user_choice_web(self) -> str:
+        """Ask user for choice via WebSocket + Redis (kept for compatibility)"""
+        return await self._ask_web_or_cli(
+            question="请选择后续操作",
+            options=[
                 "continue - 继续生成图纸和完整报告",
                 "optimize - 尝试自动优化（推荐）",
                 "report_only - 仅生成报告（跳过绘图）",
-                "terminate - 终止工作流"
+                "terminate - 终止工作流",
             ],
-            "default": "optimize"
-        })
-
-        # Wait for answer from Redis (using sync client in async context)
-        redis_key = f"ask_human:{self.task_id}"
-        client = redis.from_url(self.redis_url, decode_responses=True)
-
-        try:
-            timeout = 300  # 5 minutes
-            elapsed = 0
-            while elapsed < timeout:
-                answer = client.get(redis_key)
-                if answer is not None:
-                    client.delete(redis_key)
-                    # Parse answer
-                    mapping = {
-                        "1": "continue", "continue": "continue",
-                        "2": "optimize", "optimize": "optimize",
-                        "3": "report_only", "report_only": "report_only",
-                        "4": "terminate", "terminate": "terminate",
-                    }
-                    return mapping.get(answer.strip().lower(), "continue")
-                await asyncio.sleep(1)
-                elapsed += 1
-        finally:
-            client.close()
-
-        # Timeout - default to continue
-        return "continue"
+            default="optimize",
+            mapping={
+                "1": "continue", "continue": "continue",
+                "2": "optimize", "optimize": "optimize",
+                "3": "report_only", "report_only": "report_only",
+                "4": "terminate", "terminate": "terminate",
+            },
+            cli_prompt="请输入选项 (1/2/3/4): ",
+        )
 
     async def _parallel_optimization(
         self,
@@ -1225,7 +1302,7 @@ class PlanningFlow:
         candidates.sort(key=lambda x: x[2].get("comprehensive_score", 0), reverse=True)
 
         # Display comparison table and let user choose
-        choice = self._display_optimization_comparison(
+        choice = await self._display_optimization_comparison(
             original_design, original_analysis, original_evaluation, candidates
         )
 
@@ -1238,7 +1315,7 @@ class PlanningFlow:
             print(f"[优化] 已选择方案 {choice}（得分 {selected_score:.1f}）")
             return selected_design, selected_analysis, selected_evaluation
 
-    def _display_optimization_comparison(
+    async def _display_optimization_comparison(
         self,
         original_design: Dict,
         original_analysis: Dict,
@@ -1401,22 +1478,21 @@ class PlanningFlow:
 
         # User choice
         valid = list(range(len(all_items)))
-        while True:
-            try:
-                prompt = f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案): "
-                raw = input(prompt).strip()
-                choice = int(raw)
-                if choice in valid:
-                    return choice
-                print(f"请输入 {valid} 中的数字")
-            except ValueError:
-                print("请输入有效数字")
-            except (EOFError, KeyboardInterrupt):
-                if best_overall_idx == 0:
-                    print("\n用户中断，默认选择原方案")
-                else:
-                    print(f"\n用户中断，默认选择推荐方案 {best_overall_idx}")
-                return best_overall_idx
+        options = ["0 - 原方案"] + [f"{i+1} - 候选方案{i+1}" for i in range(len(candidates))]
+        raw = await self._ask_web_or_cli(
+            question=f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案)",
+            options=options,
+            default=str(best_overall_idx),
+            mapping=None,
+            cli_prompt=f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案): ",
+        )
+        try:
+            choice = int(raw.strip())
+            if choice in valid:
+                return choice
+        except (ValueError, AttributeError):
+            pass
+        return best_overall_idx
 
     async def _generate_candidate_descriptions(
         self,
@@ -1679,7 +1755,7 @@ class PlanningFlow:
 
         return valid
 
-    def _ask_code_check_failure_action(self, code_check: dict, verbose: bool = True) -> str:
+    async def _ask_code_check_failure_action(self, code_check: dict, verbose: bool = True) -> str:
         """
         Ask user how to handle code_check failure.
 
@@ -1707,27 +1783,21 @@ class PlanningFlow:
             print("  3 - terminate : 终止工作流")
             print("=" * 60)
 
-        while True:
-            try:
-                choice = input("请输入选项 (1/2/3 或 manual/auto/terminate): ").strip().lower()
-
-                # Map numeric choices to string choices
-                choice_map = {
-                    "1": "manual",
-                    "2": "auto",
-                    "3": "terminate",
-                    "manual": "manual",
-                    "auto": "auto",
-                    "terminate": "terminate"
-                }
-
-                if choice in choice_map:
-                    return choice_map[choice]
-                else:
-                    print("无效选项，请重新输入")
-            except (EOFError, KeyboardInterrupt):
-                print("\n用户中断，默认选择 terminate")
-                return "terminate"
+        return await self._ask_web_or_cli(
+            question="规范检查未通过，请选择处理方式",
+            options=[
+                "manual - 查看改进建议，手动修改后重新运行",
+                "auto - 自动迭代优化直至满足规范",
+                "terminate - 终止工作流",
+            ],
+            default="terminate",
+            mapping={
+                "1": "manual", "manual": "manual",
+                "2": "auto", "auto": "auto",
+                "3": "terminate", "terminate": "terminate",
+            },
+            cli_prompt="请输入选项 (1/2/3 或 manual/auto/terminate): ",
+        )
 
     def _generate_improvement_suggestions(self, code_check: dict) -> str:
         """
@@ -1986,7 +2056,13 @@ class PlanningFlow:
 
             # Ask user for improvements
             print()
-            user_input = input("请输入改进方案（或输入 'skip' 跳过）: ").strip()
+            user_input = await self._ask_web_or_cli(
+                question="请输入改进方案（或选择跳过）",
+                options=["skip - 跳过，使用当前方案"],
+                default="skip",
+                mapping=None,
+                cli_prompt="请输入改进方案（或输入 'skip' 跳过）: ",
+            )
 
             if user_input.lower() == 'skip':
                 if verbose:

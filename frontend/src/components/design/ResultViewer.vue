@@ -93,8 +93,7 @@
         <div v-if="allFiles.length" style="margin-top: 16px; text-align: right;">
           <a-button
             type="primary"
-            :href="`/api/file/package/${taskId}`"
-            target="_blank"
+            @click="downloadPackage"
           >
             打包下载全部 (ZIP)
           </a-button>
@@ -211,6 +210,12 @@ const loadReport = async () => {
   } finally {
     loadingReport.value = false
   }
+}
+
+// 打包下载
+const downloadPackage = () => {
+  const token = localStorage.getItem('token')
+  window.open(`/api/file/package/${props.taskId}?token=${token}`, '_blank')
 }
 
 watch(() => props.result, (val) => {

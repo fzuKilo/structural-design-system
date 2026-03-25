@@ -12,5 +12,11 @@ export const designApi = {
     request.get<any, TaskResponse[]>('/design/list'),
 
   getStatus: (taskId: string) =>
-    request.get<any, TaskDetailResponse>(`/design/${taskId}/status`)
+    request.get<any, TaskDetailResponse>(`/design/${taskId}/status`),
+
+  cancel: (taskId: string) =>
+    request.post<any, { message: string }>(`/design/${taskId}/cancel`),
+
+  delete: (taskId: string) =>
+    request.delete<any, { message: string }>(`/design/${taskId}`)
 }
