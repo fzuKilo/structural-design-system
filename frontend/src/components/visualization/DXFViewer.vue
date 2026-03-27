@@ -12,7 +12,7 @@
         <a-button size="small" type="link" :href="downloadUrl" target="_blank">下载 DXF</a-button>
       </div>
 
-      <!-- SVG 渲染区 -->
+      <!-- SVG/PNG 渲染区 -->
       <div
         ref="containerRef"
         style="border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden; background: #1a1a2e; cursor: grab; position: relative;"
@@ -34,10 +34,11 @@
           <div v-if="loading" style="display: flex; justify-content: center; align-items: center; height: 100%; color: #fff;">
             <a-spin tip="加载图纸中..." />
           </div>
-          <div v-else-if="error" style="display: flex; justify-content: center; align-items: center; height: 100%; color: #ff4d4f;">
-            {{ error }}
+          <div v-else style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #999;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📐</div>
+            <div style="font-size: 16px; margin-bottom: 8px;">CAD 图纸已生成</div>
+            <div style="font-size: 14px;">请点击上方"下载 DXF"按钮下载后在 AutoCAD 中查看</div>
           </div>
-          <div v-else v-html="svgContent" style="width: 100%; height: 100%;" />
         </div>
       </div>
 
@@ -55,6 +56,7 @@ import axios from 'axios'
 
 const props = defineProps<{
   src: string        // 后端文件路径
+  preview?: string   // PNG预览图路径
   height?: number
 }>()
 
@@ -75,6 +77,13 @@ const downloadUrl = computed(() => {
 
 const loadDxf = async () => {
   if (!props.src) return
+
+  // 如果有 PNG 预览，跳过 SVG 加载
+  if (props.preview) {
+    loading.value = false
+    return
+  }
+
   loading.value = true
   error.value = ''
   svgContent.value = ''

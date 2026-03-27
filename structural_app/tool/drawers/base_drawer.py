@@ -187,18 +187,30 @@ class StructureDrawer(ABC):
         if plan_file:
             results.plan_view = plan_file
             self._add_timestamp_to_file(plan_file, timestamp)
+            # Generate PNG preview
+            png_file = self._convert_dxf_to_png(plan_file)
+            if png_file:
+                results.metadata['plan_preview'] = png_file
 
         # Generate elevation view if applicable
         elev_file = self.draw_elevation(design)
         if elev_file:
             results.elevation_view = elev_file
             self._add_timestamp_to_file(elev_file, timestamp)
+            # Generate PNG preview
+            png_file = self._convert_dxf_to_png(elev_file)
+            if png_file:
+                results.metadata['elevation_preview'] = png_file
 
         # Generate detail views if applicable
         detail_file = self.draw_details(design)
         if detail_file:
             results.detail_view = detail_file
             self._add_timestamp_to_file(detail_file, timestamp)
+            # Generate PNG preview
+            png_file = self._convert_dxf_to_png(detail_file)
+            if png_file:
+                results.metadata['detail_preview'] = png_file
 
         # Add notes
         results.notes = self._generate_notes(design)
@@ -262,3 +274,38 @@ class StructureDrawer(ABC):
         else:
             self.output_dir = directory
         os.makedirs(self.output_dir, exist_ok=True)
+
+    def _convert_dxf_to_png(self, dxf_path: str) -> Optional[str]:
+        """
+        Convert DXF file to PNG for preview
+
+        Args:
+            dxf_path: Path to DXF file
+
+        Returns:
+            Path to generated PNG file, or None if conversion fails
+        """
+        try:
+            import ezdxf
+            from ezdxf.addons.drawing import RenderContext, Frontend
+            from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+            import matplotlib.pyplot as plt
+
+            doc = ezdxf.readfile(dxf_path)
+            msp = doc.modelspace()
+
+            fig = plt.figure(figsize=(12, 8), dpi=150)
+            ax = fig.add_axes([0, 0, 1, 1])
+            ctx = RenderContext(doc)
+            out = MatplotlibBackend(ax)
+            Frontend(ctx, out).draw_layout(msp, finalize=True)
+
+            png_path = dxf_path.replace('.dxf', '_preview.png')
+            fig.savefig(png_path, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.close(fig)
+
+            return png_path
+        except Exception as e:
+            print(f"[WARNING] DXF→PNG conversion failed: {e}")
+            return None
+

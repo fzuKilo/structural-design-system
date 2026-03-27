@@ -22,7 +22,7 @@
               :key="d.key"
               :tab="d.label"
             >
-              <DXFViewer :src="d.path" :height="420" />
+              <DXFViewer :src="d.path" :preview="d.preview" :height="420" />
             </a-tab-pane>
           </a-tabs>
         </template>
@@ -63,6 +63,31 @@
       <a-tab-pane key="evaluation" tab="设计评估">
         <ChartViewer v-if="result?.evaluation" :evaluation="result.evaluation" />
         <a-empty v-else description="暂无评估数据" />
+      </a-tab-pane>
+
+      <!-- 3D模型 -->
+      <a-tab-pane key="3d-model" tab="3D模型">
+        <div v-if="result?.bim_url && result.bim_url.startsWith('http')">
+          <a-result
+            status="success"
+            title="3D 模型已生成"
+            sub-title="点击下方按钮在新窗口中查看 Speckle 3D 模型"
+          >
+            <template #extra>
+              <a-button type="primary" size="large" :href="result.bim_url" target="_blank">
+                在新窗口查看 3D 模型
+              </a-button>
+            </template>
+          </a-result>
+        </div>
+        <a-empty v-else description="暂无3D模型">
+          <template #description>
+            <div style="color: #999;">
+              此任务未导出 BIM 模型<br/>
+              创建新任务时选择"导出 BIM/IFC"即可查看 3D 模型
+            </div>
+          </template>
+        </a-empty>
       </a-tab-pane>
 
       <!-- 下载 -->
@@ -129,6 +154,7 @@ const loadingReport = ref(false)
 // 图纸列表
 const drawings = computed(() => {
   const files = props.result?.files || {}
+  const metadata = props.result?.raw?.drawing_results?.metadata || {}
   const labelMap: Record<string, string> = {
     plan_view: '平面图',
     elevation_view: '立面图',
@@ -136,7 +162,12 @@ const drawings = computed(() => {
   }
   return Object.entries(files)
     .filter(([, path]) => typeof path === 'string' && (path as string).endsWith('.dxf'))
-    .map(([key, path]) => ({ key, label: labelMap[key] || key, path: path as string }))
+    .map(([key, path]) => ({
+      key,
+      label: labelMap[key] || key,
+      path: path as string,
+      preview: metadata[`${key.replace('_view', '')}_preview`] || null
+    }))
 })
 
 // 可视化列表
@@ -187,6 +218,10 @@ const allFiles = computed(() => {
   for (const v of visualizations.value) {
     const ext = v.type === 'html' ? 'HTML' : 'PNG'
     files.push({ key: v.key, label: `${v.label} (${ext})`, path: v.path, icon: '图', color: '#722ed1' })
+  }
+
+  if (props.result?.ifc_path) {
+    files.push({ key: 'ifc', label: 'BIM模型 (IFC)', path: props.result.ifc_path, icon: 'B', color: '#fa8c16' })
   }
 
   return files

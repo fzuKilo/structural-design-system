@@ -72,8 +72,9 @@ class SpeckleExporter:
                 )
             )
 
-            url = f"{self.server_url}/projects/{self.project_id}/models/{model.id}"
-            return {'status': 'success', 'url': url, 'model_id': model.id}
+            url = f"{self.server_url}/projects/{self.project_id}/models/{model.id}@latest"
+            embed_url = f"{self.server_url}/embed?stream={self.project_id}&object={obj_id}"
+            return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': model.id}
 
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
