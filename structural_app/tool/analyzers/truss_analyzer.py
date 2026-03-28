@@ -398,9 +398,23 @@ class TrussAnalyzer(StructureAnalyzer):
         safety_factors['stress'] = fy / max_stress if max_stress > 0 else float('inf')
 
         # 3. Slenderness ratio check
-        # λ = L / r, where r = sqrt(I/A) = sqrt((A*d^2/12)/A) = d/sqrt(12) for rectangular section
-        # Simplified: assume circular section, r ≈ sqrt(A/π) / 2
-        r = np.sqrt(A / np.pi) / 2  # Radius of gyration (simplified)
+        # λ = L / r, where r is radius of gyration
+        # Priority: use user-provided r, else calculate from section shape
+        material = self.design_params['material']
+
+        # Check if user provided radius of gyration
+        if 'r' in material:
+            r = material['r']
+        else:
+            # Estimate based on section shape
+            # For rectangular: r = depth / sqrt(12)
+            # For circular: r = sqrt(A / π) / 2
+            # Default to rectangular assumption if depth provided
+            if 'depth' in material:
+                r = material['depth'] / np.sqrt(12)
+            else:
+                # Fallback to circular approximation
+                r = np.sqrt(A / np.pi) / 2
 
         max_slenderness = 0
         for elem_id, length in self.member_lengths.items():

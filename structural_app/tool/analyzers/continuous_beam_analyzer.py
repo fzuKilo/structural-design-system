@@ -120,8 +120,14 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             # Create nodes
             # For continuous beam: divide total length into spans
             span_length = length / n_spans
-            elements_per_span = n_elements // n_spans
+            import math
+            elements_per_span = math.ceil(n_elements / n_spans)
             total_nodes = n_spans * elements_per_span + 1
+
+            # Log warning if actual elements differ significantly
+            actual_elements = n_spans * elements_per_span
+            if abs(actual_elements - n_elements) > n_elements * 0.1:
+                print(f"Warning: Actual elements ({actual_elements}) differs from requested ({n_elements})")
 
             for i in range(total_nodes):
                 x = i * span_length / elements_per_span
@@ -243,7 +249,8 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
         geometry = self.design_params['geometry']
         n_elements = geometry.get('n_elements', 20)
         n_spans = geometry.get('n_spans', 2)
-        elements_per_span = n_elements // n_spans
+        import math
+        elements_per_span = math.ceil(n_elements / n_spans)
         total_nodes = n_spans * elements_per_span + 1
 
         # Get displacements

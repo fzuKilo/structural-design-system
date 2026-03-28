@@ -172,20 +172,29 @@ class BeamAnalyzer(StructureAnalyzer):
                         for i in range(n_elem):
                             ops.eleLoad('-ele', i + 1, '-type', '-beamUniform', 0.0, q)
 
-            # Point loads
+            # Point loads - use eleLoad for precise positioning
             if 'point' in loads:
                 for load in loads['point']:
                     P = load['P']  # Load magnitude (N)
                     location = load['location']  # Position along beam (m)
                     direction = load.get('direction', 'y')  # Default vertical
 
-                    # Find nearest node
-                    node_id = int(round(location / L * n_elem)) + 1
-                    node_id = max(1, min(node_id, n_elem + 1))  # Clamp to valid range
+                    # Find element and local position
+                    elem_length = L / n_elem
+                    elem_id = int(location / elem_length) + 1
+                    elem_id = max(1, min(elem_id, n_elem))
+
+                    # Calculate local position within element (0 to 1)
+                    elem_start = (elem_id - 1) * elem_length
+                    local_pos = (location - elem_start) / elem_length
+                    local_pos = max(0.0, min(1.0, local_pos))
 
                     if direction == 'y':
-                        ops.load(node_id, 0.0, P, 0.0)
+                        ops.eleLoad('-ele', elem_id, '-type', '-beamPoint', P, local_pos)
                     elif direction == 'x':
+                        # For axial loads, still use nodal load
+                        node_id = int(round(location / L * n_elem)) + 1
+                        node_id = max(1, min(node_id, n_elem + 1))
                         ops.load(node_id, P, 0.0, 0.0)
 
             # Store model parameters

@@ -407,12 +407,9 @@ class FrameAnalyzer(StructureAnalyzer):
             max_moment = max([abs(m) for m in moments]) if moments else 0.0
             max_shear = max([abs(s) for s in shears]) if shears else 0.0
 
-            # Calculate maximum stress (simplified)
-            geometry = self.design_params['geometry']
-            beam_width = geometry['beams']['width']
-            beam_depth = geometry['beams']['depth']
-            W_beam = (beam_width * beam_depth**2) / 6
-            max_stress = (max_moment / W_beam) if W_beam > 0 else 0.0
+            # Calculate maximum stress using combined stress (bending + axial)
+            element_stresses = self._extract_element_stresses()
+            max_stress = max(element_stresses) if element_stresses else 0.0
 
             # Calculate story drift ratio (frame-specific)
             max_drift_ratio = self._calculate_max_drift_ratio(displacements)
@@ -427,7 +424,7 @@ class FrameAnalyzer(StructureAnalyzer):
                 max_moment=max_moment,
                 max_shear=max_shear,
                 displacements=displacements,
-                stresses=[max_stress],
+                stresses=element_stresses,
                 moments=moments,
                 shears=shears,
                 nodes=node_list,
@@ -561,6 +558,7 @@ class FrameAnalyzer(StructureAnalyzer):
     def _calculate_max_drift_ratio(self, displacements: List[float]) -> float:
         """
         Calculate maximum story drift ratio (frame-specific)
+        Uses maximum displacement difference (not average) for conservative estimate
 
         Args:
             displacements: List of nodal displacements
@@ -574,30 +572,36 @@ class FrameAnalyzer(StructureAnalyzer):
         story_heights = geometry['story_heights']
 
         max_drift_ratio = 0.0
+        story_drifts = []
 
         for story in range(1, num_stories + 1):
-            # Average horizontal displacement at current story
-            ux_current = 0.0
+            # Get maximum horizontal displacement at current story
+            ux_current_max = 0.0
             for bay in range(num_bays + 1):
                 node_id = story * (num_bays + 1) + bay
                 disp = ops.nodeDisp(node_id)
-                ux_current += disp[0]  # Horizontal displacement
-            ux_current /= (num_bays + 1)
+                ux_current_max = max(ux_current_max, abs(disp[0]))
 
-            # Average horizontal displacement at story below
-            ux_below = 0.0
+            # Get maximum horizontal displacement at story below
+            ux_below_max = 0.0
             for bay in range(num_bays + 1):
                 node_id = (story - 1) * (num_bays + 1) + bay
                 disp = ops.nodeDisp(node_id)
-                ux_below += disp[0]
-            ux_below /= (num_bays + 1)
+                ux_below_max = max(ux_below_max, abs(disp[0]))
 
-            # Story drift
-            story_drift = abs(ux_current - ux_below)
+            # Story drift (maximum displacement difference)
+            story_drift = abs(ux_current_max - ux_below_max)
             story_height = story_heights[story - 1]
             drift_ratio = story_drift / story_height
 
+            story_drifts.append(drift_ratio)
             max_drift_ratio = max(max_drift_ratio, drift_ratio)
+
+        # Store story drifts in results for detailed reporting
+        if hasattr(self, 'design_params'):
+            if 'extra' not in self.design_params:
+                self.design_params['extra'] = {}
+            self.design_params['extra']['story_drifts'] = story_drifts
 
         return max_drift_ratio
 
@@ -660,19 +664,16 @@ class FrameAnalyzer(StructureAnalyzer):
             })
         safety_factors['drift'] = drift_limit / max_drift_ratio if max_drift_ratio > 0 else float('inf')
 
-        # Check 4: Column axial ratio (optional, requires axial force data)
-        # This check is performed if axial force data is available
+        # Check 4: Column axial ratio (use pre-extracted data from results.extra)
         try:
             columns = geometry.get('columns', {})
             col_width = columns.get('width', 0.4)
             col_depth = columns.get('depth', 0.4)
             col_area = col_width * col_depth
 
-            # Get max axial force from column elements
-            max_axial = 0.0
-            for elem_id in self.column_elements:
-                forces = ops.eleForce(elem_id)
-                max_axial = max(max_axial, abs(forces[0]), abs(forces[3]))
+            # Get max axial force from results.extra (already extracted during analyze)
+            axial_forces = results.extra.get('axial_forces', [])
+            max_axial = max(abs(f) for f in axial_forces) if axial_forces else 0.0
 
             # Calculate axial ratio
             allowable_axial = col_area * fy * 0.9  # 0.9 reduction factor
