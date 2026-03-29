@@ -75,3 +75,7 @@ htmlcov/
 
 # Documentation builds
 docs/_build/
+
+# Redis
+dump.rdb
+*.bat
