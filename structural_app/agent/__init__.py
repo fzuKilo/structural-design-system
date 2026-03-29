@@ -2,6 +2,30 @@
 Agent module for structural design system
 """
 
+# Prevent app/agent/__init__.py from executing (it imports BrowserAgent -> daytona,
+# which is not installed). We stub out 'app.agent' in sys.modules so that
+# "from app.agent.toolcall import ToolCallAgent" resolves via normal submodule
+# import without triggering the package __init__.
+import sys as _sys
+import types as _types
+import os as _os
+
+if 'app.agent' not in _sys.modules:
+    # Find the real app/agent directory from sys.path
+    _agent_dir = None
+    for _p in _sys.path:
+        _candidate = _os.path.join(_p, 'app', 'agent')
+        if _os.path.isdir(_candidate):
+            _agent_dir = _candidate
+            break
+
+    if _agent_dir:
+        _agent_pkg = _types.ModuleType('app.agent')
+        _agent_pkg.__path__ = [_agent_dir]
+        _agent_pkg.__package__ = 'app.agent'
+        _agent_pkg.__spec__ = None
+        _sys.modules['app.agent'] = _agent_pkg
+
 # Lazy imports to avoid namespace conflicts with OpenManus
 # Import directly when needed instead of at module level
 
