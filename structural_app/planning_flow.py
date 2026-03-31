@@ -693,7 +693,24 @@ class PlanningFlow:
 
         await self._broadcast_stage("design_proposal", "started", "开始生成设计方案")
         design_result = await self.design_agent.run(request)
+
+        # 检测用户取消：Agent 调用 terminate 后返回的字符串中包含终止信号
+        if self._is_agent_cancelled(design_result):
+            if verbose:
+                print()
+                print("[PlanningFlow] 用户取消了设计任务，终止整个工作流")
+            await self._broadcast_stage("design_proposal", "cancelled", "用户取消了设计任务")
+            return {"status": "cancelled", "reason": "user_cancelled"}
+
         self.results["design_proposal"] = self._extract_design_proposal(design_result)
+
+        # 检测设计方案为空（Agent 未能生成有效 JSON）
+        if not self.results["design_proposal"]:
+            if verbose:
+                print()
+                print("[PlanningFlow] 未能获取有效设计方案，终止工作流")
+            await self._broadcast_stage("design_proposal", "failed", "未能获取有效设计方案")
+            return {"status": "failed", "reason": "no_design_proposal"}
 
         if verbose and self.results["design_proposal"]:
             print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
@@ -1042,6 +1059,17 @@ class PlanningFlow:
             else:
                 i += 1
         return None
+
+    def _is_agent_cancelled(self, result: str) -> bool:
+        """
+        检测 Agent 是否因用户取消而终止。
+
+        当 Agent 调用 terminate 工具时，返回字符串中会包含：
+        "The interaction has been completed with status: failure"
+        """
+        if not result or not isinstance(result, str):
+            return False
+        return "completed with status: failure" in result or "completed with status: cancelled" in result
 
     def _extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
         """Extract design proposal from response."""
