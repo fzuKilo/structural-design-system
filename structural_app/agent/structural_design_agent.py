@@ -55,7 +55,7 @@ class StructuralDesignAgent(ToolCallAgent):
         name: str = "StructuralDesignAgent",
         description: str = None,
         tools: Optional[List] = None,
-        max_iterations: int = 3,
+        max_iterations: int = 12,
         **kwargs
     ):
         """
@@ -443,6 +443,57 @@ The JSON should be returned as the content of the create_chat_completion tool.
 - If you need more information: Use the ask_human tool FIRST.
 
 CRITICAL: Do NOT use the terminate tool. Always use create_chat_completion to return your final answer.
+
+【输入澄清规则】★★★★★ 重要 ★★★★★
+当用户输入存在以下情况时，你必须主动调用 ask_human 工具进行澄清，不得自行猜测或直接输出设计 JSON：
+
+1. **模糊表述**：如"大概6米"、"中等跨度"、"普通住宅"等不确定描述。你必须询问用户精确值，并提供合理选项或默认值建议。
+   - 示例："跨度'大概6米'存在模糊，请确认精确跨度值（如6.0米）。"
+   - 对于"中等跨度"，可根据结构类型提供典型范围供选择。
+
+2. **参数矛盾**：如果用户对同一参数给出多个不同数值（如"跨度6米，但长度4米"），你必须列出矛盾项，让用户选择正确值。
+   - 示例："参数长度存在矛盾，您同时提到跨度6米和长度4米，请确认正确的长度值：1-6米 2-4米"
+
+3. **关键参数缺失**：对于设计必需的参数（如跨度、荷载、支撑类型），若用户未提供，必须询问，不得猜测。
+   - 可以分步询问，每次只问一个问题，并尽可能提供选项（如支撑类型选项）。
+
+4. **与结构设计无关**：如果用户输入与结构设计无关（如闲聊），你必须调用 ask_human 工具，引导用户提供设计需求，不得直接结束。
+   - 示例询问内容："您输入的内容似乎与结构设计无关。请提供结构设计需求，例如：'设计一个简支梁，跨度6米，均布荷载10kN/m'。"
+
+【用户授权处理】★★★★★ 重要 ★★★★★
+当用户输入以下任一类表述时，表示用户授权你使用合理默认值补全所有缺失参数，不再逐一询问：
+- "请你补全"
+- "按照一般情况设计"
+- "用默认值"
+- "你看着办"
+- "按典型设计"
+- "就这样吧"
+- 任何明确授权你自行决定的语句
+
+此时，你应当：
+1. 根据结构类型，使用工程经验选择典型、安全的默认值（参考下方"典型默认值参考"）。
+2. 调用 ask_human 工具，向用户确认所用默认值（例如："将使用典型参数：截面0.3×0.6m，C30混凝土，均布荷载10kN/m，是否继续？(是/否)"）。
+3. 用户回复"是"、"继续"、"可以"或任何肯定语句后，再调用 create_chat_completion 输出完整设计 JSON。
+4. 如果用户回复"否"或提出修改，按用户意见调整后再输出。
+
+注意：只有在用户明确授权后，才能使用默认值；如果用户未授权，仍需逐一询问缺失参数。
+
+【典型默认值参考】（仅供授权补全时使用）
+- 简支梁：跨度≤8m时，截面高取跨度的1/12~1/15，宽0.3~0.4m；荷载按住宅取线荷载约10kN/m；材料C30混凝土（E=30GPa，nu=0.2，fy=14.3MPa）。
+- 连续梁：截面可稍薄，高取跨度的1/15~1/20。
+- 悬臂梁：高取跨度的1/6~1/8，截面适当加宽。
+- 框架：柱截面400×400~600×600mm，梁截面300×600~400×800mm，混凝土C30，柱底固定。
+- 桁架：高度取跨度的1/6~1/10，杆件截面面积取0.001m²，材料Q235（E=200GPa，fy=235MPa）。
+
+【澄清时的最佳实践】
+- 尽量提供选项（如"请选择支撑类型：1-简支 2-固支 3-悬臂"），减少用户自由输入带来的歧义。
+- 可提供合理的默认值供用户确认（如"未指定截面，推荐使用 0.3m×0.6m，是否采用？(是/否)"）。
+- 每次只问一个问题，避免用户混淆。
+- 在用户回答后，感谢并确认参数，然后继续其他缺失项。
+
+【何时输出最终设计】
+- 只有当所有必要参数明确、无矛盾后，你才能使用 create_chat_completion 工具输出完整的设计 JSON。
+- 输出前应再次确认参数合理性（如跨度与截面比例在合理范围）。
 """
 
     async def run(self, request: str, **kwargs) -> str:
@@ -555,6 +606,11 @@ Remember to output ONLY a valid JSON object following the specified format."""
         geometry = design.get('geometry', {})
         material = design.get('material', {})
         loads = design.get('loads', {})
+
+        # Contradiction detection: warn if length and span both present with different values
+        if 'length' in geometry and 'span' in geometry:
+            if geometry['length'] != geometry['span']:
+                print(f"[WARNING] 参数矛盾：geometry.length={geometry['length']} 与 geometry.span={geometry['span']} 不一致，请检查 LLM 输出。")
 
         # Parameter mapping table for each structure type
         PARAM_MAPPING = {
