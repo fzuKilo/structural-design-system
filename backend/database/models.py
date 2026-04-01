@@ -23,11 +23,13 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     api_key_encrypted = Column(Text, nullable=True)
-    quota_daily = Column(Integer, default=100)  # 增加到100次/天
-    quota_monthly = Column(Integer, default=1000)  # 增加到1000次/月
+    quota_daily = Column(Integer, default=100)
+    quota_monthly = Column(Integer, default=1000)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
+    roles = relationship("Role", secondary="user_roles", back_populates="users")
+    audit_logs = relationship("AuditLog", back_populates="user")
 
 
 class Task(Base):
@@ -60,3 +62,66 @@ class TaskFile(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     task = relationship("Task", back_populates="files")
+
+
+class Role(Base):
+    """Role model"""
+    __tablename__ = "roles"
+
+    id = Column(String(36), primary_key=True, default=_uuid_default)
+    name = Column(String(50), unique=True, nullable=False)
+    display_name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    users = relationship("User", secondary="user_roles", back_populates="roles")
+    permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
+
+
+class Permission(Base):
+    """Permission model"""
+    __tablename__ = "permissions"
+
+    id = Column(String(36), primary_key=True, default=_uuid_default)
+    name = Column(String(100), unique=True, nullable=False)
+    resource = Column(String(50), nullable=False)
+    action = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    roles = relationship("Role", secondary="role_permissions", back_populates="permissions")
+
+
+class UserRole(Base):
+    """User-Role association"""
+    __tablename__ = "user_roles"
+
+    user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
+    role_id = Column(String(36), ForeignKey("roles.id"), primary_key=True)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RolePermission(Base):
+    """Role-Permission association"""
+    __tablename__ = "role_permissions"
+
+    role_id = Column(String(36), ForeignKey("roles.id"), primary_key=True)
+    permission_id = Column(String(36), ForeignKey("permissions.id"), primary_key=True)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    """Audit log model"""
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=_uuid_default)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    action = Column(String(100), nullable=False)
+    resource_type = Column(String(50), nullable=True)
+    resource_id = Column(String(36), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User", back_populates="audit_logs")

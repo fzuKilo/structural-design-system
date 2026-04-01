@@ -62,7 +62,17 @@ async def get_task_status(
     task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    return task
+
+    return TaskDetailResponse(
+        id=task.id,
+        status=task.status,
+        request_text=task.request_text,
+        structure_type=task.structure_type,
+        created_at=task.created_at,
+        completed_at=task.completed_at,
+        result_json=task.result_json,
+        files=task.files
+    )
 
 
 @router.post("/{task_id}/respond", response_model=MessageResponse)

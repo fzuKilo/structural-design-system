@@ -4,7 +4,7 @@ FastAPI Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.config import settings
-from backend.api.routes import auth, design, file, websocket
+from backend.api.routes import auth, design, file, websocket, admin
 from backend.database import Base, engine
 
 # Create database tables
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(design.router, prefix=settings.API_PREFIX)
 app.include_router(file.router, prefix=settings.API_PREFIX)
+app.include_router(admin.router, prefix=settings.API_PREFIX)
 app.include_router(websocket.router)
 
 

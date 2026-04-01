@@ -2,7 +2,7 @@
 Response Models
 """
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
 from uuid import UUID
 
@@ -22,6 +22,7 @@ class UserResponse(BaseModel):
     quota_daily: int
     quota_monthly: int
     created_at: datetime
+    roles: List[str] = []
 
     class Config:
         from_attributes = True
@@ -40,9 +41,25 @@ class TaskResponse(BaseModel):
         from_attributes = True
 
 
+class TaskFileResponse(BaseModel):
+    """Task file response"""
+    id: UUID
+    file_type: str
+    file_path: str
+    file_size: Optional[int]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class TaskDetailResponse(TaskResponse):
     """Task detail response with results"""
     result_json: Optional[Any] = None
+    files: List[TaskFileResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 class MessageResponse(BaseModel):

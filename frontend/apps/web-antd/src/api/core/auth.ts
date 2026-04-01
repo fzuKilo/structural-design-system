@@ -1,0 +1,61 @@
+import { baseRequestClient, requestClient } from '#/api/request';
+
+export namespace AuthApi {
+  export interface LoginParams {
+    password?: string;
+    username?: string;
+  }
+
+  export interface LoginResult {
+    accessToken: string;
+  }
+
+  export interface RefreshTokenResult {
+    data: string;
+    status: number;
+  }
+}
+
+/**
+ * 登录 - 对接FastAPI后端
+ * 使用 baseRequestClient 绕过响应拦截器（FastAPI不返回code/data格式）
+ */
+export async function loginApi(data: AuthApi.LoginParams) {
+  const { username, password } = data;
+  const res = await baseRequestClient.post<any>(
+    '/auth/login',
+    { username, password },
+  );
+  console.log('[loginApi] 完整响应:', res);
+  // 兼容不同结构
+  const token = res?.access_token ?? res?.data?.access_token ?? res?.accessToken;
+  console.log('[loginApi] 提取到token:', token);
+  return { accessToken: token };
+}
+
+/**
+ * 刷新accessToken（FastAPI暂不支持）
+ */
+export async function refreshTokenApi() {
+  return { data: '', status: 200 } as AuthApi.RefreshTokenResult;
+}
+
+/**
+ * 退出登录
+ */
+export async function logoutApi() {
+  return Promise.resolve();
+}
+
+/**
+ * 获取用户权限码 - 返回角色列表
+ * 使用 baseRequestClient 绕过响应拦截器
+ */
+export async function getAccessCodesApi() {
+  const res = await baseRequestClient.get<{
+    id: string;
+    username: string;
+    roles: string[];
+  }>('/auth/profile');
+  return res.roles ?? [];
+}

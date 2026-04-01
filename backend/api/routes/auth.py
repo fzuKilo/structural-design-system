@@ -63,7 +63,15 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 @router.get("/profile", response_model=UserResponse)
 async def get_profile(current_user: User = Depends(get_current_user)):
     """获取用户信息"""
-    return current_user
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        quota_daily=current_user.quota_daily,
+        quota_monthly=current_user.quota_monthly,
+        created_at=current_user.created_at,
+        roles=[role.name for role in current_user.roles]
+    )
 
 
 @router.put("/profile", response_model=UserResponse)
