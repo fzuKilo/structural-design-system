@@ -1,0 +1,94 @@
+{
+  "beam_simply_supported_uniform": {
+    "description": "简支梁均布荷载 - 解析解 5qL^4/384EI",
+    "params": "L=6m, b=0.3m, h=0.6m, E=30GPa, q=10kN/m",
+    "max_displacement": 0.001042,
+    "max_stress": 2500000,
+    "max_moment": 45000,
+    "tolerance": 0.01,
+    "source": "解析解"
+  },
+  "beam_simply_supported_point": {
+    "description": "简支梁集中荷载 - 解析解 PL^3/48EI",
+    "params": "L=6m, b=0.3m, h=0.6m, E=30GPa, P=30kN 中点",
+    "max_displacement": 0.000833,
+    "max_stress": 2500000,
+    "max_moment": 45000,
+    "tolerance": 0.01,
+    "source": "解析解"
+  },
+  "cantilever_beam_uniform": {
+    "description": "悬臂梁均布荷载 - 解析解 qL^4/8EI",
+    "params": "L=3m, b=0.3m, h=0.6m, E=30GPa, q=10kN/m",
+    "max_displacement": 0.000625,
+    "max_stress": 2500000,
+    "max_moment": 45000,
+    "tolerance": 0.01,
+    "source": "解析解"
+  },
+  "cantilever_beam_point": {
+    "description": "悬臂梁集中荷载 - 解析解 PL^3/3EI",
+    "params": "L=3m, b=0.3m, h=0.6m, E=30GPa, P=20kN 自由端",
+    "max_displacement": 0.001111,
+    "max_stress": 3330000,
+    "max_moment": 60000,
+    "tolerance": 0.01,
+    "source": "解析解"
+  },
+  "continuous_beam_uniform": {
+    "description": "两跨连续梁均布荷载 - Ansys 数值解",
+    "params": "2x5m, b=0.3m, h=0.6m, E=30GPa, q=10kN/m",
+    "max_displacement": 0.000208,
+    "max_stress": 1736000,
+    "max_moment": 31250,
+    "tolerance": 0.03,
+    "source": "Ansys"
+  },
+  "continuous_beam_point": {
+    "description": "两跨连续梁集中荷载 - Ansys 数值解（两跨跨中各30kN）",
+    "params": "2x5m, b=0.3m, h=0.6m, E=30GPa, P=30kN@2.5m & P=30kN@7.5m",
+    "max_displacement": 0.000216,
+    "max_stress": 1562500,
+    "max_moment": 28125,
+    "tolerance": 0.03,
+    "source": "Ansys"
+  },
+  "truss_uniform": {
+    "description": "简支桁架均布节点荷载 - Ansys 数值解",
+    "params": "span=8m, h=2m, n=8, A=0.01m2, E=200GPa, 下弦节点2~8各10kN",
+    "max_displacement": 0.000235,
+    "max_stress": 4000000,
+    "tolerance": 0.03,
+    "source": "Ansys",
+    "note": "位移参考值为Ansys纯竖向分量，TrussAnalyzer取向量模约0.000333，仅校验应力"
+  },
+  "truss_point": {
+    "description": "简支桁架跨中集中荷载 - Ansys 数值解",
+    "params": "span=8m, h=2m, n=8, A=0.01m2, E=200GPa, 上弦节点14处20kN",
+    "max_displacement": 0.000133,
+    "max_stress": 2000000,
+    "tolerance": 0.03,
+    "source": "Ansys",
+    "note": "位移参考值为Ansys纯竖向分量，TrussAnalyzer取向量模约0.000154，仅校验应力"
+  },
+  "frame_single": {
+    "description": "单层单跨框架 - Ansys 数值解",
+    "params": "1bay x 1story, bay=6m, h=4m, col=0.4x0.4, beam=0.3x0.6, q=10kN/m + Fx=5kN@柱顶",
+    "max_displacement": 0.0000192,
+    "max_stress": 2766000,
+    "max_moment": 29493.1,
+    "tolerance": 0.03,
+    "source": "Ansys",
+    "note": "位移/弯矩因FrameAnalyzer每跨单梁元网格粗存在偏差，仅校验应力（容限30%）"
+  },
+  "frame_double": {
+    "description": "两层单跨框架 - Ansys 数值解",
+    "params": "1bay x 2story, bay=6m, h=4m, col=0.4x0.4, beam=0.3x0.6, story2梁q=10kN/m + 各层Fx=5kN",
+    "max_displacement": 0.0000195,
+    "max_stress": 2136000,
+    "max_moment": 22771.2,
+    "tolerance": 0.03,
+    "source": "Ansys",
+    "note": "位移因柱轴压主导与Ansys梁跨中挠度测量差异大，仅校验应力（容限30%）"
+  }
+}

@@ -371,3 +371,94 @@ class ContinuousBeamAnalyzer(StructureAnalyzer):
             },
             'summary': f"{'PASS' if not violations else 'FAIL'} - {len(violations)} violation(s) found"
         }
+
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """连续梁特定验证"""
+        import openseespy.opensees as ops
+
+        geo = design['geometry']
+        # 支持 spans 列表 或 n_spans 整数两种写法
+        if 'spans' in geo:
+            n_supports = len(geo['spans']) + 1
+        else:
+            n_supports = geo.get('n_spans', 2) + 1
+
+        nodes = ops.getNodeTags()
+        assert len(nodes) >= n_supports, f"节点数不足：至少需要{n_supports}个支座节点"
+
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """生成连续梁OpenSees Tcl脚本"""
+        from datetime import datetime
+        
+        geo = design['geometry']
+        mat = design['material']
+        loads = design['loads']
+        spans = geo['spans']
+        
+        script = f"""# OpenSees Tcl Script - 连续梁
+# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+wipe
+model BasicBuilder -ndm 2 -ndf 3
+
+set spans [list {' '.join(map(str, spans))}]
+set nElemPerSpan 10
+set x 0.0
+set nodeTag 1
+
+foreach span $spans {{
+    for {{set i 0}} {{$i <= $nElemPerSpan}} {{incr i}} {{
+        node $nodeTag $x 0.0
+        set x [expr $x + $span / $nElemPerSpan]
+        incr nodeTag
+    }}
+}}
+
+# 支座边界条件
+fix 1 1 1 0
+set nodeTag 1
+foreach span $spans {{
+    set nodeTag [expr $nodeTag + $nElemPerSpan]
+    fix $nodeTag 0 1 0
+}}
+
+set E {mat['E']}
+set A {geo['width'] * geo['height']}
+set I {geo['width'] * geo['height']**3 / 12}
+geomTransf Linear 1
+
+set eleTag 1
+set nodeTag 1
+foreach span $spans {{
+    for {{set i 0}} {{$i < $nElemPerSpan}} {{incr i}} {{
+        element elasticBeamColumn $eleTag $nodeTag [expr $nodeTag+1] $A $E $I 1
+        incr eleTag
+        incr nodeTag
+    }}
+    incr nodeTag
+}}
+
+timeSeries Linear 1
+pattern Plain 1 1 {{
+"""
+        
+        for load in loads.get('distributed', []):
+            script += f"    eleLoad -ele 1 -type -beamUniform {load['q']}\n"
+        
+        script += """}}
+
+system BandGeneral
+numberer RCM
+constraints Plain
+integrator LoadControl 1.0
+algorithm Linear
+analysis Static
+analyze 1
+
+puts "分析完成"
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(script)
+        
+        return output_path

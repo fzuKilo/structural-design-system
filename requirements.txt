@@ -1,26 +1,23 @@
-# OpenManus框架
-# 默认从GitHub安装（推荐给协作者）
+# ===========================================================================
+# CI 可安装的核心依赖（不含需要本地软件的包）
+# ===========================================================================
+
+# OpenManus 框架
 git+https://github.com/FoundationAgents/OpenManus.git
 
-# 如果需要同时开发OpenManus，请注释上面一行，改用：
-# pip install -e /path/to/your/openmanus
-
-# 工程计算
-ansys-mapdl-core>=0.68.0
+# 有限元分析（核心）
+openseespy>=3.5.0
 numpy>=1.24.0
 scipy>=1.10.0
 
-# CAD绘图
+# CAD 绘图
 ezdxf>=1.1.0
 
-# BIM导出
-ifcopenshell
-
-# 知识库（阶段3）
+# 知识库
 langchain>=0.1.0
 chromadb>=0.4.0
 openai>=1.0.0
-PyPDF2>=3.0.0  # PDF parsing
+PyPDF2>=3.0.0
 
 # 配置文件解析
 toml>=0.10.2
@@ -38,11 +35,13 @@ pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
 
-# 代码质量
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.4.0
-
 # 工具
 python-dotenv>=1.0.0
 pyyaml>=6.0
+
+# ===========================================================================
+# 以下包需要本地环境，CI 中跳过：
+#   ansys-mapdl-core  — 依赖本地 Ansys 安装
+#   ifcopenshell      — 平台兼容性问题
+#   specklepy         — BIM 导出（可选功能）
+# ===========================================================================

@@ -304,3 +304,84 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
             },
             'summary': f"{'PASS' if not violations else 'FAIL'} - {len(violations)} violation(s) found"
         }
+
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """悬臂梁特定验证"""
+        import openseespy.opensees as ops
+
+        geo = design['geometry']
+        cons = design['constraints']
+        n_elem = geo.get('n_elements', 20)
+
+        nodes = ops.getNodeTags()
+        assert len(nodes) == n_elem + 1, f"节点数错误：期望{n_elem+1}，实际{len(nodes)}"
+
+        fixed_end = cons.get('fixed_end', 'left')
+        fixed_node = 1 if fixed_end == 'left' else len(nodes)
+        fixed_nodes = ops.getFixedNodes()
+        assert fixed_node in fixed_nodes, f"悬臂梁固定端节点{fixed_node}应完全固定"
+
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """生成悬臂梁OpenSees Tcl脚本"""
+        from datetime import datetime
+        
+        geo = design['geometry']
+        mat = design['material']
+        loads = design['loads']
+        cons = design['constraints']
+        n_elem = geo.get('n_elements', 20)
+        fixed_end = cons.get('fixed_end', 'left')
+        
+        script = f"""# OpenSees Tcl Script - 悬臂梁
+# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+wipe
+model BasicBuilder -ndm 2 -ndf 3
+
+set L {geo['length']}
+set nElem {n_elem}
+
+for {{set i 0}} {{$i <= $nElem}} {{incr i}} {{
+    set x [expr $i * $L / $nElem]
+    node [expr $i+1] $x 0.0
+}}
+
+fix {'1' if fixed_end == 'left' else '[expr $nElem+1]'} 1 1 1
+
+set E {mat['E']}
+set A {geo['width'] * geo['height']}
+set I {geo['width'] * geo['height']**3 / 12}
+geomTransf Linear 1
+
+for {{set i 1}} {{$i <= $nElem}} {{incr i}} {{
+    element elasticBeamColumn $i $i [expr $i+1] $A $E $I 1
+}}
+
+timeSeries Linear 1
+pattern Plain 1 1 {{
+"""
+        
+        for load in loads.get('distributed', []):
+            script += f"    eleLoad -ele 1 -type -beamUniform {load['q']}\n"
+        
+        for load in loads.get('point', []):
+            node_id = int(load['x'] / geo['length'] * n_elem) + 1
+            script += f"    load {node_id} 0.0 {load['P']} 0.0\n"
+        
+        script += """}}
+
+system BandGeneral
+numberer RCM
+constraints Plain
+integrator LoadControl 1.0
+algorithm Linear
+analysis Static
+analyze 1
+
+puts "分析完成"
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(script)
+        
+        return output_path

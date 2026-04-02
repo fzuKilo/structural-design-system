@@ -700,3 +700,57 @@ class FrameAnalyzer(StructureAnalyzer):
             'summary': f"{'PASS' if compliant else 'FAIL'} - {len(violations)} violation(s) found"
         }
 
+
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """框架特定验证"""
+        import openseespy.opensees as ops
+
+        geo = design['geometry']
+        # support both old key names (n_bays/n_stories) and new (num_bays/num_stories)
+        n_bays = geo.get('num_bays', geo.get('n_bays', 1))
+        n_stories = geo.get('num_stories', geo.get('n_stories', 1))
+        expected_nodes = (n_bays + 1) * (n_stories + 1)
+
+        nodes = ops.getNodeTags()
+        assert len(nodes) == expected_nodes, f"节点数错误：期望{expected_nodes}，实际{len(nodes)}"
+
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """生成框架OpenSees Tcl脚本"""
+        from datetime import datetime
+        
+        geo = design['geometry']
+        mat = design['material']
+        
+        script = f"""# OpenSees Tcl Script - 框架
+# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+wipe
+model BasicBuilder -ndm 2 -ndf 3
+
+set nBays {geo['n_bays']}
+set nStories {geo['n_stories']}
+set bayWidth {geo['bay_width']}
+set storyHeight {geo['story_height']}
+set E {mat['E']}
+
+# 节点
+set nodeTag 1
+for {{set j 0}} {{$j <= $nStories}} {{incr j}} {{
+    for {{set i 0}} {{$i <= $nBays}} {{incr i}} {{
+        node $nodeTag [expr $i * $bayWidth] [expr $j * $storyHeight]
+        incr nodeTag
+    }}
+}}
+
+# 柱底固定
+for {{set i 1}} {{$i <= [expr $nBays + 1]}} {{incr i}} {{
+    fix $i 1 1 1
+}}
+
+puts "框架模型已创建"
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(script)
+        
+        return output_path

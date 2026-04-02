@@ -277,9 +277,9 @@ class BeamAnalyzer(StructureAnalyzer):
             shears = []
             for i in range(self.n_elem):
                 forces = ops.eleForce(i + 1)
-                # Average moment at element ends
-                moment = (abs(forces[2]) + abs(forces[5])) / 2
-                shear = abs(forces[1])
+                # Maximum moment at element ends (more accurate for stress)
+                moment = max(abs(forces[2]), abs(forces[5]))
+                shear = max(abs(forces[1]), abs(forces[4]))
                 moments.append(moment)
                 shears.append(shear)
 
@@ -380,3 +380,92 @@ class BeamAnalyzer(StructureAnalyzer):
             'safety_factors': safety_factors,
             'summary': f"{'PASS' if compliant else 'FAIL'} - {len(violations)} violation(s) found"
         }
+
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """简支梁特定验证"""
+        import openseespy.opensees as ops
+
+        geo = design['geometry']
+        cons = design['constraints']
+        n_elem = geo.get('n_elements', 20)
+
+        nodes = ops.getNodeTags()
+        assert len(nodes) == n_elem + 1, f"节点数错误：期望{n_elem+1}，实际{len(nodes)}"
+
+        support = cons.get('support_type')
+        if support == 'simply_supported':
+            fixed_nodes = ops.getFixedNodes()
+            assert 1 in fixed_nodes, "简支梁左端应设置支座约束"
+            assert len(nodes) in fixed_nodes, "简支梁右端应设置支座约束"
+
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """生成简支梁OpenSees Tcl脚本"""
+        from datetime import datetime
+        
+        geo = design['geometry']
+        mat = design['material']
+        loads = design['loads']
+        n_elem = geo.get('n_elements', 20)
+        
+        script = f"""# OpenSees Tcl Script - 简支梁
+# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+wipe
+model BasicBuilder -ndm 2 -ndf 3
+
+# 几何参数
+set L {geo['length']}
+set nElem {n_elem}
+
+# 节点
+for {{set i 0}} {{$i <= $nElem}} {{incr i}} {{
+    set x [expr $i * $L / $nElem]
+    node [expr $i+1] $x 0.0
+}}
+
+# 边界条件
+fix 1 1 1 0
+fix [expr $nElem+1] 0 1 0
+
+# 材料和截面
+set E {mat['E']}
+set A {geo['width'] * geo['height']}
+set I {geo['width'] * geo['height']**3 / 12}
+geomTransf Linear 1
+
+# 单元
+for {{set i 1}} {{$i <= $nElem}} {{incr i}} {{
+    element elasticBeamColumn $i $i [expr $i+1] $A $E $I 1
+}}
+
+# 荷载
+timeSeries Linear 1
+pattern Plain 1 1 {{
+"""
+        
+        # 添加荷载
+        for load in loads.get('distributed', []):
+            script += f"    eleLoad -ele 1 -type -beamUniform {load['q']}\n"
+        
+        for load in loads.get('point', []):
+            node_id = int(load['x'] / geo['length'] * n_elem) + 1
+            script += f"    load {node_id} 0.0 {load['P']} 0.0\n"
+        
+        script += """}}
+
+# 分析
+system BandGeneral
+numberer RCM
+constraints Plain
+integrator LoadControl 1.0
+algorithm Linear
+analysis Static
+analyze 1
+
+puts "分析完成"
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(script)
+        
+        return output_path

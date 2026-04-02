@@ -1,0 +1,21 @@
+# CI 专用依赖 —— 只装测试必需的包，安装快、不依赖外部服务
+# 对应 requirements.txt 的精简子集
+
+# 有限元分析（analyzer 核心依赖）
+openseespy>=3.5.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# CAD 绘图（drawer 依赖）
+ezdxf>=1.1.0
+
+# 数据处理
+pydantic>=2.0.0
+toml>=0.10.2
+
+# 可视化（visualizer 依赖）
+matplotlib>=3.7.0
+
+# 测试
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

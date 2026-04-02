@@ -151,6 +151,60 @@ class StructureAnalyzer(ABC):
         # Type-specific validation will be done in concrete classes
         return True, None
 
+    def _validate_model(self, design: Dict[str, Any]) -> None:
+        """
+        Validate the built FE model (automatic checks)
+
+        Args:
+            design: Design parameters
+
+        Raises:
+            AssertionError: If model validation fails
+        """
+        import openseespy.opensees as ops
+
+        nodes = ops.getNodeTags()
+        elements = ops.getEleTags()
+
+        assert nodes, "错误：未创建任何节点"
+        assert elements, "错误：未创建任何单元"
+
+        # Check boundary conditions
+        fixed_dofs = sum(len([d for d in ops.getFixedNodes(n) if d == 1]) for n in nodes)
+        assert fixed_dofs > 0, "错误：未施加边界条件"
+
+        # Structure-specific checks
+        self._validate_structure_specific(design)
+
+        print(f"[OK] 模型验证通过：{len(nodes)}节点，{len(elements)}单元")
+
+    @abstractmethod
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """
+        Structure-specific model validation (implemented by subclasses)
+
+        Args:
+            design: Design parameters
+
+        Raises:
+            AssertionError: If validation fails
+        """
+        pass
+
+    @abstractmethod
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """
+        Export OpenSees Tcl script for expert review
+
+        Args:
+            design: Design parameters
+            output_path: Path to save the script
+
+        Returns:
+            Path to the generated script
+        """
+        pass
+
     def run_full_analysis(self, design: Dict[str, Any]) -> Dict[str, Any]:
         """
         Run complete analysis workflow: validate -> build -> analyze -> check
@@ -183,6 +237,9 @@ class StructureAnalyzer(ABC):
                     'results': None,
                     'code_check': None
                 }
+
+            # Validate model (automatic checks)
+            self._validate_model(design)
 
             # Analyze
             results = self.analyze()
