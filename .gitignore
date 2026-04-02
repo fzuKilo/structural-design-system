@@ -79,3 +79,6 @@ docs/_build/
 # Redis
 dump.rdb
 *.bat
+
+# 旧前端备份（本地保留，不入库）
+frontend_backup/

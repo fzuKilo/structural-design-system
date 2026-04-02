@@ -442,3 +442,41 @@ class TrussAnalyzer(StructureAnalyzer):
             }
         }
 
+
+    def _validate_structure_specific(self, design: Dict[str, Any]) -> None:
+        """桁架特定验证"""
+        import openseespy.opensees as ops
+        
+        nodes = ops.getNodeTags()
+        elements = ops.getEleTags()
+        
+        # 检查节点连通性
+        assert len(elements) >= len(nodes) - 3, "桁架单元数不足，可能存在孤立节点"
+
+    def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
+        """生成桁架OpenSees Tcl脚本"""
+        from datetime import datetime
+        
+        geo = design['geometry']
+        mat = design['material']
+        
+        script = f"""# OpenSees Tcl Script - 桁架
+# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+wipe
+model BasicBuilder -ndm 2 -ndf 2
+
+set span {geo['span']}
+set height {geo['height']}
+set nPanels {geo['n_panels']}
+set A {geo['bar_area']}
+set E {mat['E']}
+
+# 简化桁架模型（需根据实际几何生成）
+puts "桁架脚本生成 - 需要完整几何信息"
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(script)
+        
+        return output_path

@@ -765,6 +765,10 @@ class PlanningFlow:
 
         await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成")
 
+        # Export OpenSees script for expert review
+        if self.results.get("analysis_results") and self.results["analysis_results"].get("status") == "success":
+            await self._export_opensees_script()
+
         # Check if analysis failed (e.g., unsupported structure type)
         if self.results["analysis_results"]:
             status = self.results['analysis_results'].get('status')
@@ -1136,6 +1140,23 @@ class PlanningFlow:
         if not design_proposal:
             return "No design proposal available for analysis."
         return json.dumps(design_proposal, ensure_ascii=False)
+
+    async def _export_opensees_script(self):
+        """自动导出OpenSees脚本供专家复核"""
+        try:
+            design = self.results["design_proposal"]
+            stype = design.get('type')
+
+            from structural_app.tool.analyzers.analyzer_factory import AnalyzerFactory
+            analyzer = AnalyzerFactory.create(stype)
+
+            script_path = self.main_output_dir / "opensees_script.tcl"
+            analyzer.export_opensees_script(design, str(script_path))
+
+            print(f"[OpenSees] 脚本已导出: {script_path}")
+            self.results["opensees_script"] = str(script_path)
+        except Exception as e:
+            print(f"[警告] OpenSees脚本导出失败: {e}")
 
     async def _handle_evaluation_alert(self, evaluation_report: Dict) -> str:
         """
