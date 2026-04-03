@@ -307,89 +307,179 @@ class ModelVisualizer:
     @staticmethod
     def visualize_frame(design: Dict[str, Any], output_path: str) -> str:
         """
-        Draw multi-bay multi-story frame with columns, beams, fixed bases,
-        and beam distributed loads.
+        Draw multi-bay multi-story frame with:
+        - columns / beams / fixed bases
+        - beam distributed loads (per bay, labeled individually)
+        - lateral loads (horizontal arrows on each story)
+        - span and story-height dimension annotations
+        - section sizes + material info box
         """
-        geo = design["geometry"]
+        geo   = design["geometry"]
         loads = design.get("loads", {})
+        mat   = design.get("material", {})
 
-        num_bays = geo["num_bays"]
-        num_stories = geo["num_stories"]
-        bay_widths = geo["bay_widths"]
+        num_bays      = geo["num_bays"]
+        num_stories   = geo["num_stories"]
+        bay_widths    = geo["bay_widths"]
         story_heights = geo["story_heights"]
-        col_sec = geo.get("columns", {})
-        beam_sec = geo.get("beams", {})
+        col_sec       = geo.get("columns", {})
+        beam_sec      = geo.get("beams", {})
 
-        # Build node coordinates
-        # node[story][bay] = (x, y)
-        node_coords = {}
-        y = 0.0
-        for story in range(num_stories + 1):
-            node_coords[story] = {}
-            x = 0.0
-            for bay in range(num_bays + 1):
-                node_coords[story][bay] = (x, y)
-                if bay < num_bays:
-                    x += bay_widths[bay]
-            if story < num_stories:
-                y += story_heights[story]
-
-        fig_w = max(10, sum(bay_widths) + 2)
-        fig_h = max(6, sum(story_heights) + 2)
-        fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-        ax.set_aspect("equal")
-
-        # Columns
-        for story in range(num_stories):
-            for bay in range(num_bays + 1):
-                x0, y0 = node_coords[story][bay]
-                x1, y1 = node_coords[story + 1][bay]
-                ax.plot([x0, x1], [y0, y1], "b-", linewidth=3)
-
-        # Beams
-        for story in range(1, num_stories + 1):
-            for bay in range(num_bays):
-                x0, y0 = node_coords[story][bay]
-                x1, y1 = node_coords[story][bay + 1]
-                ax.plot([x0, x1], [y0, y1], "r-", linewidth=2.5)
-
-        # Nodes
-        for story in range(num_stories + 1):
-            for bay in range(num_bays + 1):
-                nx, ny = node_coords[story][bay]
-                ax.plot(nx, ny, "ko", markersize=5)
-
-        # Fixed bases
-        for bay in range(num_bays + 1):
-            bx, by = node_coords[0][bay]
-            _draw_fixed_base(ax, bx, by)
-
-        # Beam distributed loads
-        for dl in loads.get("beam_distributed", []):
-            story = dl.get("story", 1)
-            bay = dl.get("bay", 0)
-            q = dl.get("q", 0)
-            if story <= num_stories and bay < num_bays:
-                x0, y0 = node_coords[story][bay]
-                x1, _ = node_coords[story][bay + 1]
-                _draw_distributed_load(ax, x0, x1, y0, q, x1 - x0, n_arrows=5)
-
-        # Section annotation
-        col_txt = f"柱 {col_sec.get('width', '?')}×{col_sec.get('depth', '?')} m" if col_sec else ""
-        beam_txt = f"梁 {beam_sec.get('width', '?')}×{beam_sec.get('depth', '?')} m" if beam_sec else ""
-        ax.annotate(
-            f"{col_txt}  {beam_txt}",
-            xy=(sum(bay_widths) / 2, -0.5),
-            ha="center", fontsize=9, color="#333333"
-        )
-        ax.set_title(
-            f"框架示意图（{num_bays}跨×{num_stories}层）",
-            fontsize=12
-        )
         total_w = sum(bay_widths)
         total_h = sum(story_heights)
-        _finalize(ax, fig, -1.0, total_w + 1.0, -1.0, total_h + 1.2)
-        fig.savefig(output_path, dpi=120, bbox_inches="tight")
+
+        # ── node coordinates ──────────────────────────────────────────────
+        node = {}          # node[story][bay] = (x, y)
+        y = 0.0
+        for s in range(num_stories + 1):
+            node[s] = {}
+            x = 0.0
+            for b in range(num_bays + 1):
+                node[s][b] = (x, y)
+                if b < num_bays:
+                    x += bay_widths[b]
+            if s < num_stories:
+                y += story_heights[s]
+
+        # ── figure size: give extra space left (dim) and right (info) ─────
+        left_margin  = 1.8    # for story-height dims
+        right_margin = 0.5
+        top_margin   = 2.5    # for load arrows
+        bot_margin   = 1.5    # for supports + base dims
+
+        fig_w = total_w + left_margin + right_margin + 2
+        fig_h = total_h + top_margin  + bot_margin   + 2
+        fig, ax = plt.subplots(figsize=(max(12, fig_w), max(10, fig_h)))
+        ax.set_aspect("equal")
+
+        FS = 11   # base font size
+
+        # ── columns (blue) ────────────────────────────────────────────────
+        for s in range(num_stories):
+            for b in range(num_bays + 1):
+                x0, y0 = node[s][b]
+                x1, y1 = node[s + 1][b]
+                ax.plot([x0, x1], [y0, y1], "b-", linewidth=3.5)
+
+        # ── beams (red) ───────────────────────────────────────────────────
+        for s in range(1, num_stories + 1):
+            for b in range(num_bays):
+                x0, y0 = node[s][b]
+                x1, _  = node[s][b + 1]
+                ax.plot([x0, x1], [y0, y1], "r-", linewidth=3)
+
+        # ── nodes ─────────────────────────────────────────────────────────
+        for s in range(num_stories + 1):
+            for b in range(num_bays + 1):
+                ax.plot(*node[s][b], "ko", markersize=6)
+
+        # ── fixed bases ───────────────────────────────────────────────────
+        for b in range(num_bays + 1):
+            bx, by = node[0][b]
+            _draw_fixed_base(ax, bx, by)
+
+        # ── beam distributed loads ────────────────────────────────────────
+        arrow_h = min(story_heights) * 0.28
+        for dl in loads.get("beam_distributed", []):
+            s   = dl.get("story", 1)
+            b   = dl.get("bay",   0)
+            q   = dl.get("q",     0)
+            if s > num_stories or b >= num_bays:
+                continue
+            x0, y0 = node[s][b]
+            x1, _  = node[s][b + 1]
+            bw     = x1 - x0
+            # arrows
+            n_arr = max(3, int(bw / 1.2))
+            for i in range(n_arr + 1):
+                xa = x0 + i * bw / n_arr
+                dy = -arrow_h if q < 0 else arrow_h
+                ax.annotate("", xy=(xa, y0), xytext=(xa, y0 - dy),
+                            arrowprops=dict(arrowstyle="-|>",
+                                           color="magenta", lw=1.5))
+            # label above the arrow line
+            sign = -1 if q < 0 else 1
+            ax.text((x0 + x1) / 2, y0 - dy * 1.6,
+                    f"q={abs(q)/1000:.1f} kN/m",
+                    ha="center", va="center",
+                    fontsize=FS, color="magenta", fontweight="bold")
+
+        # ── lateral loads ─────────────────────────────────────────────────
+        lat_arrow = min(bay_widths) * 0.35
+        for ll in loads.get("lateral", []):
+            s = ll.get("story", 1)
+            F = ll.get("F", 0)
+            if s > num_stories:
+                continue
+            # apply at left column, mid story height
+            xl, yl = node[s][0]
+            ax.annotate("",
+                        xy=(xl, yl), xytext=(xl - lat_arrow, yl),
+                        arrowprops=dict(arrowstyle="-|>",
+                                       color="darkorange", lw=2.5))
+            ax.text(xl - lat_arrow - 0.1, yl,
+                    f"F={abs(F)/1000:.1f} kN",
+                    ha="right", va="center",
+                    fontsize=FS - 1, color="darkorange", fontweight="bold")
+
+        # ── span dimension lines (below ground) ───────────────────────────
+        dim_y = -0.9
+        tick  = 0.15
+        cum_x = 0.0
+        for b in range(num_bays):
+            x0 = cum_x
+            x1 = cum_x + bay_widths[b]
+            cx = (x0 + x1) / 2
+            ax.annotate("", xy=(x1, dim_y), xytext=(x0, dim_y),
+                        arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+            ax.text(cx, dim_y - 0.3, f"{bay_widths[b]:.1f} m",
+                    ha="center", va="top", fontsize=FS, color="gray")
+            cum_x = x1
+
+        # ── story-height dimension lines (left of frame) ──────────────────
+        dim_x = -1.2
+        cum_y = 0.0
+        for s in range(num_stories):
+            y0 = cum_y
+            y1 = cum_y + story_heights[s]
+            cy = (y0 + y1) / 2
+            ax.annotate("", xy=(dim_x, y1), xytext=(dim_x, y0),
+                        arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+            ax.text(dim_x - 0.15, cy, f"{story_heights[s]:.1f} m",
+                    ha="right", va="center", fontsize=FS, color="gray")
+            cum_y = y1
+
+        # ── support label ─────────────────────────────────────────────────
+        ax.text(total_w / 2, -1.6,
+                "支座：柱底固定（Fixed）",
+                ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
+
+        # ── info box: section + material ──────────────────────────────────
+        col_w = col_sec.get("width",  "?")
+        col_d = col_sec.get("depth",  "?")
+        bm_w  = beam_sec.get("width", "?")
+        bm_d  = beam_sec.get("depth", "?")
+        mat_name = mat.get("material_name", "—")
+        E_gpa    = mat.get("E", 0) / 1e9
+        fy_mpa   = mat.get("fy", 0) / 1e6
+        info = (f"截面：柱 {col_w}×{col_d} m  │  梁 {bm_w}×{bm_d} m\n"
+                f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
+        ax.text(total_w / 2, total_h + top_margin * 0.55,
+                info, ha="center", va="center", fontsize=FS,
+                bbox=dict(boxstyle="round,pad=0.5",
+                          facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
+
+        # ── title ─────────────────────────────────────────────────────────
+        ax.set_title(
+            f"框架结构模型示意图（{num_bays}跨 × {num_stories}层）\n"
+            f"请确认：支座 / 荷载 / 跨度 / 层高 / 截面 / 材料",
+            fontsize=FS + 2, fontweight="bold", pad=14
+        )
+
+        _finalize(ax, fig,
+                  dim_x - 0.5, total_w + right_margin + 0.5,
+                  -2.0,         total_h + top_margin)
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
 
