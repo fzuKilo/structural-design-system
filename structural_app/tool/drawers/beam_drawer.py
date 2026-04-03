@@ -59,21 +59,31 @@ class BeamDrawer(StructureDrawer):
         Returns:
             Detected units ("m" or "mm")
         """
-        if explicit_units != "m":
-            return explicit_units
+        # If explicitly specified as "mm", return "mm"
+        if explicit_units == "mm":
+            return "mm"
 
-        # Smart unit detection: if geometry values are very large, they are likely in mm
-        length = geometry.get('length', 0)
-        width = geometry.get('width', 0)
-        height = geometry.get('height', 0)
+        # If explicitly specified as "m", use "m"
+        if explicit_units == "m":
+            # Smart detection: override "m" if values are clearly in mm
+            length = geometry.get('length', 0)
+            width = geometry.get('width', 0)
+            height = geometry.get('height', 0)
 
-        # If any dimension is > 100, assume it's in mm (common for structural elements)
-        if length > 100 or width > 100 or height > 100:
-            # Check if values look like mm (divisible by 100 or round numbers)
-            if length >= 1000 or (length > 100 and length % 100 == 0):
+            # If any dimension is >= 1000, likely already in mm
+            if length >= 1000 or width >= 1000 or height >= 1000:
                 return "mm"
 
-        return explicit_units
+            # If any dimension is between 100-1000 and looks like mm (round number)
+            if (length > 100 and length < 1000 and length % 100 == 0) or \
+               (width > 100 and width < 1000 and width % 100 == 0) or \
+               (height > 100 and height < 1000 and height % 100 == 0):
+                return "mm"
+
+            return "m"
+
+        # Default to "m" for unknown explicit_units
+        return "m"
 
     def draw_elevation(self, design: Dict[str, Any]) -> Optional[str]:
         """

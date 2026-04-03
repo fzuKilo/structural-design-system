@@ -2553,7 +2553,7 @@ class PlanningFlow:
     ) -> str:
         """Build request for report generation agent."""
         import copy
-        # 裁剪 detailed_results 中的大数组，避免超出工具参数长度限制
+        # 裁剪 detailed_results 中的大数组，避免超出 LLM 工具参数长度限制
         analysis_for_report = copy.deepcopy(analysis_results) if analysis_results else None
         # 保留完整数组供 Visualizer 使用（裁剪前深拷贝）
         analysis_results_full = copy.deepcopy(analysis_results) if analysis_results else None

@@ -173,8 +173,7 @@ class FrameVisualizer(BaseVisualizer):
         num_bays    = geo.get('num_bays', 1)
         num_stories = geo.get('num_stories', 1)
 
-        dr = results.get('detailed_results', {})
-        uy_list = dr.get('displacements', [])
+        uy_list = results.get('detailed_results', {}).get('displacements', [])
         ux_list = self._get_extra(results).get('ux_displacements', [])
 
         n_nodes = (num_bays + 1) * (num_stories + 1)
@@ -234,8 +233,7 @@ class FrameVisualizer(BaseVisualizer):
         num_bays    = geo.get('num_bays', 1)
         num_stories = geo.get('num_stories', 1)
 
-        dr = results.get('detailed_results', {})
-        uy_list = dr.get('displacements', [])
+        uy_list = results.get('detailed_results', {}).get('displacements', [])
         ux_list = self._get_extra(results).get('ux_displacements', [])
         n_nodes = (num_bays + 1) * (num_stories + 1)
         disp_mag = []
@@ -374,12 +372,16 @@ class FrameVisualizer(BaseVisualizer):
 
     # ── 3. Story drift (层间位移角) ───────────────────────────────────────────
 
-    def _compute_drift(self, design, results) -> Tuple[List[str], List[float]]:
+    def _compute_drift(self, design, results) -> Tuple[List[str], List[float], bool]:
+        """Returns (labels, ratios, has_lateral). Numerical noise < 1e-9 is zeroed."""
         geo = design.get('geometry', {})
         num_bays      = geo.get('num_bays', 1)
         num_stories   = geo.get('num_stories', 1)
         story_heights = geo.get('story_heights', [4.0])
         ux_list = self._get_extra(results).get('ux_displacements', [])
+
+        loads = design.get('loads', {})
+        has_lateral = bool(loads.get('lateral', []))
 
         labels, ratios = [], []
         for s in range(1, num_stories + 1):
@@ -390,12 +392,13 @@ class FrameVisualizer(BaseVisualizer):
                           for b in range(num_bays+1)
                           if (s-1)*(num_bays+1)+b < len(ux_list)) / (num_bays+1)
             h = story_heights[s-1] if s-1 < len(story_heights) else 4.0
-            ratios.append(abs(ux_cur - ux_prev) / h if h > 0 else 0.0)
+            ratio = abs(ux_cur - ux_prev) / h if h > 0 else 0.0
+            ratios.append(ratio if ratio >= 1e-9 else 0.0)
             labels.append(f'Story {s}')
-        return labels, ratios
+        return labels, ratios, has_lateral
 
     def _png_story_drift(self, design, results, node_coords, ts) -> str:
-        labels, ratios = self._compute_drift(design, results)
+        labels, ratios, has_lateral = self._compute_drift(design, results)
         limit = 1.0 / 500
 
         # 无水平荷载时层间位移角全为0，显示说明文字
@@ -423,7 +426,7 @@ class FrameVisualizer(BaseVisualizer):
         return self._save_png(fig, 'story_drift', ts)
 
     def _html_story_drift(self, design, results, node_coords) -> str:
-        labels, ratios = self._compute_drift(design, results)
+        labels, ratios, has_lateral = self._compute_drift(design, results)
         limit = 1.0 / 500
 
         # 无水平荷载时显示说明
@@ -439,6 +442,18 @@ class FrameVisualizer(BaseVisualizer):
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
 
         fig = go.Figure()
+
+        if not has_lateral:
+            fig.add_annotation(
+                text='无水平荷载工况<br>层间位移角接近零<br>(仅竖向荷载)',
+                xref='paper', yref='paper', x=0.5, y=0.5,
+                showarrow=False, font=dict(size=16, color='gray')
+            )
+            fig.update_layout(title='Story Drift Ratio Distribution',
+                              xaxis_title='Story', yaxis_title='Story Drift Ratio')
+            return self._save_html(fig, 'story_drift_interactive')
+
+        colors = ['red' if r > limit else 'steelblue' for r in ratios]
         fig.add_trace(go.Bar(
             x=labels, y=ratios, marker_color=colors,
             text=[f'{r:.5f}' for r in ratios], textposition='outside',
