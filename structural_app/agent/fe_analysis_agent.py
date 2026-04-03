@@ -55,6 +55,7 @@ class FEAnalysisAgent(ToolCallAgent):
         description: str = None,
         tools: Optional[List] = None,
         enable_loop: bool = False,
+        enable_visual_validation: bool = True,
         **kwargs
     ):
         """
@@ -103,6 +104,7 @@ class FEAnalysisAgent(ToolCallAgent):
 
         # Set custom attributes AFTER super().__init__() to avoid Pydantic conflict
         object.__setattr__(self, 'enable_loop', enable_loop)
+        object.__setattr__(self, 'enable_visual_validation', enable_visual_validation)
 
         # Override available_tools to include all tools
         all_tools = tools + [CreateChatCompletion(), Terminate()]
@@ -264,6 +266,12 @@ Please update the design based on these improvements and re-analyze."""
         # Prepare the analysis prompt with explicit instructions
         # 新增：明确告诉 LLM DesignProposal 的位置，并提供提取后的数据
         if design_proposal:
+            # 2.2 可视化确认（在分析前让用户确认模型）
+            if self.enable_visual_validation:
+                confirmed = await self._visual_validation(design_proposal)
+                if not confirmed:
+                    return "用户取消分析：模型未通过可视化确认。"
+
             # 将提取的 DesignProposal 明确写入 prompt
             request_with_proposal = f"""DesignProposal found in input:
 ```json
@@ -573,6 +581,71 @@ Please update the design and re-analyze."""
         except json.JSONDecodeError as e:
             print(f"Failed to parse analysis results JSON: {e}")
             return None
+
+    async def _visual_validation(self, design: Dict[str, Any]) -> bool:
+        """
+        生成模型示意图并通过 AskHuman 询问用户确认。
+        返回 True 表示用户确认继续，False 表示取消分析。
+        """
+        import tempfile
+        import os
+        from structural_app.tool.visualizers.model_visualizer import ModelVisualizer
+
+        stype = design.get("type", "beam")
+        viz_methods = {
+            "beam": ModelVisualizer.visualize_beam,
+            "cantilever_beam": ModelVisualizer.visualize_cantilever_beam,
+            "continuous_beam": ModelVisualizer.visualize_continuous_beam,
+            "truss": ModelVisualizer.visualize_truss,
+            "frame": ModelVisualizer.visualize_frame,
+        }
+        viz_func = viz_methods.get(stype)
+        if viz_func is None:
+            return True  # 不支持的结构类型，跳过确认
+
+        # 生成模型示意图到临时文件
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                tmp_path = tmp.name
+            viz_func(design, tmp_path)
+            print(f"[模型确认] 示意图已生成：{tmp_path}")
+        except Exception as e:
+            print(f"[警告] 模型示意图生成失败，跳过可视化确认：{e}")
+            return True
+
+        # 通过 AskHuman 询问用户
+        ask_human_tool = next(
+            (t for t in self.available_tools.tools if hasattr(t, "name") and t.name == "ask_human"),
+            None,
+        )
+        if ask_human_tool is None:
+            print("[警告] 未找到 AskHuman 工具，跳过可视化确认")
+            return True
+
+        prompt = (
+            f"[FEA 建模确认] 请确认以下模型参数是否正确：\n"
+            f"  结构类型：{stype}\n"
+            f"  几何：{design.get('geometry', {})}\n"
+            f"  支座：{design.get('constraints', {}).get('support_type', 'N/A')}\n"
+            f"  荷载：{design.get('loads', {})}\n\n"
+            f"模型示意图已保存至：{tmp_path}\n"
+            f"（Web 模式下图片将自动推送至前端弹窗）\n\n"
+            f"确认模型正确并继续分析？(y/n)"
+        )
+
+        try:
+            answer = await ask_human_tool.execute(inquire=prompt)
+            response = str(answer).strip().lower()
+        except Exception as e:
+            print(f"[警告] AskHuman 执行失败，默认继续分析：{e}")
+            return True
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+        return response in ("y", "yes", "是", "确认", "正确", "1")
 
 
 # Register the agent for use in PlanningFlow
