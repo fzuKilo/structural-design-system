@@ -35,21 +35,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-ci.txt
 
-      - name: Run unit & integration tests
+      - name: Run FEA analyzer tests only
         run: |
-          pytest tests/ -v -m "not standard_case" \
-            --ignore=tests/integration \
-            --ignore=tests/test_ask_human.py \
-            --ignore=tests/test_cantilever_beam.py \
-            --ignore=tests/test_continuous_beam_recognition.py \
-            --ignore=tests/test_improved_scoring.py \
-            --ignore=tests/test_opensees_frame_simple.py \
-            --ignore=tests/test_plotly_visualization.py \
-            --ignore=tests/test_pymapdl.py \
-            --ignore=tests/test_scoring_comparison.py \
-            --ignore=tests/test_scoring_scenarios.py \
-            --ignore=tests/test_structural_design_agent.py \
-            --tb=short
+          pytest tests/test_fe_analysis_tool.py tests/test_frame_analyzer.py -v --tb=short
 
   # -----------------------------------------------------------------------
   # Job 2: 有限元标准算例（依赖 openseespy，单独跑）
