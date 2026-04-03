@@ -5,7 +5,13 @@
 """
 import pytest
 import sys
+import os
 from pathlib import Path
+
+# Add OpenManus to path
+_openmanus_path = 'C:\\Users\\86177\\Desktop\\OpenManus'
+if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
+    sys.path.insert(0, _openmanus_path)
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
