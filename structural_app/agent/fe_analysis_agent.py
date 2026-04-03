@@ -250,6 +250,16 @@ Please update the design based on these improvements and re-analyze."""
         # 新增：如果 request 中没有包含完整的 DesignProposal，从上下文（memory）中提取
         # 这处理了 PlanningFlow 调用时，request 是 JSON 字符串但可能被包装的情况
         if not design_proposal:
+            # 先尝试直接 json.loads（PlanningFlow 传入纯 JSON 字符串时命中）
+            import json
+            try:
+                parsed = json.loads(request)
+                if isinstance(parsed, dict) and parsed.get('type'):
+                    design_proposal = parsed
+            except (json.JSONDecodeError, Exception):
+                pass
+
+        if not design_proposal:
             # 尝试从整个对话历史中提取 DesignProposal
             import re
             import json

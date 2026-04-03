@@ -717,40 +717,51 @@ class FrameAnalyzer(StructureAnalyzer):
     def export_opensees_script(self, design: Dict[str, Any], output_path: str) -> str:
         """生成框架OpenSees Tcl脚本"""
         from datetime import datetime
-        
+
         geo = design['geometry']
         mat = design['material']
-        
+
+        n_bays     = geo.get('num_bays',    geo.get('n_bays',    1))
+        n_stories  = geo.get('num_stories', geo.get('n_stories', 1))
+        bay_widths = geo.get('bay_widths',  [geo.get('bay_width', 6.0)] * n_bays)
+        story_heights = geo.get('story_heights', [geo.get('story_height', 4.0)] * n_stories)
+        E = mat['E']
+
+        # 生成节点坐标
+        node_lines = []
+        tag = 1
+        y = 0.0
+        for j in range(n_stories + 1):
+            x = 0.0
+            for i in range(n_bays + 1):
+                node_lines.append(f"node {tag} {x:.4f} {y:.4f}")
+                x += bay_widths[i] if i < len(bay_widths) else bay_widths[-1]
+                tag += 1
+            y += story_heights[j] if j < len(story_heights) else story_heights[-1]
+
         script = f"""# OpenSees Tcl Script - 框架
 # 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+# {n_bays}跨 {n_stories}层框架
 
 wipe
 model BasicBuilder -ndm 2 -ndf 3
 
-set nBays {geo['n_bays']}
-set nStories {geo['n_stories']}
-set bayWidth {geo['bay_width']}
-set storyHeight {geo['story_height']}
-set E {mat['E']}
+set nBays {n_bays}
+set nStories {n_stories}
+set E {E}
 
 # 节点
-set nodeTag 1
-for {{set j 0}} {{$j <= $nStories}} {{incr j}} {{
-    for {{set i 0}} {{$i <= $nBays}} {{incr i}} {{
-        node $nodeTag [expr $i * $bayWidth] [expr $j * $storyHeight]
-        incr nodeTag
-    }}
-}}
+{chr(10).join(node_lines)}
 
 # 柱底固定
 for {{set i 1}} {{$i <= [expr $nBays + 1]}} {{incr i}} {{
     fix $i 1 1 1
 }}
 
-puts "框架模型已创建"
+puts "框架模型已创建：{n_bays}跨 {n_stories}层，共{(n_bays+1)*(n_stories+1)}节点"
 """
-        
+
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(script)
-        
+
         return output_path
