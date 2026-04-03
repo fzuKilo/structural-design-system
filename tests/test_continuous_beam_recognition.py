@@ -5,15 +5,12 @@
 import sys
 import os
 
-# Add OpenManus to path
-_openmanus_path = 'C:\\Users\\86177\\Desktop\\OpenManus'
-if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
-    sys.path.insert(0, _openmanus_path)
+# OpenManus path is handled by conftest.py
 
 # Add project root to path
-_project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _project_root not in sys.path:
-    sys.path.append(_project_root)
+    sys.path.insert(0, _project_root)
 
 from structural_app.agent.structural_design_agent import StructuralDesignAgent
 import asyncio

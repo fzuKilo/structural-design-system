@@ -6,10 +6,7 @@ Tests the tool's schema and execution with mocked input
 import sys
 import os
 
-# Add OpenManus to path
-_openmanus_path = 'D:\\openmanus'
-if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
-    sys.path.insert(0, _openmanus_path)
+# OpenManus path is handled by conftest.py
 
 import pytest
 from unittest.mock import patch, MagicMock

@@ -6,10 +6,7 @@ Tests agent initialization, JSON extraction, validation, and formatting
 import sys
 import os
 
-# CRITICAL: Add OpenManus to path BEFORE any imports
-_openmanus_path = 'D:\\openmanus'
-if os.path.exists(_openmanus_path) and _openmanus_path not in sys.path:
-    sys.path.insert(0, _openmanus_path)
+# OpenManus path is handled by conftest.py
 
 import pytest
 import json
