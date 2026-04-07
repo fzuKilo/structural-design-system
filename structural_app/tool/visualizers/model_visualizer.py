@@ -73,11 +73,11 @@ class ModelVisualizer:
         ax.annotate(
             f"L = {L} m\nb×h = {b}×{h} m",
             xy=(L / 2, beam_y - beam_h / 2 - 0.3),
-            ha="center", fontsize=9, color="#333333"
+            ha="center", fontsize=12, color="#333333"
         )
-        ax.set_title("简支梁示意图", fontsize=12)
+        ax.set_title("简支梁示意图", fontsize=14, fontweight="bold")
         _finalize(ax, fig, -0.5, L + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.0)
-        fig.savefig(output_path, dpi=120, bbox_inches="tight")
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
 
@@ -131,11 +131,11 @@ class ModelVisualizer:
         ax.annotate(
             f"L = {L} m\nb×h = {b}×{h} m",
             xy=(L / 2, beam_y - beam_h / 2 - 0.3),
-            ha="center", fontsize=9, color="#333333"
+            ha="center", fontsize=12, color="#333333"
         )
-        ax.set_title("悬臂梁示意图", fontsize=12)
+        ax.set_title("悬臂梁示意图", fontsize=14, fontweight="bold")
         _finalize(ax, fig, -0.8, L + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.0)
-        fig.savefig(output_path, dpi=120, bbox_inches="tight")
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
 
@@ -193,7 +193,7 @@ class ModelVisualizer:
             ax.annotate(
                 f"L{i+1}={sp}m",
                 xy=(x + sp / 2, beam_y - beam_h / 2 - 0.25),
-                ha="center", fontsize=8, color="#555555"
+                ha="center", fontsize=11, color="#555555"
             )
             x += sp
 
@@ -211,11 +211,11 @@ class ModelVisualizer:
         ax.annotate(
             f"b×h = {b}×{h} m",
             xy=(L_total / 2, beam_y + beam_h / 2 + 0.7),
-            ha="center", fontsize=9, color="#333333"
+            ha="center", fontsize=12, color="#333333"
         )
-        ax.set_title(f"连续梁示意图（{len(spans)}跨）", fontsize=12)
+        ax.set_title(f"连续梁示意图（{len(spans)}跨）", fontsize=14, fontweight="bold")
         _finalize(ax, fig, -0.5, L_total + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.2)
-        fig.savefig(output_path, dpi=120, bbox_inches="tight")
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
 
@@ -273,9 +273,9 @@ class ModelVisualizer:
 
         # Node IDs (bottom chord 1-based, top chord starts after)
         for i, (nx, ny) in enumerate(bottom_nodes):
-            ax.annotate(str(i + 1), (nx, ny - 0.15), ha="center", fontsize=7, color="navy")
+            ax.annotate(str(i + 1), (nx, ny - 0.15), ha="center", fontsize=9, color="navy")
         for i, (nx, ny) in enumerate(top_nodes):
-            ax.annotate(str(n_panels + 1 + i + 1), (nx, ny + 0.12), ha="center", fontsize=7, color="darkgreen")
+            ax.annotate(str(n_panels + 1 + i + 1), (nx, ny + 0.12), ha="center", fontsize=9, color="darkgreen")
 
         # Supports
         _draw_pin_support(ax, 0, 0)
@@ -293,11 +293,11 @@ class ModelVisualizer:
         ax.annotate(
             f"span={span}m  h={height}m  n={n_panels}",
             xy=(span / 2, -0.4),
-            ha="center", fontsize=9, color="#333333"
+            ha="center", fontsize=12, color="#333333"
         )
-        ax.set_title("桁架示意图（Pratt型）", fontsize=12)
+        ax.set_title("桁架示意图（Pratt型）", fontsize=14, fontweight="bold")
         _finalize(ax, fig, -0.5, span + 0.5, -0.8, height + 0.6)
-        fig.savefig(output_path, dpi=120, bbox_inches="tight")
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
 
@@ -556,7 +556,7 @@ def _draw_distributed_load(ax, x0, x1, y_top, q, ref_len, n_arrows=8, arrow_len=
     ax.annotate(
         f"q={q_kn:.1f} kN/m",
         xy=((x0 + x1) / 2, tail_y + direction * 0.05),
-        ha="center", fontsize=8, color="purple"
+        ha="center", fontsize=11, color="purple"
     )
 
 
@@ -575,7 +575,7 @@ def _draw_point_load(ax, x, y, P, arrow_len=0.5):
     ax.annotate(
         f"P={P_kn:.1f}kN",
         xy=(x, tail_y + direction * 0.05),
-        ha="center", fontsize=8, color="darkred"
+        ha="center", fontsize=11, color="darkred"
     )
 
 
