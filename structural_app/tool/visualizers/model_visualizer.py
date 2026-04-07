@@ -364,9 +364,9 @@ class ModelVisualizer:
         # ── beams (red) ───────────────────────────────────────────────────
         for s in range(1, num_stories + 1):
             for b in range(num_bays):
-                x0, y0 = node[s][b]
-                x1, _  = node[s][b + 1]
-                ax.plot([x0, x1], [y0, y1], "r-", linewidth=3)
+                x0, beam_y = node[s][b]
+                x1, _      = node[s][b + 1]
+                ax.plot([x0, x1], [beam_y, beam_y], "r-", linewidth=3)
 
         # ── nodes ─────────────────────────────────────────────────────────
         for s in range(num_stories + 1):
@@ -381,24 +381,28 @@ class ModelVisualizer:
         # ── beam distributed loads ────────────────────────────────────────
         arrow_h = min(story_heights) * 0.28
         for dl in loads.get("beam_distributed", []):
-            s   = dl.get("story", 1)
-            b   = dl.get("bay",   0)
-            q   = dl.get("q",     0)
+            s  = dl.get("story", 1)
+            b  = dl.get("bay",   0)
+            q  = dl.get("q",     0)
             if s > num_stories or b >= num_bays:
                 continue
             x0, y0 = node[s][b]
             x1, _  = node[s][b + 1]
-            bw     = x1 - x0
+            bw = x1 - x0
+            dy = -arrow_h if q < 0 else arrow_h   # fixed: compute once, not inside loop
+
+            # horizontal line at arrow tops
+            ax.plot([x0, x1], [y0 - dy, y0 - dy], color="magenta", linewidth=1.5)
+
             # arrows
             n_arr = max(3, int(bw / 1.2))
             for i in range(n_arr + 1):
                 xa = x0 + i * bw / n_arr
-                dy = -arrow_h if q < 0 else arrow_h
                 ax.annotate("", xy=(xa, y0), xytext=(xa, y0 - dy),
                             arrowprops=dict(arrowstyle="-|>",
                                            color="magenta", lw=1.5))
-            # label above the arrow line
-            sign = -1 if q < 0 else 1
+
+            # label above the horizontal line
             ax.text((x0 + x1) / 2, y0 - dy * 1.6,
                     f"q={abs(q)/1000:.1f} kN/m",
                     ha="center", va="center",
