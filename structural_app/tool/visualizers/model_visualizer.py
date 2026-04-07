@@ -261,21 +261,33 @@ class ModelVisualizer:
             tx, ty = top_nodes[i]
             ax.plot([bx, tx], [by, ty], "g-", linewidth=1.5)
 
-        # Diagonals (Pratt: bottom-left to top-right)
+        # Diagonals — standard Pratt type:
+        # Left half:  bottom[i] → top[i+1]  (slopes up toward center)
+        # Right half: bottom[i+1] → top[i]  (slopes down toward center)
+        mid = n_panels // 2
         for i in range(n_panels):
-            bx, by = bottom_nodes[i]
-            tx, ty = top_nodes[i + 1]
+            if i < mid:
+                # left half: lean right
+                bx, by = bottom_nodes[i]
+                tx, ty = top_nodes[i + 1]
+            else:
+                # right half: lean left
+                bx, by = bottom_nodes[i + 1]
+                tx, ty = top_nodes[i]
             ax.plot([bx, tx], [by, ty], "r-", linewidth=1.5, alpha=0.7)
 
         # Nodes
         for nx, ny in all_nodes:
             ax.plot(nx, ny, "ko", markersize=5)
 
-        # Node IDs (bottom chord 1-based, top chord starts after)
+        # Node IDs — shift labels away from load arrows:
+        # bottom chord: below the node
+        # top chord: higher up to avoid collision with downward load arrows
         for i, (nx, ny) in enumerate(bottom_nodes):
             ax.annotate(str(i + 1), (nx, ny - 0.15), ha="center", fontsize=9, color="navy")
         for i, (nx, ny) in enumerate(top_nodes):
-            ax.annotate(str(n_panels + 1 + i + 1), (nx, ny + 0.12), ha="center", fontsize=9, color="darkgreen")
+            ax.annotate(str(n_panels + 1 + i + 1), (nx, ny + 0.55),
+                        ha="center", fontsize=9, color="darkgreen")
 
         # Supports
         _draw_pin_support(ax, 0, 0)
@@ -296,7 +308,7 @@ class ModelVisualizer:
             ha="center", fontsize=12, color="#333333"
         )
         ax.set_title("桁架示意图（Pratt型）", fontsize=14, fontweight="bold")
-        _finalize(ax, fig, -0.5, span + 0.5, -0.8, height + 0.6)
+        _finalize(ax, fig, -0.5, span + 0.5, -0.8, height + 1.2)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path

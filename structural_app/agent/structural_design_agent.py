@@ -241,8 +241,14 @@ Choose the correct "type" based on the user's description:
      * fy: 屈服强度 (Pa) - Q235: 235e6, Q345: 345e6
    - REQUIRED loads:
      * nodal: 节点荷载数组 [{{"node": int, "Fx": float, "Fy": float}}]
-     * If user provides distributed load (e.g., "6kN/m"), convert to nodal loads
-     * Apply loads at top chord nodes (nodes n_panels+2 to 2*n_panels+2)
+     * If user provides distributed load q (kN/m), convert to nodal loads at ALL top chord nodes:
+       - Top chord nodes: n_panels+2 to 2*n_panels+2 (total n_panels+1 nodes)
+       - Interior nodes (not at supports): Fy = -q * panel_length
+       - End nodes (first and last top chord node): Fy = -q * panel_length / 2  (half value)
+       - MUST include ALL n_panels+1 top chord nodes, including the last one
+     * Example for q=10kN/m, span=6m, n_panels=6, panel_length=1m:
+       - Nodes 8,14 (ends): Fy = -5000 N  (half)
+       - Nodes 9,10,11,12,13 (interior): Fy = -10000 N  (full)
    - Example JSON:
      {{
        "type": "truss",
@@ -250,8 +256,12 @@ Choose the correct "type" based on the user's description:
        "geometry": {{"span": 6.0, "height": 1.2, "n_panels": 5}},
        "material": {{"E": 200e9, "A": 0.001, "fy": 235e6, "material_name": "Q235"}},
        "loads": {{"nodal": [
+         {{"node": 7, "Fx": 0, "Fy": -5000}},
          {{"node": 8, "Fx": 0, "Fy": -10000}},
-         {{"node": 9, "Fx": 0, "Fy": -10000}}
+         {{"node": 9, "Fx": 0, "Fy": -10000}},
+         {{"node": 10, "Fx": 0, "Fy": -10000}},
+         {{"node": 11, "Fx": 0, "Fy": -10000}},
+         {{"node": 12, "Fx": 0, "Fy": -5000}}
        ]}},
        "constraints": {{"support_type": "simply_supported"}}
      }}
