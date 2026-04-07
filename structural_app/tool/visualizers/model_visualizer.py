@@ -25,26 +25,24 @@ class ModelVisualizer:
     def visualize_beam(design: Dict[str, Any], output_path: str) -> str:
         """
         Draw simply-supported beam with supports, loads, and section annotation.
-
-        Args:
-            design: beam design dict (geometry/material/loads/constraints)
-            output_path: path to save PNG
-
-        Returns:
-            output_path
         """
-        geo = design["geometry"]
-        L = geo["length"]
-        b = geo.get("width", 0.3)
-        h = geo.get("height", 0.5)
+        geo  = design["geometry"]
+        mat  = design.get("material", {})
+        cons = design.get("constraints", {})
+        L    = geo["length"]
+        b    = geo.get("width", 0.3)
+        h    = geo.get("height", 0.5)
         loads = design.get("loads", {})
 
-        fig, ax = plt.subplots(figsize=(10, 4))
+        FS = 11
+
+        fig, ax = plt.subplots(figsize=(max(10, L + 4), 5))
         ax.set_aspect("equal")
 
-        # Beam body
         beam_y = 0.0
-        beam_h = h * 0.5  # visual height scale
+        beam_h = h * 0.5
+
+        # Beam body
         rect = mpatches.FancyBboxPatch(
             (0, beam_y - beam_h / 2), L, beam_h,
             boxstyle="square,pad=0", linewidth=1.5,
@@ -53,12 +51,13 @@ class ModelVisualizer:
         ax.add_patch(rect)
 
         # Supports
+        support = cons.get("support_type", "simply_supported")
         _draw_pin_support(ax, 0, beam_y - beam_h / 2)
         _draw_roller_support(ax, L, beam_y - beam_h / 2)
 
         # Distributed loads
         for dl in loads.get("distributed", []):
-            q = dl.get("q", 0)
+            q  = dl.get("q", 0)
             x0 = dl.get("start", 0)
             x1 = dl.get("end", L)
             _draw_distributed_load(ax, x0, x1, beam_y + beam_h / 2, q, L)
@@ -69,14 +68,34 @@ class ModelVisualizer:
             x = pl.get("location", pl.get("x", L / 2))
             _draw_point_load(ax, x, beam_y + beam_h / 2, P)
 
-        # Annotations
-        ax.annotate(
-            f"L = {L} m\nb×h = {b}×{h} m",
-            xy=(L / 2, beam_y - beam_h / 2 - 0.3),
-            ha="center", fontsize=12, color="#333333"
-        )
-        ax.set_title("简支梁示意图", fontsize=14, fontweight="bold")
-        _finalize(ax, fig, -0.5, L + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.0)
+        # ── span dimension line (below beam) ──────────────────────────────
+        dim_y = beam_y - beam_h / 2 - 0.35
+        ax.annotate("", xy=(L, dim_y), xytext=(0, dim_y),
+                    arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+        ax.text(L / 2, dim_y - 0.18, f"L = {L} m",
+                ha="center", va="top", fontsize=FS, color="gray")
+
+        # ── support label ─────────────────────────────────────────────────
+        support_label = {"simply_supported": "简支（左铰右滚）",
+                         "fixed_fixed": "两端固定"}.get(support, support)
+        ax.text(L / 2, beam_y - beam_h / 2 - 0.85,
+                f"支座：{support_label}",
+                ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
+
+        # ── info box: section + material ──────────────────────────────────
+        mat_name = mat.get("material_name", "—")
+        E_gpa    = mat.get("E", 0) / 1e9
+        fy_mpa   = mat.get("fy", 0) / 1e6
+        info = (f"截面：b×h = {b}×{h} m\n"
+                f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
+        ax.text(L / 2, beam_y + beam_h / 2 + 1.1,
+                info, ha="center", va="center", fontsize=FS,
+                bbox=dict(boxstyle="round,pad=0.5",
+                          facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
+
+        ax.set_title("简支梁结构模型示意图\n请确认：支座 / 荷载 / 跨度 / 截面 / 材料",
+                     fontsize=FS + 2, fontweight="bold", pad=10)
+        _finalize(ax, fig, -0.5, L + 0.5, beam_y - beam_h - 1.2, beam_y + beam_h + 1.8)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
@@ -89,15 +108,18 @@ class ModelVisualizer:
         """
         Draw cantilever beam with fixed wall, loads, and section annotation.
         """
-        geo = design["geometry"]
-        L = geo["length"]
-        b = geo.get("width", 0.3)
-        h = geo.get("height", 0.5)
-        loads = design.get("loads", {})
+        geo  = design["geometry"]
+        mat  = design.get("material", {})
         cons = design.get("constraints", {})
-        fixed_end = cons.get("fixed_end", "left")
+        L    = geo["length"]
+        b    = geo.get("width", 0.3)
+        h    = geo.get("height", 0.5)
+        loads       = design.get("loads", {})
+        fixed_end   = cons.get("fixed_end", "left")
 
-        fig, ax = plt.subplots(figsize=(10, 4))
+        FS = 11
+
+        fig, ax = plt.subplots(figsize=(max(10, L + 4), 5))
         ax.set_aspect("equal")
 
         beam_y = 0.0
@@ -117,24 +139,44 @@ class ModelVisualizer:
 
         # Distributed loads
         for dl in loads.get("distributed", []):
-            q = dl.get("q", 0)
+            q  = dl.get("q", 0)
             x0 = dl.get("start", 0)
             x1 = dl.get("end", L)
             _draw_distributed_load(ax, x0, x1, beam_y + beam_h / 2, q, L)
 
         # Point loads
         for pl in loads.get("point", []):
-            force = pl.get("force", pl.get("P", 0))
+            force    = pl.get("force", pl.get("P", 0))
             position = pl.get("position", pl.get("x", L))
             _draw_point_load(ax, position, beam_y + beam_h / 2, force)
 
-        ax.annotate(
-            f"L = {L} m\nb×h = {b}×{h} m",
-            xy=(L / 2, beam_y - beam_h / 2 - 0.3),
-            ha="center", fontsize=12, color="#333333"
-        )
-        ax.set_title("悬臂梁示意图", fontsize=14, fontweight="bold")
-        _finalize(ax, fig, -0.8, L + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.0)
+        # ── span dimension line ────────────────────────────────────────────
+        dim_y = beam_y - beam_h / 2 - 0.35
+        ax.annotate("", xy=(L, dim_y), xytext=(0, dim_y),
+                    arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+        ax.text(L / 2, dim_y - 0.18, f"L = {L} m",
+                ha="center", va="top", fontsize=FS, color="gray")
+
+        # ── support label ─────────────────────────────────────────────────
+        fixed_side_label = "左端固定" if fixed_end == "left" else "右端固定"
+        ax.text(L / 2, beam_y - beam_h / 2 - 0.85,
+                f"支座：{fixed_side_label}（全约束）/ 自由端（无约束）",
+                ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
+
+        # ── info box: section + material ──────────────────────────────────
+        mat_name = mat.get("material_name", "—")
+        E_gpa    = mat.get("E", 0) / 1e9
+        fy_mpa   = mat.get("fy", 0) / 1e6
+        info = (f"截面：b×h = {b}×{h} m\n"
+                f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
+        ax.text(L / 2, beam_y + beam_h / 2 + 1.1,
+                info, ha="center", va="center", fontsize=FS,
+                bbox=dict(boxstyle="round,pad=0.5",
+                          facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
+
+        ax.set_title("悬臂梁结构模型示意图\n请确认：支座 / 荷载 / 跨度 / 截面 / 材料",
+                     fontsize=FS + 2, fontweight="bold", pad=10)
+        _finalize(ax, fig, -0.8, L + 0.5, beam_y - beam_h - 1.2, beam_y + beam_h + 1.8)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
@@ -147,24 +189,27 @@ class ModelVisualizer:
         """
         Draw multi-span continuous beam with intermediate roller supports.
         """
-        geo = design["geometry"]
-        b = geo.get("width", 0.3)
-        h = geo.get("height", 0.5)
+        geo  = design["geometry"]
+        mat  = design.get("material", {})
+        b    = geo.get("width", 0.3)
+        h    = geo.get("height", 0.5)
         loads = design.get("loads", {})
 
         # Accept either spans list or length+n_spans
         if "spans" in geo:
             spans = geo["spans"]
         else:
-            n = geo.get("n_spans", 2)
+            n       = geo.get("n_spans", 2)
             L_total = geo.get("length", 10.0)
-            spans = [L_total / n] * n
+            spans   = [L_total / n] * n
 
         L_total = sum(spans)
-        beam_y = 0.0
-        beam_h = h * 0.5
+        beam_y  = 0.0
+        beam_h  = h * 0.5
 
-        fig, ax = plt.subplots(figsize=(max(10, L_total + 2), 4))
+        FS = 11
+
+        fig, ax = plt.subplots(figsize=(max(10, L_total + 4), 5))
         ax.set_aspect("equal")
 
         # Beam body
@@ -187,14 +232,14 @@ class ModelVisualizer:
             _draw_roller_support(ax, sx, beam_y - beam_h / 2)
         _draw_roller_support(ax, support_xs[-1], beam_y - beam_h / 2)
 
-        # Span labels
+        # ── span dimension lines (below beam) ─────────────────────────────
+        dim_y = beam_y - beam_h / 2 - 0.35
         x = 0.0
         for i, sp in enumerate(spans):
-            ax.annotate(
-                f"L{i+1}={sp}m",
-                xy=(x + sp / 2, beam_y - beam_h / 2 - 0.25),
-                ha="center", fontsize=11, color="#555555"
-            )
+            ax.annotate("", xy=(x + sp, dim_y), xytext=(x, dim_y),
+                        arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+            ax.text(x + sp / 2, dim_y - 0.18, f"L{i+1}={sp}m",
+                    ha="center", va="top", fontsize=FS, color="gray")
             x += sp
 
         # Distributed loads
@@ -204,17 +249,29 @@ class ModelVisualizer:
 
         # Point loads
         for pl in loads.get("point", []):
-            force = pl.get("force", pl.get("P", 0))
+            force    = pl.get("force", pl.get("P", 0))
             position = pl.get("position", pl.get("x", L_total / 2))
             _draw_point_load(ax, position, beam_y + beam_h / 2, force)
 
-        ax.annotate(
-            f"b×h = {b}×{h} m",
-            xy=(L_total / 2, beam_y + beam_h / 2 + 0.7),
-            ha="center", fontsize=12, color="#333333"
-        )
-        ax.set_title(f"连续梁示意图（{len(spans)}跨）", fontsize=14, fontweight="bold")
-        _finalize(ax, fig, -0.5, L_total + 0.5, beam_y - beam_h - 0.8, beam_y + beam_h + 1.2)
+        # ── support label ─────────────────────────────────────────────────
+        ax.text(L_total / 2, beam_y - beam_h / 2 - 0.85,
+                f"支座：左端铰支 / 中间滚轴×{len(spans)-1} / 右端滚轴",
+                ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
+
+        # ── info box: section + material ──────────────────────────────────
+        mat_name = mat.get("material_name", "—")
+        E_gpa    = mat.get("E", 0) / 1e9
+        fy_mpa   = mat.get("fy", 0) / 1e6
+        info = (f"截面：b×h = {b}×{h} m\n"
+                f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
+        ax.text(L_total / 2, beam_y + beam_h / 2 + 1.1,
+                info, ha="center", va="center", fontsize=FS,
+                bbox=dict(boxstyle="round,pad=0.5",
+                          facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
+
+        ax.set_title(f"连续梁结构模型示意图（{len(spans)}跨）\n请确认：支座 / 荷载 / 各跨跨度 / 截面 / 材料",
+                     fontsize=FS + 2, fontweight="bold", pad=10)
+        _finalize(ax, fig, -0.5, L_total + 0.5, beam_y - beam_h - 1.2, beam_y + beam_h + 1.8)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
@@ -225,22 +282,26 @@ class ModelVisualizer:
     @staticmethod
     def visualize_truss(design: Dict[str, Any], output_path: str) -> str:
         """
-        Draw Pratt truss with nodes, members, supports, and nodal loads.
+        Draw Pratt truss with nodes, members, supports, nodal loads,
+        material info box, and dimension annotation.
         """
-        geo = design["geometry"]
-        span = geo["span"]
-        height = geo["height"]
+        geo  = design["geometry"]
+        mat  = design.get("material", {})
+        span     = geo["span"]
+        height   = geo["height"]
         n_panels = geo["n_panels"]
-        loads = design.get("loads", {})
+        loads    = design.get("loads", {})
 
         panel_length = span / n_panels
+        FS = 11
 
         # Node coordinates
-        bottom_nodes = [(i * panel_length, 0.0) for i in range(n_panels + 1)]
-        top_nodes = [(i * panel_length, height) for i in range(n_panels + 1)]
-        all_nodes = bottom_nodes + top_nodes
+        bottom_nodes = [(i * panel_length, 0.0)    for i in range(n_panels + 1)]
+        top_nodes    = [(i * panel_length, height)  for i in range(n_panels + 1)]
+        all_nodes    = bottom_nodes + top_nodes
 
-        fig, ax = plt.subplots(figsize=(max(10, span + 2), 5))
+        top_margin = 2.2   # space above top chord for labels + info box
+        fig, ax = plt.subplots(figsize=(max(12, span + 4), max(6, height + top_margin + 1.5)))
         ax.set_aspect("equal")
 
         # Bottom chord
@@ -302,13 +363,33 @@ class ModelVisualizer:
                 if Fy != 0:
                     _draw_point_load(ax, nx, ny, Fy, arrow_len=0.3)
 
-        ax.annotate(
-            f"span={span}m  h={height}m  n={n_panels}",
-            xy=(span / 2, -0.4),
-            ha="center", fontsize=12, color="#333333"
-        )
-        ax.set_title("桁架示意图（Pratt型）", fontsize=14, fontweight="bold")
-        _finalize(ax, fig, -0.5, span + 0.5, -0.8, height + 1.2)
+        # ── geometry annotation (bottom) ─────────────────────────────────
+        ax.annotate("", xy=(span, -0.45), xytext=(0, -0.45),
+                    arrowprops=dict(arrowstyle="<->", color="gray", lw=1.2))
+        ax.text(span / 2, -0.62,
+                f"span={span}m   h={height}m   n={n_panels}   panel={panel_length:.2f}m",
+                ha="center", va="top", fontsize=FS, color="gray")
+
+        # ── support label ─────────────────────────────────────────────────
+        ax.text(span / 2, -1.05,
+                "支座：左端铰支 / 右端滚轴",
+                ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
+
+        # ── info box: section + material ──────────────────────────────────
+        mat_name = mat.get("material_name", "—")
+        E_gpa    = mat.get("E", 0) / 1e9
+        fy_mpa   = mat.get("fy", 0) / 1e6
+        A_cm2    = mat.get("A", 0) * 1e4   # m² → cm²
+        info = (f"截面积：A={A_cm2:.1f} cm²\n"
+                f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
+        ax.text(span / 2, height + top_margin * 0.55,
+                info, ha="center", va="center", fontsize=FS,
+                bbox=dict(boxstyle="round,pad=0.5",
+                          facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
+
+        ax.set_title("桁架结构模型示意图（Pratt型）\n请确认：支座 / 荷载 / 跨度 / 节间数 / 截面 / 材料",
+                     fontsize=FS + 2, fontweight="bold", pad=12)
+        _finalize(ax, fig, -0.8, span + 0.8, -1.4, height + top_margin)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
