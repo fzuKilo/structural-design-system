@@ -548,7 +548,7 @@ class ModelVisualizer:
 
         # ── support label ─────────────────────────────────────────────────
         ax.text(total_w / 2, -1.6,
-                "支座：柱底固定（Fixed）",
+                "支座：柱底固定",
                 ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
 
         # ── info box: section + material ──────────────────────────────────
