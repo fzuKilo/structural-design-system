@@ -233,7 +233,7 @@ class ModelVisualizer:
         _draw_roller_support(ax, support_xs[-1], beam_y - beam_h / 2)
 
         # ── span dimension lines (below beam) ─────────────────────────────
-        dim_y = beam_y - beam_h / 2 - 0.35
+        dim_y = beam_y - beam_h / 2 - 0.55
         x = 0.0
         for i, sp in enumerate(spans):
             ax.annotate("", xy=(x + sp, dim_y), xytext=(x, dim_y),
@@ -254,7 +254,7 @@ class ModelVisualizer:
             _draw_point_load(ax, position, beam_y + beam_h / 2, force)
 
         # ── support label ─────────────────────────────────────────────────
-        ax.text(L_total / 2, beam_y - beam_h / 2 - 0.85,
+        ax.text(L_total / 2, beam_y - beam_h / 2 - 1.15,
                 f"支座：左端铰支 / 中间滚轴×{len(spans)-1} / 右端滚轴",
                 ha="center", va="top", fontsize=FS, color="navy", fontweight="bold")
 
@@ -271,7 +271,7 @@ class ModelVisualizer:
 
         ax.set_title(f"连续梁结构模型示意图（{len(spans)}跨）\n请确认：支座 / 荷载 / 各跨跨度 / 截面 / 材料",
                      fontsize=FS + 2, fontweight="bold", pad=10)
-        _finalize(ax, fig, -0.5, L_total + 0.5, beam_y - beam_h - 1.2, beam_y + beam_h + 1.8)
+        _finalize(ax, fig, -0.5, L_total + 0.5, beam_y - beam_h - 1.6, beam_y + beam_h + 1.8)
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         return output_path
@@ -561,7 +561,7 @@ class ModelVisualizer:
         fy_mpa   = mat.get("fy", 0) / 1e6
         info = (f"截面：柱 {col_w}×{col_d} m  │  梁 {bm_w}×{bm_d} m\n"
                 f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
-        ax.text(total_w / 2, total_h + top_margin * 0.55,
+        ax.text(total_w / 2, total_h + top_margin * 0.78,
                 info, ha="center", va="center", fontsize=FS,
                 bbox=dict(boxstyle="round,pad=0.5",
                           facecolor="lightyellow", edgecolor="#888888", alpha=0.9))
@@ -667,8 +667,9 @@ def _draw_point_load(ax, x, y, P, arrow_len=0.5):
     P_kn = abs(P) / 1000
     ax.annotate(
         f"P={P_kn:.1f}kN",
-        xy=(x, tail_y + direction * 0.05),
-        ha="center", fontsize=11, color="darkred"
+        xy=(x, tail_y + 0.12),          # just above arrow tail, below distributed load labels
+        ha="left", xytext=(4, 0), textcoords="offset points",
+        fontsize=11, color="darkred"
     )
 
 
