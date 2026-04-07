@@ -599,6 +599,7 @@ Please update the design and re-analyze."""
         """
         import tempfile
         import os
+        from pathlib import Path
         from structural_app.tool.visualizers.model_visualizer import ModelVisualizer
 
         stype = design.get("type", "beam")
@@ -613,12 +614,20 @@ Please update the design and re-analyze."""
         if viz_func is None:
             return True  # 不支持的结构类型，跳过确认
 
-        # 生成模型示意图到临时文件
+        # 确定图片保存路径：优先使用 output_dir，否则降级到临时目录
+        if getattr(self, "output_dir", None):
+            img_path = str(Path(self.output_dir) / "model_preview.png")
+            delete_after = False
+        else:
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            tmp.close()
+            img_path = tmp.name
+            delete_after = True
+
+        # 生成模型示意图
         try:
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                tmp_path = tmp.name
-            viz_func(design, tmp_path)
-            print(f"[模型确认] 示意图已生成：{tmp_path}")
+            viz_func(design, img_path)
+            print(f"[模型确认] 示意图已生成：{img_path}")
         except Exception as e:
             print(f"[警告] 模型示意图生成失败，跳过可视化确认：{e}")
             return True
@@ -638,7 +647,7 @@ Please update the design and re-analyze."""
             f"  几何：{design.get('geometry', {})}\n"
             f"  支座：{design.get('constraints', {}).get('support_type', 'N/A')}\n"
             f"  荷载：{design.get('loads', {})}\n\n"
-            f"模型示意图已保存至：{tmp_path}\n"
+            f"模型示意图已保存至：{img_path}\n"
             f"（Web 模式下图片将自动推送至前端弹窗）\n\n"
             f"确认模型正确并继续分析？(y/n)"
         )
@@ -650,10 +659,11 @@ Please update the design and re-analyze."""
             print(f"[警告] AskHuman 执行失败，默认继续分析：{e}")
             return True
         finally:
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
+            if delete_after:
+                try:
+                    os.remove(img_path)
+                except Exception:
+                    pass
 
         return response in ("y", "yes", "是", "确认", "正确", "1")
 

@@ -756,6 +756,7 @@ class PlanningFlow:
 
         await self._broadcast_stage("fe_analysis", "started", "开始有限元分析")
         analysis_request = self._build_analysis_request(self.results["design_proposal"])
+        self.analysis_agent.output_dir = str(self.main_output_dir)
         analysis_result = await self.analysis_agent.run(analysis_request)
         self.results["analysis_results"] = self._extract_analysis_results(analysis_result)
 
