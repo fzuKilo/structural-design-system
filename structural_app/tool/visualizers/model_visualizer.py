@@ -378,8 +378,8 @@ class ModelVisualizer:
         mat_name = mat.get("material_name", "—")
         E_gpa    = mat.get("E", 0) / 1e9
         fy_mpa   = mat.get("fy", 0) / 1e6
-        A_cm2    = mat.get("A", 0) * 1e4   # m² → cm²
-        info = (f"截面积：A={A_cm2:.1f} cm²\n"
+        A_mm2    = mat.get("A", 0) * 1e6   # m² → mm²
+        info = (f"截面积：A={A_mm2:.1f} mm²\n"
                 f"材料：{mat_name}   E={E_gpa:.1f} GPa   fy={fy_mpa:.1f} MPa")
         ax.text(span / 2, height + top_margin * 0.55,
                 info, ha="center", va="center", fontsize=FS,
