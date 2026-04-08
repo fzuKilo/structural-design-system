@@ -1326,7 +1326,10 @@ class PlanningFlow:
                 continue
 
             analysis_req = self._build_analysis_request(new_design)
-            analysis_resp = await self.analysis_agent.run(analysis_req)
+            analysis_resp = await self.analysis_agent.run(
+                analysis_req,
+                skip_visual_validation=True  # 预警优化3个方案不需要预览图
+            )
             new_analysis = self._extract_analysis_results(analysis_resp)
             if not new_analysis:
                 if verbose:
@@ -2142,7 +2145,10 @@ class PlanningFlow:
                 print(f"[PlanningFlow] 使用更新后的设计重新分析...")
 
             analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
-            analysis_result = await self.analysis_agent.run(analysis_request)
+            analysis_result = await self.analysis_agent.run(
+                analysis_request,
+                skip_visual_validation=True  # 手动优化循环不需要预览图
+            )
             current_results = self._extract_analysis_results(analysis_result)
 
             if not current_results:
@@ -2249,7 +2255,10 @@ class PlanningFlow:
                 print(f"[PlanningFlow] 使用更新后的设计重新分析...")
 
             analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
-            analysis_result = await self.analysis_agent.run(analysis_request)
+            analysis_result = await self.analysis_agent.run(
+                analysis_request,
+                skip_visual_validation=True  # 自动优化循环不需要预览图
+            )
             current_results = self._extract_analysis_results(analysis_result)
 
             if not current_results:

@@ -203,7 +203,7 @@ Then call:
 fe_analysis(design_proposal='{"type": "beam", "units": "m", ...}')
 """
 
-    async def run(self, request: str, **kwargs) -> str:
+    async def run(self, request: str, skip_visual_validation: bool = False, **kwargs) -> str:
         """
         Main execution method for the agent.
 
@@ -214,6 +214,7 @@ fe_analysis(design_proposal='{"type": "beam", "units": "m", ...}')
 
         Args:
             request: User's request (typically contains a DesignProposal)
+            skip_visual_validation: If True, skip model preview generation (used in optimization loops)
             **kwargs: Additional parameters (loop_request: str for re-analysis with improvements)
 
         Returns:
@@ -277,7 +278,8 @@ Please update the design based on these improvements and re-analyze."""
         # 新增：明确告诉 LLM DesignProposal 的位置，并提供提取后的数据
         if design_proposal:
             # 2.2 可视化确认（在分析前让用户确认模型）
-            if self.enable_visual_validation:
+            # 新增：支持通过参数跳过预览图生成（用于优化循环）
+            if self.enable_visual_validation and not skip_visual_validation:
                 confirmed = await self._visual_validation(design_proposal)
                 if not confirmed:
                     return "用户取消分析：模型未通过可视化确认。"
