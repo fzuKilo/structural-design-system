@@ -80,5 +80,11 @@ docs/_build/
 dump.rdb
 *.bat
 
+# Database dumps (含敏感数据，不入库)
+*.sql
+
 # 旧前端备份（本地保留，不入库）
 frontend_backup/
+
+# 自动生成的空模板，未实际配置
+lefthook.yml
