@@ -187,12 +187,17 @@ class TrussAnalyzer(StructureAnalyzer):
                 self.elements.append(elem_id)
                 elem_id += 1
 
-            # Diagonal web members (Pratt truss pattern)
+            # Diagonal web members (alternating V-pattern)
             if truss_type == 'pratt':
                 for i in range(n_panels):
-                    # Diagonal from bottom left to top right
-                    i_node = i + 1  # Bottom left
-                    j_node = (n_panels + 1) + i + 2  # Top right
+                    if i % 2 == 0:
+                        # Even: bottom-left to top-right
+                        i_node = i + 1  # Bottom left
+                        j_node = (n_panels + 1) + i + 2  # Top right
+                    else:
+                        # Odd: top-left to bottom-right
+                        i_node = (n_panels + 1) + i + 1  # Top left
+                        j_node = i + 2  # Bottom right
                     ops.element('Truss', elem_id, i_node, j_node, A, mat_tag)
                     length = np.sqrt(panel_length**2 + height**2)
                     self.member_lengths[elem_id] = length

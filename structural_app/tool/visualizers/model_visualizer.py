@@ -322,19 +322,18 @@ class ModelVisualizer:
             tx, ty = top_nodes[i]
             ax.plot([bx, tx], [by, ty], "g-", linewidth=1.5)
 
-        # Diagonals — standard Pratt type:
-        # Left half:  bottom[i] → top[i+1]  (slopes up toward center)
-        # Right half: bottom[i+1] → top[i]  (slopes down toward center)
-        mid = n_panels // 2
+        # Diagonals — alternating V-pattern:
+        # Even panels (i=0,2,4...): bottom[i] → top[i+1]  (bottom-left to top-right)
+        # Odd panels  (i=1,3,5...): top[i] → bottom[i+1]  (top-left to bottom-right)
         for i in range(n_panels):
-            if i < mid:
-                # left half: lean right
+            if i % 2 == 0:
+                # Even: bottom-left to top-right
                 bx, by = bottom_nodes[i]
                 tx, ty = top_nodes[i + 1]
             else:
-                # right half: lean left
-                bx, by = bottom_nodes[i + 1]
-                tx, ty = top_nodes[i]
+                # Odd: top-left to bottom-right
+                bx, by = top_nodes[i]
+                tx, ty = bottom_nodes[i + 1]
             ax.plot([bx, tx], [by, ty], "r-", linewidth=1.5, alpha=0.7)
 
         # Nodes
