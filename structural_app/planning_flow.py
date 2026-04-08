@@ -758,6 +758,11 @@ class PlanningFlow:
         analysis_request = self._build_analysis_request(self.results["design_proposal"])
         self.analysis_agent.output_dir = str(self.main_output_dir)
         analysis_result = await self.analysis_agent.run(analysis_request)
+
+        if analysis_result == "__CANCELLED__":
+            print("\n[PlanningFlow] 用户取消了模型确认，工作流终止。")
+            return {"status": "cancelled", "reason": "用户取消可视化确认"}
+
         self.results["analysis_results"] = self._extract_analysis_results(analysis_result)
 
         if verbose and self.results["analysis_results"]:
@@ -1205,13 +1210,10 @@ class PlanningFlow:
         print("=" * 60)
 
         # Use WebSocket callback if available (Web mode)
-        print(f"[DEBUG] websocket_callback={self.websocket_callback}, task_id={self.task_id}")
         if self.websocket_callback and self.task_id:
-            print("[DEBUG] Using Web mode for user choice")
             return await self._ask_user_choice_web()
 
         # Fallback to CLI input
-        print("[DEBUG] Using CLI mode for user choice")
         while True:
             try:
                 choice = input("请输入选项 (1/2/3/4): ").strip().lower()

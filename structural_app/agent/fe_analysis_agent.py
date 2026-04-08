@@ -282,7 +282,7 @@ Please update the design based on these improvements and re-analyze."""
             if self.enable_visual_validation and not skip_visual_validation:
                 confirmed = await self._visual_validation(design_proposal)
                 if not confirmed:
-                    return "用户取消分析：模型未通过可视化确认。"
+                    return "__CANCELLED__"
 
             # 将提取的 DesignProposal 明确写入 prompt
             request_with_proposal = f"""DesignProposal found in input:
@@ -651,7 +651,10 @@ Please update the design and re-analyze."""
             f"  荷载：{design.get('loads', {})}\n\n"
             f"模型示意图已保存至：{img_path}\n"
             f"（Web 模式下图片将自动推送至前端弹窗）\n\n"
-            f"确认模型正确并继续分析？(y/n)"
+            f"确认模型正确并继续分析？\n"
+            f"  y - 确认，开始有限元分析\n"
+            f"  n - 取消，终止整个工作流\n"
+            f"请输入 (y/n): "
         )
 
         try:
