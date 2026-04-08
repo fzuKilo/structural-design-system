@@ -68,17 +68,15 @@ REFERENCE_VALUES = {
         "max_moment":       28125,
         "tolerance":        0.03,
     },
-    # 7. 简支桁架均布节点荷载（Ansys）
-    # 注：位移参考值为 Ansys 纯竖向位移，TrussAnalyzer 取向量模，存在系统差异
-    # 应力精确匹配（误差 <0.001%），位移仅供参考
+    # 7. 简支桁架均布节点荷载（Ansys，Warren带竖杆）
     "truss_uniform": {
-        "max_displacement": 0.000235,   # Ansys 纯竖向，FEM 向量模约 0.000333
+        "max_displacement": 0.000247,   # Ansys PRNSOL,U,SUM
         "max_stress":       4e6,
         "tolerance":        0.03,
     },
-    # 8. 简支桁架跨中集中荷载（Ansys）
+    # 8. 简支桁架跨中集中荷载（Ansys，Warren带竖杆）
     "truss_point": {
-        "max_displacement": 0.000133,   # Ansys 纯竖向，FEM 向量模约 0.000154
+        "max_displacement": 0.000133,   # Ansys PRNSOL,U,SUM
         "max_stress":       2e6,
         "tolerance":        0.03,
     },
@@ -86,16 +84,16 @@ REFERENCE_VALUES = {
     # 注：Ansys 取梁跨中挠度，FrameAnalyzer 单梁单元只报端节点位移（柱轴压为主）
     # 应力/弯矩同样因单元粗（1个梁单元/跨）存在偏差，单独放宽到 15%
     "frame_single": {
-        "max_displacement": 0.0000192,
-        "max_stress":       2.766e6,
-        "max_moment":       29493.1,
+        "max_displacement": 0.0000182,
+        "max_stress":       2.21754375e6,
+        "max_moment":       23653.8,
         "tolerance":        0.03,
     },
     # 10. 两层单跨框架（Ansys）
     "frame_double": {
-        "max_displacement": 0.0000195,
-        "max_stress":       2.136e6,
-        "max_moment":       22771.2,
+        "max_displacement": 0.0000215,
+        "max_stress":       1.5010125e6,
+        "max_moment":       16010.8,
         "tolerance":        0.03,
     },
 }
@@ -120,16 +118,13 @@ def _check_beam(result, ref_key):
 
 
 def _check_truss(result, ref_key):
-    """桁架：只校验应力（位移因向量模 vs 纯竖向存在系统差异）"""
+    """桁架：校验应力 + 位移（Warren带竖杆拓扑与Ansys一致）"""
     ref = REFERENCE_VALUES[ref_key]
     tol = ref["tolerance"]
     assert result["status"] == "success", f"分析失败: {result.get('error')}"
     r = result["results"]
+    _assert_within(r.max_displacement, ref["max_displacement"], tol, f"{ref_key}/位移")
     _assert_within(r.max_stress, ref["max_stress"], tol, f"{ref_key}/应力")
-    # 记录位移供参考，不 assert
-    disp_err = abs(r.max_displacement - ref["max_displacement"]) / ref["max_displacement"]
-    print(f"  [{ref_key}/位移 参考] FEM={r.max_displacement:.6f}  ref={ref['max_displacement']:.6f}  "
-          f"误差={disp_err*100:.1f}%（因向量模 vs 纯竖向差异，不纳入断言）")
 
 
 def _check_frame(result, ref_key):
@@ -295,6 +290,8 @@ def test_frame_single():
             "bay_widths": [6.0], "story_heights": [4.0],
             "columns": {"width": 0.4, "depth": 0.4},
             "beams":   {"width": 0.3, "depth": 0.6},
+            "n_elem_per_beam": 20,
+            "n_elem_per_column": 10,
         },
         "material": {"E": 30e9, "fy": 400e6},
         "loads": {
@@ -319,9 +316,11 @@ def test_frame_double():
         "type": "frame",
         "geometry": {
             "num_bays": 1, "num_stories": 2,
-            "bay_widths": [6.0], "story_heights": [4.0, 4.0],
+            "bay_widths": [4.0], "story_heights": [4.0, 4.0],
             "columns": {"width": 0.4, "depth": 0.4},
             "beams":   {"width": 0.3, "depth": 0.6},
+            "n_elem_per_beam": 20,
+            "n_elem_per_column": 10,
         },
         "material": {"E": 30e9, "fy": 400e6},
         "loads": {
