@@ -110,7 +110,10 @@ class FrameAnalyzer(StructureAnalyzer):
         Story 0:  0 ------- 1 -------- 2
                (fixed)   (fixed)   (fixed)
 
-        Node ID = story * (num_bays + 1) + bay
+        Corner node ID = story * (num_bays + 1) + bay
+
+        When n_elem_per_beam > 1 or n_elem_per_column > 1, intermediate nodes
+        are inserted along beams and columns. Corner nodes keep their original IDs.
 
         Args:
             design: Design parameters
@@ -137,6 +140,10 @@ class FrameAnalyzer(StructureAnalyzer):
             num_stories = geometry['num_stories']
             bay_widths = geometry['bay_widths']
             story_heights = geometry['story_heights']
+
+            # Element subdivision (optional, default to 1 for backward compatibility)
+            n_elem_per_beam = geometry.get('n_elem_per_beam', 1)
+            n_elem_per_column = geometry.get('n_elem_per_column', 1)
 
             # Column and beam sections
             col_width = geometry['columns']['width']
@@ -188,12 +195,20 @@ class FrameAnalyzer(StructureAnalyzer):
         """
         Create all nodes for the frame
 
+        Creates corner nodes first (maintaining original IDs), then intermediate nodes
+        for element subdivision.
+
         Args:
             num_bays: Number of bays
             num_stories: Number of stories
             bay_widths: Width of each bay
             story_heights: Height of each story
         """
+        geometry = self.design_params['geometry']
+        n_elem_per_beam = geometry.get('n_elem_per_beam', 1)
+        n_elem_per_column = geometry.get('n_elem_per_column', 1)
+
+        # Create corner nodes first (original numbering scheme)
         node_id = 0
         y = 0.0
 
@@ -210,6 +225,42 @@ class FrameAnalyzer(StructureAnalyzer):
 
             if story < num_stories:
                 y += story_heights[story]
+
+        # Create intermediate nodes for columns (if n_elem_per_column > 1)
+        if n_elem_per_column > 1:
+            for story in range(num_stories):
+                for bay in range(num_bays + 1):
+                    node_i = story * (num_bays + 1) + bay
+                    node_j = (story + 1) * (num_bays + 1) + bay
+                    x = self.node_coords[node_i][0]
+                    y_i = self.node_coords[node_i][1]
+                    y_j = self.node_coords[node_j][1]
+
+                    # Insert intermediate nodes
+                    for k in range(1, n_elem_per_column):
+                        y = y_i + (y_j - y_i) * k / n_elem_per_column
+                        ops.node(node_id, x, y)
+                        self.nodes.append(node_id)
+                        self.node_coords[node_id] = (x, y)
+                        node_id += 1
+
+        # Create intermediate nodes for beams (if n_elem_per_beam > 1)
+        if n_elem_per_beam > 1:
+            for story in range(1, num_stories + 1):
+                for bay in range(num_bays):
+                    node_i = story * (num_bays + 1) + bay
+                    node_j = story * (num_bays + 1) + bay + 1
+                    x_i = self.node_coords[node_i][0]
+                    x_j = self.node_coords[node_j][0]
+                    y = self.node_coords[node_i][1]
+
+                    # Insert intermediate nodes
+                    for k in range(1, n_elem_per_beam):
+                        x = x_i + (x_j - x_i) * k / n_elem_per_beam
+                        ops.node(node_id, x, y)
+                        self.nodes.append(node_id)
+                        self.node_coords[node_id] = (x, y)
+                        node_id += 1
 
     def _set_boundary_conditions(self, num_bays: int, boundary: Dict):
         """
@@ -231,7 +282,7 @@ class FrameAnalyzer(StructureAnalyzer):
     def _create_column_elements(self, num_bays: int, num_stories: int,
                                 A: float, E: float, I: float):
         """
-        Create column elements
+        Create column elements with optional subdivision
 
         Args:
             num_bays: Number of bays
@@ -240,22 +291,46 @@ class FrameAnalyzer(StructureAnalyzer):
             E: Elastic modulus
             I: Moment of inertia
         """
+        geometry = self.design_params['geometry']
+        n_elem_per_column = geometry.get('n_elem_per_column', 1)
+
         elem_id = 1
+        # Track next available intermediate node ID for columns
+        intermediate_node_id = (num_bays + 1) * (num_stories + 1)
 
         for story in range(num_stories):
             for bay in range(num_bays + 1):
                 node_i = story * (num_bays + 1) + bay
                 node_j = (story + 1) * (num_bays + 1) + bay
 
-                ops.element('elasticBeamColumn', elem_id, node_i, node_j,
-                           A, E, I, 1)
-                self.column_elements.append(elem_id)
-                elem_id += 1
+                if n_elem_per_column == 1:
+                    # Single element (original behavior)
+                    ops.element('elasticBeamColumn', elem_id, node_i, node_j,
+                               A, E, I, 1)
+                    self.column_elements.append(elem_id)
+                    elem_id += 1
+                else:
+                    # Multiple elements with intermediate nodes
+                    current_node = node_i
+                    for k in range(n_elem_per_column):
+                        if k == n_elem_per_column - 1:
+                            # Last element connects to corner node j
+                            next_node = node_j
+                        else:
+                            # Connect to intermediate node
+                            next_node = intermediate_node_id
+                            intermediate_node_id += 1
+
+                        ops.element('elasticBeamColumn', elem_id, current_node, next_node,
+                                   A, E, I, 1)
+                        self.column_elements.append(elem_id)
+                        elem_id += 1
+                        current_node = next_node
 
     def _create_beam_elements(self, num_bays: int, num_stories: int,
                              A: float, E: float, I: float):
         """
-        Create beam elements
+        Create beam elements with optional subdivision
 
         Args:
             num_bays: Number of bays
@@ -264,17 +339,46 @@ class FrameAnalyzer(StructureAnalyzer):
             E: Elastic modulus
             I: Moment of inertia
         """
+        geometry = self.design_params['geometry']
+        n_elem_per_beam = geometry.get('n_elem_per_beam', 1)
+        n_elem_per_column = geometry.get('n_elem_per_column', 1)
+
         elem_id = len(self.column_elements) + 1
+
+        # Calculate starting intermediate node ID for beams
+        # After corner nodes and column intermediate nodes
+        num_corner_nodes = (num_bays + 1) * (num_stories + 1)
+        num_column_intermediate = num_stories * (num_bays + 1) * (n_elem_per_column - 1)
+        intermediate_node_id = num_corner_nodes + num_column_intermediate
 
         for story in range(1, num_stories + 1):  # Start from story 1
             for bay in range(num_bays):
                 node_i = story * (num_bays + 1) + bay
                 node_j = story * (num_bays + 1) + bay + 1
 
-                ops.element('elasticBeamColumn', elem_id, node_i, node_j,
-                           A, E, I, 1)
-                self.beam_elements.append(elem_id)
-                elem_id += 1
+                if n_elem_per_beam == 1:
+                    # Single element (original behavior)
+                    ops.element('elasticBeamColumn', elem_id, node_i, node_j,
+                               A, E, I, 1)
+                    self.beam_elements.append(elem_id)
+                    elem_id += 1
+                else:
+                    # Multiple elements with intermediate nodes
+                    current_node = node_i
+                    for k in range(n_elem_per_beam):
+                        if k == n_elem_per_beam - 1:
+                            # Last element connects to corner node j
+                            next_node = node_j
+                        else:
+                            # Connect to intermediate node
+                            next_node = intermediate_node_id
+                            intermediate_node_id += 1
+
+                        ops.element('elasticBeamColumn', elem_id, current_node, next_node,
+                                   A, E, I, 1)
+                        self.beam_elements.append(elem_id)
+                        elem_id += 1
+                        current_node = next_node
 
     def _apply_loads(self, loads: Dict, num_bays: int, num_stories: int):
         """
@@ -295,9 +399,10 @@ class FrameAnalyzer(StructureAnalyzer):
                 bay = load['bay']
                 q = load['q']
 
-                # Find corresponding beam element
-                beam_elem_id = self._get_beam_element_id(story, bay, num_bays)
-                ops.eleLoad('-ele', beam_elem_id, '-type', '-beamUniform', q, 0.0)
+                # Find all beam elements for this story/bay
+                beam_elem_ids = self._get_beam_element_ids(story, bay, num_bays)
+                for beam_elem_id in beam_elem_ids:
+                    ops.eleLoad('-ele', beam_elem_id, '-type', '-beamUniform', q, 0.0)
 
         # 2. Lateral loads (wind, seismic)
         if 'lateral' in loads:
@@ -319,9 +424,9 @@ class FrameAnalyzer(StructureAnalyzer):
                 Fy = load.get('Fy', 0.0)
                 ops.load(node_id, Fx, Fy, 0.0)
 
-    def _get_beam_element_id(self, story: int, bay: int, num_bays: int) -> int:
+    def _get_beam_element_ids(self, story: int, bay: int, num_bays: int) -> List[int]:
         """
-        Get beam element ID based on story and bay
+        Get all beam element IDs for a given story and bay (supports subdivision)
 
         Args:
             story: Story number (1-indexed)
@@ -329,18 +434,22 @@ class FrameAnalyzer(StructureAnalyzer):
             num_bays: Total number of bays
 
         Returns:
-            Beam element ID
+            List of beam element IDs for this story/bay
         """
+        geometry = self.design_params['geometry']
+        n_elem_per_beam = geometry.get('n_elem_per_beam', 1)
+
         # Number of column elements
         num_column_elements = len(self.column_elements)
 
-        # Number of beams before this story
-        num_beams_before = (story - 1) * num_bays
+        # Number of beam elements before this story
+        num_beams_before = (story - 1) * num_bays * n_elem_per_beam
 
-        # Current beam element ID
-        beam_elem_id = num_column_elements + num_beams_before + bay + 1
+        # Starting element ID for this bay
+        first_elem_id = num_column_elements + num_beams_before + bay * n_elem_per_beam + 1
 
-        return beam_elem_id
+        # Return all element IDs for this beam
+        return [first_elem_id + k for k in range(n_elem_per_beam)]
 
     def analyze(self) -> AnalysisResults:
         """
@@ -709,7 +818,14 @@ class FrameAnalyzer(StructureAnalyzer):
         # support both old key names (n_bays/n_stories) and new (num_bays/num_stories)
         n_bays = geo.get('num_bays', geo.get('n_bays', 1))
         n_stories = geo.get('num_stories', geo.get('n_stories', 1))
-        expected_nodes = (n_bays + 1) * (n_stories + 1)
+        n_elem_per_beam = geo.get('n_elem_per_beam', 1)
+        n_elem_per_column = geo.get('n_elem_per_column', 1)
+
+        # Calculate expected node count with subdivision
+        num_corner_nodes = (n_bays + 1) * (n_stories + 1)
+        num_column_intermediate = n_stories * (n_bays + 1) * (n_elem_per_column - 1)
+        num_beam_intermediate = n_stories * n_bays * (n_elem_per_beam - 1)
+        expected_nodes = num_corner_nodes + num_column_intermediate + num_beam_intermediate
 
         nodes = ops.getNodeTags()
         assert len(nodes) == expected_nodes, f"节点数错误：期望{expected_nodes}，实际{len(nodes)}"
