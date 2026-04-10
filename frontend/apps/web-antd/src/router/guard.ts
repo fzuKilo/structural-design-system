@@ -92,7 +92,14 @@ function setupAccessGuard(router: Router) {
 
     // 生成路由表
     // 当前登录用户拥有的角色标识列表
-    const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+    let userInfo;
+    try {
+      userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+    } catch {
+      // token 已过期或无效，清除后跳登录页
+      await authStore.logout(false);
+      return { path: LOGIN_PATH, replace: true };
+    }
     const userRoles = userInfo.roles ?? [];
 
     console.log('[Guard] userInfo:', userInfo);
