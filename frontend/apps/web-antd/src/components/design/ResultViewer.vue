@@ -45,7 +45,7 @@
       </ATabPane>
 
       <ATabPane key="evaluation" tab="设计评估">
-        <ChartViewer v-if="result?.evaluation_report" :evaluation="result.evaluation_report" />
+        <ChartViewer v-if="result?.evaluation" :evaluation="result.evaluation" />
         <AEmpty v-else description="暂无评估数据" />
       </ATabPane>
 
