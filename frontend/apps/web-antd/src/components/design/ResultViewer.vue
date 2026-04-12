@@ -28,12 +28,12 @@
               <ACard size="small" :title="v.label">
                 <iframe
                   v-if="v.type === 'html'"
-                  :src="`/api/file/download?path=${encodeURIComponent(v.path)}`"
+                  :src="`/api/file/view?path=${encodeURIComponent(v.path)}`"
                   style="width: 100%; height: 400px; border: none;"
                 />
                 <img
                   v-else
-                  :src="`/api/file/download?path=${encodeURIComponent(v.path)}`"
+                  :src="`/api/file/view?path=${encodeURIComponent(v.path)}`"
                   style="width: 100%; border-radius: 4px;"
                   :alt="v.label"
                 />
