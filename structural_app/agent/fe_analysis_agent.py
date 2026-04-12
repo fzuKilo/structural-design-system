@@ -643,19 +643,8 @@ Please update the design and re-analyze."""
             print("[警告] 未找到 AskHuman 工具，跳过可视化确认")
             return True
 
-        prompt = (
-            f"[FEA 建模确认] 请确认以下模型参数是否正确：\n"
-            f"  结构类型：{stype}\n"
-            f"  几何：{design.get('geometry', {})}\n"
-            f"  支座：{design.get('constraints', {}).get('support_type', 'N/A')}\n"
-            f"  荷载：{design.get('loads', {})}\n\n"
-            f"模型示意图已保存至：{img_path}\n"
-            f"（Web 模式下图片将自动推送至前端弹窗）\n\n"
-            f"确认模型正确并继续分析？\n"
-            f"  y - 确认，开始有限元分析\n"
-            f"  n - 取消，终止整个工作流\n"
-            f"请输入 (y/n): "
-        )
+        # 格式化用户友好的参数显示
+        prompt = self._format_user_friendly_prompt(stype, design, img_path)
 
         try:
             answer = await ask_human_tool.execute(inquire=prompt)
@@ -671,6 +660,89 @@ Please update the design and re-analyze."""
                     pass
 
         return response in ("y", "yes", "是", "确认", "正确", "1")
+
+    def _format_user_friendly_prompt(self, stype: str, design: dict, img_path: str) -> str:
+        """格式化用户友好的确认提示"""
+        # 结构类型映射
+        type_names = {
+            'beam': '简支梁',
+            'cantilever_beam': '悬臂梁',
+            'continuous_beam': '连续梁',
+            'truss': '桁架',
+            'frame': '框架'
+        }
+        type_display = type_names.get(stype, stype)
+
+        # 支座类型映射
+        support_names = {
+            'simply_supported': '简支',
+            'fixed': '固定',
+            'continuous': '连续支座',
+            'cantilever': '悬臂'
+        }
+        support_type = design.get('constraints', {}).get('support_type', 'N/A')
+        support_display = support_names.get(support_type, support_type)
+
+        # 格式化几何参数
+        geometry = design.get('geometry', {})
+        geo_lines = []
+
+        if 'length' in geometry:
+            geo_lines.append(f"   • 总长度：{geometry['length']} 米")
+        if 'width' in geometry:
+            geo_lines.append(f"   • 截面宽度：{geometry['width']} 米")
+        if 'height' in geometry or 'depth' in geometry:
+            h = geometry.get('height') or geometry.get('depth')
+            geo_lines.append(f"   • 截面高度：{h} 米")
+        if 'n_spans' in geometry:
+            geo_lines.append(f"   • 跨数：{geometry['n_spans']} 跨")
+        if 'num_bays' in geometry:
+            geo_lines.append(f"   • 柱跨数：{geometry['num_bays']} 跨")
+        if 'num_stories' in geometry:
+            geo_lines.append(f"   • 层数：{geometry['num_stories']} 层")
+
+        geo_text = "\n".join(geo_lines) if geo_lines else "   （详见上图）"
+
+        # 格式化荷载
+        loads = design.get('loads', {})
+        load_lines = []
+
+        if 'distributed' in loads and loads['distributed']:
+            for load in loads['distributed']:
+                q_value = abs(load.get('q', 0)) / 1000  # 转换为 kN/m
+                direction = "向下" if load.get('q', 0) < 0 else "向上"
+                load_lines.append(f"   • 均布荷载：{q_value} kN/m（{direction}）")
+
+        if 'point' in loads and loads['point']:
+            for load in loads['point']:
+                p_value = abs(load.get('P', 0)) / 1000  # 转换为 kN
+                load_lines.append(f"   • 集中荷载：{p_value} kN")
+
+        if 'beam_distributed' in loads and loads['beam_distributed']:
+            total_beams = len(loads['beam_distributed'])
+            load_lines.append(f"   • 梁均布荷载：{total_beams} 处")
+
+        if 'lateral' in loads and loads['lateral']:
+            total_lateral = len(loads['lateral'])
+            load_lines.append(f"   • 水平荷载：{total_lateral} 处")
+
+        load_text = "\n".join(load_lines) if load_lines else "   （无）"
+
+        # 组装提示文本
+        prompt = (
+            f"请确认以下结构模型参数：\n\n"
+            f"📐 结构类型：{type_display}\n\n"
+            f"📏 几何尺寸：\n{geo_text}\n\n"
+            f"🔗 支座条件：{support_display}\n\n"
+            f"⚖️ 荷载情况：\n{load_text}\n\n"
+            f"模型示意图已保存至：{img_path}\n\n"
+            f"确认模型正确并继续分析？\n"
+            f"  y - 确认，开始有限元分析\n"
+            f"  n - 取消，终止整个工作流\n"
+            f"请输入 (y/n): "
+        )
+
+        return prompt
 
 
 # Register the agent for use in PlanningFlow
