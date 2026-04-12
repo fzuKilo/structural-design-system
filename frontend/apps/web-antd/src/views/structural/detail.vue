@@ -47,9 +47,68 @@ const loadTask = async () => {
     if (task.value?.status === 'failed' && task.value?.error) {
       errorMessage.value = task.value.error;
     }
+
+    // 如果任务已完成或失败，根据结果重建日志
+    if (task.value?.status === 'success' || task.value?.status === 'failed') {
+      rebuildLogsFromResult();
+    }
   } catch (error) {
     message.error('加载任务详情失败');
     errorMessage.value = '加载任务详情失败，请刷新页面重试';
+  }
+};
+
+const rebuildLogsFromResult = () => {
+  // 清空现有日志
+  logs.value = [];
+
+  const result = task.value?.result_json;
+  if (!result) {
+    addLog('任务已完成，但无详细日志', '#999');
+    return;
+  }
+
+  // 根据结果推断执行的阶段
+  addLog('任务开始执行', '#1890ff');
+
+  // 设计方案阶段
+  if (result.raw?.design_proposal) {
+    addLog('设计方案生成完成', '#52c41a');
+  }
+
+  // 有限元分析阶段
+  if (result.raw?.analysis_results) {
+    addLog('有限元分析完成', '#52c41a');
+  }
+
+  // 设计评估阶段
+  if (result.evaluation) {
+    addLog('设计评估完成', '#52c41a');
+  }
+
+  // CAD绘图阶段
+  if (result.files && Object.keys(result.files).length > 0) {
+    addLog('CAD图纸生成完成', '#52c41a');
+  }
+
+  // 报告生成阶段
+  if (result.report_file) {
+    addLog('设计报告生成完成', '#52c41a');
+  }
+
+  // BIM导出
+  if (result.bim_url) {
+    addLog('BIM模型导出完成', '#52c41a');
+  }
+
+  // 最终状态
+  if (task.value?.status === 'success') {
+    addLog('✓ 设计任务全部完成！', '#52c41a');
+  } else if (task.value?.status === 'failed') {
+    addLog('✗ 设计任务失败', '#f5222d');
+    if (task.value?.error) {
+      addLog(`错误: ${task.value.error}`, '#f5222d');
+    }
   }
 };
 
