@@ -14,14 +14,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { getStageLabel } from '#/utils/i18n';
+
 const props = defineProps<{ stages: any[] }>();
 
 const steps = [
-  { key: 'design_proposal', label: '设计方案' },
-  { key: 'fe_analysis', label: '有限元分析' },
-  { key: 'evaluation', label: '设计评估' },
-  { key: 'cad_drawing', label: 'CAD绘图' },
-  { key: 'report_generation', label: '报告生成' },
+  { key: 'design_proposal', label: getStageLabel('design_proposal') },
+  { key: 'fe_analysis', label: getStageLabel('fe_analysis') },
+  { key: 'evaluation', label: getStageLabel('evaluation') },
+  { key: 'cad_drawing', label: getStageLabel('cad_drawing') },
+  { key: 'report_generation', label: getStageLabel('report_generation') },
 ];
 
 const latestByStage = computed(() => {

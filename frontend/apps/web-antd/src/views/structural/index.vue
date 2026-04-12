@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-import { Button as AButton, Card as ACard, Table as ATable, Tag as ATag } from 'ant-design-vue';
+import { Button as AButton, Card as ACard, Empty as AEmpty, Table as ATable, Tag as ATag } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 
 import { getDesignListApi } from '#/api/design';
@@ -52,11 +52,23 @@ onMounted(fetchTasks);
   <div class="p-4">
     <ACard title="我的设计任务">
       <template #extra>
-        <AButton type="primary" @click="router.push('/structural/create')">
-          新建设计
-        </AButton>
+        <div class="flex gap-2">
+          <AButton :loading="loading" @click="fetchTasks">
+            刷新
+          </AButton>
+          <AButton type="primary" @click="router.push('/structural/create')">
+            新建设计
+          </AButton>
+        </div>
       </template>
       <ATable :columns="columns" :data-source="tasks" :loading="loading" row-key="id">
+        <template #emptyText>
+          <AEmpty description="暂无设计任务">
+            <AButton type="primary" @click="router.push('/structural/create')">
+              创建第一个设计
+            </AButton>
+          </AEmpty>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <ATag :color="getStatusColor(record.status)">

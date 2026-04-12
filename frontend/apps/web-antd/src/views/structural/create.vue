@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 
-import { Button as AButton, Card as ACard, Form as AForm, FormItem as AFormItem, message, Select as ASelect, SelectOption as ASelectOption, Textarea as ATextarea } from 'ant-design-vue';
+import { Button as AButton, Card as ACard, Form as AForm, FormItem as AFormItem, message, Textarea as ATextarea } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 
 import { createDesignApi } from '#/api/design';
@@ -11,12 +11,11 @@ const submitting = ref(false);
 
 const form = reactive({
   request_text: '',
-  structure_type: undefined as string | undefined,
 });
 
 const handleSubmit = async () => {
-  if (!form.request_text || !form.structure_type) {
-    message.warning('请填写完整的设计信息');
+  if (!form.request_text) {
+    message.warning('请填写设计描述');
     return;
   }
   submitting.value = true;
@@ -41,15 +40,6 @@ const handleSubmit = async () => {
 
     <ACard>
       <AForm :model="form" layout="vertical">
-        <AFormItem label="结构类型" required>
-          <ASelect v-model:value="form.structure_type" placeholder="请选择结构类型">
-            <ASelectOption value="beam">梁</ASelectOption>
-            <ASelectOption value="cantilever_beam">悬臂梁</ASelectOption>
-            <ASelectOption value="continuous_beam">连续梁</ASelectOption>
-            <ASelectOption value="truss">桁架</ASelectOption>
-            <ASelectOption value="frame">框架</ASelectOption>
-          </ASelect>
-        </AFormItem>
         <AFormItem label="设计描述" required>
           <ATextarea
             v-model:value="form.request_text"
