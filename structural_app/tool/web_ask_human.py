@@ -47,12 +47,15 @@ class WebAskHuman(AskHuman):
         # Extract image path from inquire text if present
         image_path = self._extract_image_path(inquire)
 
+        # Clean up the question text for display
+        clean_question = self._clean_question_text(inquire)
+
         # Broadcast ask_human event to frontend (no options, use free text input)
         if self.websocket_callback and self.task_id:
             print(f"[WebAskHuman] Broadcasting ask_human message via WebSocket")
             message = {
                 "type": "ask_human",
-                "question": inquire,
+                "question": clean_question,
                 "options": [],  # Empty options = free text input
                 "default": ""
             }
@@ -77,14 +80,46 @@ class WebAskHuman(AskHuman):
     def _extract_image_path(self, inquire: str) -> str:
         """Extract image path from inquire text."""
         import re
-        # Look for patterns like "模型示意图已保存至：path" or "已保存至：path"
-        match = re.search(r'(?:模型示意图)?已保存至[：:]\s*([^\n]+)', inquire)
+        # Look for new format: "IMAGE_PATH:path"
+        match = re.search(r'IMAGE_PATH:\s*([^\n]+)', inquire)
         if match:
             path = match.group(1).strip()
             # Convert Windows path to forward slashes
             path = path.replace('\\', '/')
             return path
+        # Fallback: old format "模型示意图已保存至：path" or "已保存至：path"
+        match = re.search(r'(?:模型示意图)?已保存至[：:]\s*([^\n]+)', inquire)
+        if match:
+            path = match.group(1).strip()
+            path = path.replace('\\', '/')
+            return path
         return ""
+
+    def _clean_question_text(self, inquire: str) -> str:
+        """Clean up question text for user-friendly display."""
+        import re
+        text = inquire
+
+        # Remove IMAGE_PATH: line
+        text = re.sub(r'IMAGE_PATH:[^\n]*\n?', '', text)
+
+        # Remove old format image path lines
+        text = re.sub(r'(?:模型示意图)?已保存至[：:][^\n]*\n?', '', text)
+
+        # Remove markdown bold syntax **text**
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+
+        # Remove technical prompts like "请输入 (y/n):"
+        text = re.sub(r'请输入\s*\([^)]+\)[：:]\s*$', '', text)
+
+        # Remove option lines like "y - xxx" or "n - xxx"
+        text = re.sub(r'\n\s*[yn]\s*-\s*[^\n]+', '', text)
+
+        # Clean up extra whitespace
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = text.strip()
+
+        return text
 
     def _parse_inquire(self, inquire: str) -> tuple[str, list[str]]:
         """Extract question text and options list from inquire string."""

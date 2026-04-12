@@ -375,8 +375,8 @@ Return the complete AnalysisResults."""
             # Build violation message
             violation_text = "\n".join([f"  - {v.get('description', 'Unknown violation')}" for v in violations])
 
-            # Build AskHuman prompt
-            ask_human_prompt = f"""**有限元分析结果 - 规范校核未通过** (第 {loop_count} 轮)
+            # Build AskHuman prompt (clean, no markdown symbols)
+            ask_human_prompt = f"""有限元分析结果 - 规范校核未通过（第 {loop_count} 轮）
 
 您的设计方案未通过规范校核。具体违规如下：
 {violation_text}
@@ -394,9 +394,7 @@ Return the complete AnalysisResults."""
 请根据以上信息，提供具体的设计改进方案：
 1. 直接输入改进后的设计参数（JSON格式）
 2. 描述需要调整的地方（如：增加截面高度到0.5m，改用C40混凝土）
-3. 输入 "skip" 跳过改进，直接返回当前结果
-
-请输入您的改进方案（第 {loop_count} 轮）："""
+3. 输入 "skip" 跳过改进，直接返回当前结果"""
 
             try:
                 # Use AskHuman tool to get user input
@@ -414,7 +412,7 @@ Return the complete AnalysisResults."""
                     return f"""{result}
 
 ---
-**循环中止：用户选择跳过改进**
+循环中止：用户选择跳过改进
 """
 
                 # Re-analyze with user's improvements
@@ -432,7 +430,7 @@ Please update the design and re-analyze."""
                     return f"""{result}
 
 ---
-**循环完成：设计通过规范校核** (共 {loop_count} 轮)
+循环完成：设计通过规范校核（共 {loop_count} 轮）
 """
 
                 # Not compliant yet, check for consecutive failures
@@ -442,7 +440,7 @@ Please update the design and re-analyze."""
                     return f"""{result}
 
 ---
-**警告：连续 {consecutive_failures} 次改进未通过校核**
+警告：连续 {consecutive_failures} 次改进未通过校核
 请检查输入的改进方案是否有效（如：增加截面高度、提高混凝土强度等级）。
 或输入 "skip" 跳过改进，直接返回当前结果。
 """
@@ -455,14 +453,14 @@ Please update the design and re-analyze."""
                 return f"""{result}
 
 ---
-**警告: 无法使用 AskHuman 工具进行交互**
+警告：无法使用交互工具进行改进
 """
             except Exception as e:
                 # Error during AskHuman, return result with error
                 return f"""{result}
 
 ---
-**错误: 循环交互失败 - {str(e)}**
+错误：循环交互失败 - {str(e)}
 """
 
     def extract_design_proposal(self, response: str) -> Optional[Dict[str, Any]]:
@@ -728,18 +726,15 @@ Please update the design and re-analyze."""
 
         load_text = "\n".join(load_lines) if load_lines else "   （无）"
 
-        # 组装提示文本
+        # 组装提示文本（简洁版，无技术细节）
         prompt = (
             f"请确认以下结构模型参数：\n\n"
             f"📐 结构类型：{type_display}\n\n"
             f"📏 几何尺寸：\n{geo_text}\n\n"
             f"🔗 支座条件：{support_display}\n\n"
             f"⚖️ 荷载情况：\n{load_text}\n\n"
-            f"模型示意图已保存至：{img_path}\n\n"
-            f"确认模型正确并继续分析？\n"
-            f"  y - 确认，开始有限元分析\n"
-            f"  n - 取消，终止整个工作流\n"
-            f"请输入 (y/n): "
+            f"IMAGE_PATH:{img_path}\n\n"
+            f"确认模型正确并继续分析？"
         )
 
         return prompt
