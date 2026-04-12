@@ -51,18 +51,13 @@
 
       <ATabPane key="3d-model" tab="3D模型">
         <div v-if="result?.bim_url && result.bim_url.startsWith('http')">
-          <ACard size="small" title="Speckle 3D 模型">
-            <iframe
-              :src="result.bim_url"
-              style="width: 100%; height: 600px; border: none; border-radius: 4px;"
-              allowfullscreen
-            />
-            <div style="margin-top: 16px; text-align: center;">
-              <AButton type="link" :href="result.bim_url" target="_blank">
-                在新窗口中打开
+          <AResult status="success" title="3D 模型已生成" sub-title="点击下方按钮在新窗口中查看 Speckle 3D 模型">
+            <template #extra>
+              <AButton type="primary" size="large" :href="result.bim_url" target="_blank">
+                在新窗口查看 3D 模型
               </AButton>
-            </div>
-          </ACard>
+            </template>
+          </AResult>
         </div>
         <AEmpty v-else description="暂无3D模型" />
       </ATabPane>

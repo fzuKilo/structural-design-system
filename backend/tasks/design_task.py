@@ -184,7 +184,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                     "interactive": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("interactive", {}).items()}
                 },
                 "evaluation": result.get("evaluation_report"),
-                "bim_url": result.get("bim_results", {}).get("embed_url") or result.get("bim_results", {}).get("url"),
+                "bim_url": result.get("bim_results", {}).get("url") or result.get("bim_results", {}).get("embed_url"),
                 "ifc_path": result.get("ifc_results", {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", ""),
                 "raw": result
             }
