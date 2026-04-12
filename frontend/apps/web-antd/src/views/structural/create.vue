@@ -20,9 +20,11 @@ const handleSubmit = async () => {
   }
   submitting.value = true;
   try {
-    await createDesignApi(form);
+    const result = await createDesignApi(form);
     message.success('设计任务提交成功');
-    router.push('/structural');
+    // 跳转到任务详情页
+    const taskId = result.id;
+    router.push(`/structural/detail/${taskId}`);
   } catch {
     message.error('提交失败，请重试');
   } finally {
