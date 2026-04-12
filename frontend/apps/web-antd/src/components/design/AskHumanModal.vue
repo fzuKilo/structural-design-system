@@ -5,13 +5,22 @@
     :footer="null"
     :closable="false"
     :maskClosable="false"
-    :width="600"
+    :width="800"
     :z-index="2000"
     centered
   >
     <template v-if="request">
       <div style="padding: 16px 0;">
-        <p style="font-size: 18px; font-weight: 500; margin-bottom: 20px; color: #1890ff;">
+        <!-- 图片预览 -->
+        <div v-if="request.image_path" style="margin-bottom: 20px; text-align: center;">
+          <img
+            :src="`/api/file/view?path=${encodeURIComponent(request.image_path)}`"
+            style="max-width: 100%; max-height: 400px; border-radius: 4px; border: 1px solid #d9d9d9;"
+            alt="模型预览图"
+          />
+        </div>
+
+        <p style="font-size: 18px; font-weight: 500; margin-bottom: 20px; color: #1890ff; white-space: pre-wrap;">
           {{ request.question }}
         </p>
 

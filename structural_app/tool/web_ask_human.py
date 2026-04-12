@@ -44,15 +44,24 @@ class WebAskHuman(AskHuman):
         print(f"[WebAskHuman] execute() called with inquire: {inquire[:100]}...")
         print(f"[WebAskHuman] task_id={self.task_id}, has_callback={self.websocket_callback is not None}")
 
+        # Extract image path from inquire text if present
+        image_path = self._extract_image_path(inquire)
+
         # Broadcast ask_human event to frontend (no options, use free text input)
         if self.websocket_callback and self.task_id:
             print(f"[WebAskHuman] Broadcasting ask_human message via WebSocket")
-            await self.websocket_callback({
+            message = {
                 "type": "ask_human",
                 "question": inquire,
                 "options": [],  # Empty options = free text input
                 "default": ""
-            })
+            }
+            # Add image path if found
+            if image_path:
+                message["image_path"] = image_path
+                print(f"[WebAskHuman] Including image: {image_path}")
+
+            await self.websocket_callback(message)
         else:
             print(f"[WebAskHuman] WARNING: Cannot broadcast - missing task_id or callback")
 
@@ -64,6 +73,18 @@ class WebAskHuman(AskHuman):
         answer = await self._wait_for_answer()
         print(f"[WebAskHuman] Received answer: {answer}")
         return answer
+
+    def _extract_image_path(self, inquire: str) -> str:
+        """Extract image path from inquire text."""
+        import re
+        # Look for patterns like "模型示意图已保存至：path" or "已保存至：path"
+        match = re.search(r'(?:模型示意图)?已保存至[：:]\s*([^\n]+)', inquire)
+        if match:
+            path = match.group(1).strip()
+            # Convert Windows path to forward slashes
+            path = path.replace('\\', '/')
+            return path
+        return ""
 
     def _parse_inquire(self, inquire: str) -> tuple[str, list[str]]:
         """Extract question text and options list from inquire string."""
