@@ -126,63 +126,120 @@ const dimensionDetails = computed(() => {
 
   // 经济性
   if (dims.economy) {
+    const indicators: any[] = [];
+    const ind = dims.economy.indicators || {};
+
+    if (ind.comprehensive_utilization !== undefined) {
+      indicators.push({ key: 'comprehensive_utilization', label: '综合利用率', value: `${(ind.comprehensive_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.stress_utilization !== undefined) {
+      indicators.push({ key: 'stress_utilization', label: '应力利用率', value: `${(ind.stress_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.deflection_utilization !== undefined) {
+      indicators.push({ key: 'deflection_utilization', label: '挠度利用率', value: `${(ind.deflection_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.material_usage_index !== undefined) {
+      indicators.push({ key: 'material_usage_index', label: '材料用量指数', value: ind.material_usage_index.toFixed(2) });
+    }
+    if (ind.volume_m3 !== undefined) {
+      indicators.push({ key: 'volume_m3', label: '材料体积', value: `${ind.volume_m3.toFixed(2)} m³` });
+    }
+    if (ind.total_volume_m3 !== undefined) {
+      indicators.push({ key: 'total_volume_m3', label: '总材料体积', value: `${ind.total_volume_m3.toFixed(2)} m³` });
+    }
+    if (ind.construction_complexity !== undefined) {
+      indicators.push({ key: 'construction_complexity', label: '施工复杂度', value: ind.construction_complexity });
+    }
+
     result.push({
       key: 'economy',
       header: '💰 经济性',
       score: dims.economy.score,
-      indicators: [
-        { key: 'comprehensive_utilization', label: '综合利用率', value: `${(dims.economy.indicators.comprehensive_utilization * 100).toFixed(2)}%` },
-        { key: 'stress_utilization', label: '应力利用率', value: `${(dims.economy.indicators.stress_utilization * 100).toFixed(2)}%` },
-        { key: 'deflection_utilization', label: '挠度利用率', value: `${(dims.economy.indicators.deflection_utilization * 100).toFixed(2)}%` },
-        { key: 'material_usage_index', label: '材料用量指数', value: dims.economy.indicators.material_usage_index.toFixed(2) },
-        { key: 'volume_m3', label: '材料体积', value: `${dims.economy.indicators.volume_m3.toFixed(2)} m³` },
-        { key: 'construction_complexity', label: '施工复杂度', value: dims.economy.indicators.construction_complexity },
-      ],
+      indicators,
     });
   }
 
   // 结构效率
   if (dims.structural_efficiency) {
+    const indicators: any[] = [];
+    const ind = dims.structural_efficiency.indicators || {};
+
+    if (ind.average_utilization !== undefined) {
+      indicators.push({ key: 'average_utilization', label: '平均利用率', value: `${(ind.average_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.utilization_uniformity !== undefined) {
+      indicators.push({ key: 'utilization_uniformity', label: '利用率均匀性', value: ind.utilization_uniformity.toFixed(2) });
+    }
+
     result.push({
       key: 'structural_efficiency',
       header: '⚙️ 结构效率',
       score: dims.structural_efficiency.score,
-      indicators: [
-        { key: 'average_utilization', label: '平均利用率', value: `${(dims.structural_efficiency.indicators.average_utilization * 100).toFixed(2)}%` },
-        { key: 'utilization_uniformity', label: '利用率均匀性', value: dims.structural_efficiency.indicators.utilization_uniformity.toFixed(2) },
-      ],
+      indicators,
     });
   }
 
   // 安全性
   if (dims.safety) {
+    const indicators: any[] = [];
+    const ind = dims.safety.indicators || {};
+
+    if (ind.strength_score !== undefined) {
+      indicators.push({ key: 'strength_score', label: '强度得分', value: ind.strength_score.toFixed(1) });
+    }
+    if (ind.stiffness_score !== undefined) {
+      indicators.push({ key: 'stiffness_score', label: '刚度得分', value: ind.stiffness_score.toFixed(1) });
+    }
+    if (ind.construction_score !== undefined) {
+      indicators.push({ key: 'construction_score', label: '施工得分', value: ind.construction_score.toFixed(1) });
+    }
+    if (ind.min_safety_factor !== undefined) {
+      indicators.push({ key: 'min_safety_factor', label: '最小安全系数', value: ind.min_safety_factor.toFixed(2) });
+    }
+    if (ind.stress_utilization !== undefined) {
+      indicators.push({ key: 'stress_utilization', label: '应力利用率', value: `${(ind.stress_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.deflection_utilization !== undefined) {
+      indicators.push({ key: 'deflection_utilization', label: '挠度利用率', value: `${(ind.deflection_utilization * 100).toFixed(2)}%` });
+    }
+    if (ind.drift_utilization !== undefined) {
+      indicators.push({ key: 'drift_utilization', label: '层间位移利用率', value: `${(ind.drift_utilization * 100).toFixed(2)}%` });
+    }
+
     result.push({
       key: 'safety',
       header: '🛡️ 安全性',
       score: dims.safety.score,
-      indicators: [
-        { key: 'strength_score', label: '强度得分', value: dims.safety.indicators.strength_score.toFixed(1) },
-        { key: 'stiffness_score', label: '刚度得分', value: dims.safety.indicators.stiffness_score.toFixed(1) },
-        { key: 'construction_score', label: '施工得分', value: dims.safety.indicators.construction_score.toFixed(1) },
-        { key: 'min_safety_factor', label: '最小安全系数', value: dims.safety.indicators.min_safety_factor.toFixed(2) },
-        { key: 'stress_utilization', label: '应力利用率', value: `${(dims.safety.indicators.stress_utilization * 100).toFixed(2)}%` },
-        { key: 'deflection_utilization', label: '挠度利用率', value: `${(dims.safety.indicators.deflection_utilization * 100).toFixed(2)}%` },
-      ],
+      indicators,
     });
   }
 
   // 可持续性
   if (dims.sustainability) {
+    const indicators: any[] = [];
+    const ind = dims.sustainability.indicators || {};
+
+    if (ind.carbon_emission_kg !== undefined) {
+      indicators.push({ key: 'carbon_emission_kg', label: '碳排放量', value: `${ind.carbon_emission_kg.toFixed(1)} kg` });
+    }
+    if (ind.carbon_intensity !== undefined) {
+      indicators.push({ key: 'carbon_intensity', label: '碳排放强度', value: ind.carbon_intensity.toFixed(2) });
+    }
+    if (ind.M_u_kNm !== undefined) {
+      indicators.push({ key: 'M_u_kNm', label: '抗弯承载力', value: `${ind.M_u_kNm.toFixed(1)} kN·m` });
+    }
+    if (ind.base_shear_kN !== undefined) {
+      indicators.push({ key: 'base_shear_kN', label: '基底剪力', value: `${ind.base_shear_kN.toFixed(1)} kN` });
+    }
+    if (ind.recyclability_ratio !== undefined) {
+      indicators.push({ key: 'recyclability_ratio', label: '可回收率', value: `${(ind.recyclability_ratio * 100).toFixed(0)}%` });
+    }
+
     result.push({
       key: 'sustainability',
       header: '🌱 可持续性',
       score: dims.sustainability.score,
-      indicators: [
-        { key: 'carbon_emission_kg', label: '碳排放量', value: `${dims.sustainability.indicators.carbon_emission_kg.toFixed(1)} kg` },
-        { key: 'carbon_intensity', label: '碳排放强度', value: dims.sustainability.indicators.carbon_intensity.toFixed(2) },
-        { key: 'M_u_kNm', label: '抗弯承载力', value: `${dims.sustainability.indicators.M_u_kNm.toFixed(1)} kN·m` },
-        { key: 'recyclability_ratio', label: '可回收率', value: `${(dims.sustainability.indicators.recyclability_ratio * 100).toFixed(0)}%` },
-      ],
+      indicators,
     });
   }
 
