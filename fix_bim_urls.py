@@ -10,6 +10,7 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 from backend.database import get_db_context, Task
+from sqlalchemy.orm.attributes import flag_modified
 import json
 
 
@@ -42,6 +43,8 @@ def fix_bim_urls():
                 # 更新 bim_url
                 result['bim_url'] = correct_url
                 task.result_json = result
+                # 标记 JSON 字段为已修改（SQLAlchemy 需要这个）
+                flag_modified(task, 'result_json')
                 fixed_count += 1
 
         if fixed_count > 0:
