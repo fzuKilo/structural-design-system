@@ -1,18 +1,20 @@
 <template>
-  <a-card title="设计进度">
-    <a-steps :current="currentStep" :status="stepStatus">
-      <a-step
+  <ACard title="设计进度">
+    <ASteps :current="currentStep" :status="stepStatus">
+      <AStep
         v-for="step in steps"
         :key="step.key"
         :title="step.label"
         :description="getStepDescription(step.key)"
       />
-    </a-steps>
-  </a-card>
+    </ASteps>
+  </ACard>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import { Card as ACard, Steps as ASteps, Step as AStep } from 'ant-design-vue';
 
 import { getStageLabel } from '#/utils/i18n';
 

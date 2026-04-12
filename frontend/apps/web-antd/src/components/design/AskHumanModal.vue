@@ -60,6 +60,11 @@ const answer = ref('');
 
 watch(() => props.request, (req) => {
   answer.value = req?.default || (req?.options?.[0] ?? '');
+  // Debug: 打印接收到的请求数据
+  if (req) {
+    console.log('[AskHumanModal] Received request:', req);
+    console.log('[AskHumanModal] Image path:', req.image_path);
+  }
 });
 
 const handleSubmit = () => {
