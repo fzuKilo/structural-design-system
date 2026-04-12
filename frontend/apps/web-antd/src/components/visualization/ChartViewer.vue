@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import {
   Avatar as AAvatar,
@@ -220,69 +220,80 @@ const getScoreTagColor = (score: number) => {
 
 // 初始化雷达图
 const initChart = () => {
-  if (!chartRef.value) return;
+  if (!chartRef.value) {
+    console.warn('ChartViewer: chartRef is null, skipping initialization');
+    return;
+  }
 
-  chartInstance = echarts.init(chartRef.value);
+  if (chartInstance) {
+    chartInstance.dispose();
+  }
 
-  const option = {
-    tooltip: {
-      trigger: 'item',
-    },
-    radar: {
-      indicator: [
-        { name: '经济性', max: 100 },
-        { name: '结构效率', max: 100 },
-        { name: '安全性', max: 100 },
-        { name: '可持续性', max: 100 },
-      ],
-      radius: '65%',
-      splitNumber: 4,
-      name: {
-        textStyle: {
-          fontSize: 14,
-          color: '#333',
-        },
+  try {
+    chartInstance = echarts.init(chartRef.value);
+
+    const option = {
+      tooltip: {
+        trigger: 'item',
       },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(24, 144, 255, 0.05)', 'rgba(24, 144, 255, 0.1)', 'rgba(24, 144, 255, 0.15)', 'rgba(24, 144, 255, 0.2)'],
-        },
-      },
-      axisLine: {
-        lineStyle: {
-          color: 'rgba(24, 144, 255, 0.3)',
-        },
-      },
-      splitLine: {
-        lineStyle: {
-          color: 'rgba(24, 144, 255, 0.3)',
-        },
-      },
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: radarData.value.map(d => d.value),
-            name: '评估结果',
-            areaStyle: {
-              color: 'rgba(24, 144, 255, 0.3)',
-            },
-            lineStyle: {
-              color: '#1890ff',
-              width: 2,
-            },
-            itemStyle: {
-              color: '#1890ff',
-            },
-          },
+      radar: {
+        indicator: [
+          { name: '经济性', max: 100 },
+          { name: '结构效率', max: 100 },
+          { name: '安全性', max: 100 },
+          { name: '可持续性', max: 100 },
         ],
+        radius: '65%',
+        splitNumber: 4,
+        name: {
+          textStyle: {
+            fontSize: 14,
+            color: '#333',
+          },
+        },
+        splitArea: {
+          areaStyle: {
+            color: ['rgba(24, 144, 255, 0.05)', 'rgba(24, 144, 255, 0.1)', 'rgba(24, 144, 255, 0.15)', 'rgba(24, 144, 255, 0.2)'],
+          },
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(24, 144, 255, 0.3)',
+          },
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'rgba(24, 144, 255, 0.3)',
+          },
+        },
       },
-    ],
-  };
+      series: [
+        {
+          type: 'radar',
+          data: [
+            {
+              value: radarData.value.map(d => d.value),
+              name: '评估结果',
+              areaStyle: {
+                color: 'rgba(24, 144, 255, 0.3)',
+              },
+              lineStyle: {
+                color: '#1890ff',
+                width: 2,
+              },
+              itemStyle: {
+                color: '#1890ff',
+              },
+            },
+          ],
+        },
+      ],
+    };
 
-  chartInstance.setOption(option);
+    chartInstance.setOption(option);
+  } catch (error) {
+    console.error('ChartViewer: Failed to initialize chart', error);
+  }
 };
 
 // 更新图表
@@ -302,12 +313,26 @@ const updateChart = () => {
   });
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick();
   initChart();
-  window.addEventListener('resize', () => chartInstance?.resize());
+
+  const handleResize = () => chartInstance?.resize();
+  window.addEventListener('resize', handleResize);
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    window.removeEventListener('resize', handleResize);
+    chartInstance?.dispose();
+  });
 });
 
-watch(() => props.evaluation, () => {
-  updateChart();
+watch(() => props.evaluation, async () => {
+  await nextTick();
+  if (!chartInstance) {
+    initChart();
+  } else {
+    updateChart();
+  }
 }, { deep: true });
 </script>
