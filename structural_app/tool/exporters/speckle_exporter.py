@@ -72,7 +72,7 @@ class SpeckleExporter:
                 )
             )
 
-            url = f"{self.server_url}/projects/{self.project_id}/models/{model.id}@latest"
+            url = f"{self.server_url}/projects/{self.project_id}/models/{model.id}"
             embed_url = f"{self.server_url}/embed?stream={self.project_id}&object={obj_id}"
             return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': model.id}
 
