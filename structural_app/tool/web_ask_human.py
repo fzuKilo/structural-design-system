@@ -126,8 +126,10 @@ class WebAskHuman(AskHuman):
         # Remove option lines like "y - xxx" or "n - xxx"
         text = re.sub(r'\n\s*[yn]\s*-\s*[^\n]+', '', text)
 
-        # Remove numbered option lines like "1 - xxx", "2 - xxx"
-        text = re.sub(r'\n\s*\d+\s*[-–—]\s*[^\n]+', '', text)
+        # Remove numbered option lines like "1 - continue : xxx", "2 - optimize : xxx"
+        # But keep question numbering like "1. 材料类型：xxx"
+        # Pattern: digit + dash + word (option key) + optional colon + description
+        text = re.sub(r'\n\s*\d+\s*[-–—]\s*\w+\s*[:：][^\n]*', '', text)
 
         # Remove separator lines (=== or ---)
         text = re.sub(r'\n\s*[=\-]{3,}\s*\n', '\n', text)
