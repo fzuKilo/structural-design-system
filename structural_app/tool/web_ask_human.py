@@ -241,22 +241,31 @@ class WebAskHuman(AskHuman):
         return proposals if proposals else []
 
     def _parse_inquire(self, inquire: str) -> tuple[str, list[str]]:
-        """Extract question text and options list from inquire string."""
+        """Extract question text and options list from inquire string.
+
+        Only recognizes explicit option formats like:
+        - "1 - continue : description"
+        - "2 - optimize : description"
+
+        Does NOT recognize plain numbered lists like:
+        - "1. 跨度（长度）是多少米？"
+        - "2. 承受什么荷载？"
+        """
+        import re
         lines = inquire.strip().splitlines()
         question_lines = []
         options = []
 
         for line in lines:
             stripped = line.strip()
-            # Detect option lines like "1. xxx", "- xxx", "* xxx"
-            if stripped and (
-                (stripped[0].isdigit() and len(stripped) > 2 and stripped[1] in '.)')
-                or stripped.startswith(('- ', '* ', '• '))
-            ):
-                opt = stripped.lstrip('0123456789.-*)• ').strip()
-                if opt:
-                    options.append(opt)
+            # Only match explicit option format: "数字 - 关键词" or "数字 - 关键词 : 描述"
+            # Examples: "1 - continue", "2 - optimize : 尝试自动优化"
+            option_match = re.match(r'^(\d+)\s*[-–—]\s*(\w+)(?:\s*[:：]\s*(.+))?$', stripped)
+            if option_match:
+                # Extract the full option text
+                options.append(stripped)
             else:
+                # Not an option, keep as question text
                 question_lines.append(line)
 
         question = '\n'.join(question_lines).strip() or inquire.strip()
