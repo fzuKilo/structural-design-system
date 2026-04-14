@@ -1901,6 +1901,26 @@ class PlanningFlow:
             print("  3 - terminate : 终止工作流")
             print("=" * 60)
 
+        # Format violations for frontend display
+        violation_messages = []
+        for v in violations:
+            # Support both dict format and string format
+            if isinstance(v, dict):
+                # Dict format: {'code': '...', 'description': '...', 'severity': '...'}
+                description = v.get('description', v.get('rule', '未知违规'))
+                violation_messages.append(self._translate_violation(description))
+            elif isinstance(v, str):
+                # String format: "Deflection exceeds limit: 0.58m > 0.048m"
+                violation_messages.append(self._translate_violation(v))
+            else:
+                violation_messages.append(str(v))
+
+        # Build context for WebSocket (use 'warnings' key to match frontend)
+        context = {
+            "warnings": violation_messages,
+            "summary": summary
+        }
+
         return await self._ask_web_or_cli(
             question="规范检查未通过，请选择处理方式",
             options=[
@@ -1915,7 +1935,49 @@ class PlanningFlow:
                 "3": "terminate", "terminate": "terminate",
             },
             cli_prompt="请输入选项 (1/2/3 或 manual/auto/terminate): ",
+            context=context,
         )
+
+    def _translate_violation(self, text: str) -> str:
+        """
+        Translate English violation messages to Chinese.
+
+        Args:
+            text: English violation message
+
+        Returns:
+            Chinese violation message
+        """
+        import re
+
+        # Pattern 1: "Max stress X MPa exceeds allowable Y MPa"
+        match = re.search(r'Max stress ([\d.]+) MPa exceeds allowable ([\d.]+) MPa', text)
+        if match:
+            actual, limit = match.groups()
+            return f"应力超限：实际值 {actual} MPa > 限值 {limit} MPa"
+
+        # Pattern 2: "Max deflection X mm exceeds limit Y mm (L/250)"
+        match = re.search(r'Max deflection ([\d.]+) mm exceeds limit ([\d.]+) mm \(L/(\d+)\)', text)
+        if match:
+            actual, limit, ratio = match.groups()
+            return f"挠度超限：实际值 {actual} mm > 限值 {limit} mm（L/{ratio}）"
+
+        # Pattern 3: "Deflection exceeds limit: Xm > Ym"
+        match = re.search(r'Deflection exceeds limit: ([\d.]+)m > ([\d.]+)m', text)
+        if match:
+            actual, limit = match.groups()
+            actual_mm = float(actual) * 1000
+            limit_mm = float(limit) * 1000
+            return f"挠度超限：实际值 {actual_mm:.2f} mm > 限值 {limit_mm:.2f} mm"
+
+        # Pattern 4: "Stress exceeds limit: X MPa > Y MPa"
+        match = re.search(r'Stress exceeds limit: ([\d.]+)MPa > ([\d.]+)MPa', text)
+        if match:
+            actual, limit = match.groups()
+            return f"应力超限：实际值 {actual} MPa > 限值 {limit} MPa"
+
+        # Fallback: return original text if no pattern matches
+        return text
 
     def _generate_improvement_suggestions(self, code_check: dict) -> str:
         """

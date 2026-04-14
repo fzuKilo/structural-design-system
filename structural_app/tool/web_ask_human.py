@@ -15,16 +15,29 @@ class WebAskHuman(AskHuman):
     """AskHuman tool that communicates via WebSocket + Redis instead of stdin."""
 
     name: str = "ask_human"
-    description: str = "Use this tool to ask human for help."
+    description: str = "Use this tool to ask human for help. Supports both structured parameters and legacy text format."
     parameters: dict = {
         "type": "object",
         "properties": {
+            "question": {
+                "type": "string",
+                "description": "The question text to ask the user.",
+            },
+            "options": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional list of choices for the user to select from. If provided, the frontend will display radio buttons instead of free text input.",
+            },
+            "context": {
+                "type": "object",
+                "description": "Optional context information (e.g., warnings, scores, image paths) to display alongside the question.",
+            },
             "inquire": {
                 "type": "string",
-                "description": "The question you want to ask human.",
+                "description": "Legacy parameter: full text containing question and options. Use 'question' + 'options' instead for better reliability.",
             }
         },
-        "required": ["inquire"],
+        "required": [],
     }
 
     # Injected at runtime by PlanningFlow
@@ -36,25 +49,54 @@ class WebAskHuman(AskHuman):
     class Config:
         arbitrary_types_allowed = True
 
-    async def execute(self, inquire: str) -> str:
+    async def execute(self, question: str = None, options: list = None, context: dict = None, inquire: str = None) -> str:
         """
         Broadcast question via WebSocket, then poll Redis for the answer.
-        Falls back to empty string on timeout.
+
+        Supports two modes:
+        1. Structured parameters (recommended): question, options, context
+        2. Legacy text format: inquire (will be parsed)
+
+        Args:
+            question: The question text to display
+            options: List of option strings for radio button selection
+            context: Additional context (warnings, scores, image_path, etc.)
+            inquire: Legacy parameter - full text containing question and options
+
+        Returns:
+            User's answer as a string
         """
-        print(f"[WebAskHuman] execute() called with inquire: {inquire[:100]}...")
+        print(f"[WebAskHuman] execute() called with question={question is not None}, options={options}, context={context is not None}, inquire={inquire is not None}")
         print(f"[WebAskHuman] task_id={self.task_id}, has_callback={self.websocket_callback is not None}")
 
-        # Extract image path from inquire text if present
-        image_path = self._extract_image_path(inquire)
+        # Mode 1: Structured parameters (preferred)
+        if question is not None:
+            clean_question = question
+            final_options = options if options else []
+            final_context = context if context else {}
 
-        # Parse structured context from inquire text
-        context = self._parse_context(inquire)
+            # Extract image path from context if present
+            image_path = final_context.get('image_path', '')
 
-        # Clean up the question text for display
-        clean_question = self._clean_question_text(inquire)
+        # Mode 2: Legacy text parsing (fallback for backward compatibility)
+        elif inquire is not None:
+            # Extract image path from inquire text if present
+            image_path = self._extract_image_path(inquire)
 
-        # Parse options from inquire text
-        question, options = self._parse_inquire(inquire)
+            # Parse structured context from inquire text
+            final_context = self._parse_context(inquire)
+
+            # Parse options from inquire text (this also extracts the question)
+            parsed_question, final_options = self._parse_inquire(inquire)
+
+            # Clean up the question text for display
+            clean_question = self._clean_question_text(parsed_question)
+
+            # Add image path to context if found
+            if image_path:
+                final_context['image_path'] = image_path
+        else:
+            raise ValueError("Either 'question' or 'inquire' parameter must be provided")
 
         # Broadcast ask_human event to frontend
         if self.websocket_callback and self.task_id:
@@ -62,18 +104,20 @@ class WebAskHuman(AskHuman):
             message = {
                 "type": "ask_human",
                 "question": clean_question,
-                "options": options if options else [],
-                "default": options[0] if options else ""
+                "options": final_options,
+                "default": final_options[0] if final_options else ""
             }
-            # Add image path if found
-            if image_path:
-                message["image_path"] = image_path
-                print(f"[WebAskHuman] Including image: {image_path}")
 
-            # Add structured context if found
-            if context:
-                message["context"] = context
-                print(f"[WebAskHuman] Including context: {list(context.keys())}")
+            # Add image path if present in context
+            if final_context.get('image_path'):
+                message["image_path"] = final_context['image_path']
+                print(f"[WebAskHuman] Including image: {final_context['image_path']}")
+
+            # Add context (excluding image_path as it's already added separately)
+            context_without_image = {k: v for k, v in final_context.items() if k != 'image_path'}
+            if context_without_image:
+                message["context"] = context_without_image
+                print(f"[WebAskHuman] Including context: {list(context_without_image.keys())}")
 
             await self.websocket_callback(message)
         else:
@@ -261,8 +305,9 @@ class WebAskHuman(AskHuman):
         for line in lines:
             stripped = line.strip()
             # Only match explicit option format: "数字 - 关键词" or "数字 - 关键词 : 描述"
-            # Examples: "1 - continue", "2 - optimize : 尝试自动优化"
-            option_match = re.match(r'^(\d+)\s*[-–—]\s*(\w+)(?:\s*[:：]\s*(.+))?$', stripped)
+            # Examples: "1 - continue", "2 - optimize : 尝试自动优化", "1- Q235钢材（描述）"
+            # Match: digit(s) + optional spaces + dash + optional spaces + any content
+            option_match = re.match(r'^(\d+)\s*[-–—]\s*(.+)$', stripped)
             if option_match:
                 # Extract the full option text
                 options.append(stripped)

@@ -632,7 +632,7 @@ Please update the design and re-analyze."""
             print(f"[警告] 模型示意图生成失败，跳过可视化确认：{e}")
             return True
 
-        # 通过 AskHuman 询问用户
+        # 通过 AskHuman 询问用户（使用结构化参数）
         ask_human_tool = next(
             (t for t in self.available_tools.tools if hasattr(t, "name") and t.name == "ask_human"),
             None,
@@ -642,10 +642,15 @@ Please update the design and re-analyze."""
             return True
 
         # 格式化用户友好的参数显示
-        prompt = self._format_user_friendly_prompt(stype, design, img_path)
+        question, context = self._format_user_friendly_prompt(stype, design, img_path)
 
         try:
-            answer = await ask_human_tool.execute(inquire=prompt)
+            # Use structured parameters
+            answer = await ask_human_tool.execute(
+                question=question,
+                options=["是 - 确认模型正确并继续分析", "否 - 取消分析"],
+                context=context
+            )
             response = str(answer).strip().lower()
         except Exception as e:
             print(f"[警告] AskHuman 执行失败，默认继续分析：{e}")
@@ -659,8 +664,13 @@ Please update the design and re-analyze."""
 
         return response in ("y", "yes", "是", "确认", "正确", "1")
 
-    def _format_user_friendly_prompt(self, stype: str, design: dict, img_path: str) -> str:
-        """格式化用户友好的确认提示"""
+    def _format_user_friendly_prompt(self, stype: str, design: dict, img_path: str) -> tuple[str, dict]:
+        """
+        格式化用户友好的确认提示
+
+        Returns:
+            tuple: (question, context) for structured parameters
+        """
         # 结构类型映射
         type_names = {
             'beam': '简支梁',
@@ -726,18 +736,22 @@ Please update the design and re-analyze."""
 
         load_text = "\n".join(load_lines) if load_lines else "   （无）"
 
-        # 组装提示文本（简洁版，无技术细节）
-        prompt = (
+        # 组装问题文本
+        question = (
             f"请确认以下结构模型参数：\n\n"
             f"📐 结构类型：{type_display}\n\n"
             f"📏 几何尺寸：\n{geo_text}\n\n"
             f"🔗 支座条件：{support_display}\n\n"
             f"⚖️ 荷载情况：\n{load_text}\n\n"
-            f"IMAGE_PATH:{img_path}\n\n"
             f"确认模型正确并继续分析？"
         )
 
-        return prompt
+        # 构建 context（包含图片路径）
+        context = {
+            "image_path": img_path
+        }
+
+        return question, context
 
 
 # Register the agent for use in PlanningFlow

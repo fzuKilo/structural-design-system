@@ -480,11 +480,75 @@ Use the ask_human tool when:
 4. You cannot make reasonable engineering assumptions without user input
 
 [HOW TO USE AskHuman TOOL]
-Call the ask_human tool with a clear, specific inquiry that asks for the missing information.
-The tool will display your question to the user and return their response.
+★★★★★ IMPORTANT: Use structured parameters (recommended) ★★★★★
 
-Example inquiry for a beam without span:
-"请补充以下信息：1. 跨度（长度）是多少米？2. 荷载是多少？3. 支座类型是什么？"
+The ask_human tool now supports TWO modes:
+
+MODE 1: Structured Parameters (RECOMMENDED - More Reliable)
+-----------------------------------------------------------
+Call ask_human with explicit parameters:
+
+ask_human(
+    question="请选择材料类型",
+    options=["Q235钢材（弹性模量200GPa，屈服强度235MPa）", "C30混凝土（弹性模量30GPa，抗压强度14.3MPa）"],
+    context={{"description": "厂房梁通常使用钢材或混凝土"}}
+)
+
+Benefits:
+- Frontend displays radio buttons for easy selection
+- No text parsing issues
+- More reliable and consistent
+
+MODE 2: Legacy Text Format (Fallback)
+--------------------------------------
+Call ask_human with formatted text:
+
+ask_human(inquire="请选择材料类型：\\n1 - Q235钢材 : 弹性模量200GPa\\n2 - C30混凝土 : 弹性模量30GPa")
+
+Note: This mode requires specific text formatting and may have parsing issues.
+
+WHEN TO USE EACH MODE:
+- Use MODE 1 (structured) for: material selection, yes/no confirmations, multiple choice questions
+- Use MODE 2 (text) for: free-form text input, complex descriptions
+
+EXAMPLES OF STRUCTURED PARAMETERS:
+
+Example 1: Material selection
+ask_human(
+    question="请选择材料类型（厂房梁通常使用钢材或混凝土）",
+    options=[
+        "Q235钢材（弹性模量200GPa，屈服强度235MPa，适合大跨度）",
+        "C30混凝土（弹性模量30GPa，抗压强度14.3MPa）"
+    ]
+)
+
+Example 2: Yes/No confirmation
+ask_human(
+    question="确认截面尺寸：宽度0.2m，高度0.3m，是否正确？",
+    options=["是 - 确认正确", "否 - 需要修改"]
+)
+
+Example 3: With context (warnings, scores, etc.)
+ask_human(
+    question="规范检查未通过，请选择处理方式",
+    options=[
+        "manual - 查看改进建议，手动修改后重新运行",
+        "auto - 自动迭代优化直至满足规范"
+    ],
+    context={{
+        "warnings": ["应力超限：180MPa > 156MPa", "挠度超限：15mm > 10mm"]
+    }}
+)
+
+Example 4: With image
+ask_human(
+    question="请确认模型参数是否正确",
+    options=["是 - 确认继续", "否 - 需要修改"],
+    context={{"image_path": "/path/to/model_preview.png"}}
+)
+
+CRITICAL: Always prefer MODE 1 (structured parameters) when asking multiple choice questions.
+Only use MODE 2 (text format) when you need free-form text input from the user.
 
 OUTPUT FORMAT:
 IMPORTANT: You MUST use the create_chat_completion tool to return your final answer.
