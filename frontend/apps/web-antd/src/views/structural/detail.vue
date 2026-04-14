@@ -116,6 +116,7 @@ const connectWs = () => {
   const token = accessStore.accessToken;
 
   const handleWsMessage = (msg: any) => {
+    console.log('[WebSocket] Received message:', msg);
     if (msg.type === 'stage') {
       stages.value.push(msg);
       const color = getStatusColor(msg.status);
@@ -123,11 +124,14 @@ const connectWs = () => {
       addLog(message, color);
       if (msg.status === 'completed' || msg.status === 'failed') loadTask();
     } else if (msg.type === 'ask_human') {
+      console.log('[WebSocket] ask_human message received, setting askHumanRequest:', msg);
       askHumanRequest.value = msg;
       addLog(`等待用户输入: ${msg.question}`, '#fa8c16');
     } else if (msg.type === 'result') {
       addLog(msg.status === 'success' ? '设计完成！' : '设计失败', msg.status === 'success' ? '#52c41a' : '#f5222d');
       loadTask();
+    } else {
+      console.warn('[WebSocket] Unknown message type:', msg.type);
     }
   };
 

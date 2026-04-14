@@ -37,6 +37,7 @@ export class WebSocketManager {
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        console.log('[WebSocketManager] Received message:', msg);
         this.onMessage(msg);
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);

@@ -20,7 +20,7 @@ class UserLogin(BaseModel):
 
 class DesignCreateRequest(BaseModel):
     """Design task creation request"""
-    request_text: str = Field(..., min_length=10, max_length=5000)
+    request_text: str = Field(..., min_length=1, max_length=5000)
 
 
 class AskHumanResponse(BaseModel):
