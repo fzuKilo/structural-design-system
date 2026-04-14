@@ -1211,7 +1211,13 @@ class PlanningFlow:
 
         # Use WebSocket callback if available (Web mode)
         if self.websocket_callback and self.task_id:
-            return await self._ask_user_choice_web()
+            # Build context for frontend display
+            context = {
+                "warnings": [msg for level, dim, msg in alerts],
+                "score": score,
+                "grade": evaluation_report.get("grade", "")
+            }
+            return await self._ask_user_choice_web(context=context)
 
         # Fallback to CLI input
         while True:
@@ -1237,18 +1243,24 @@ class PlanningFlow:
         default: str,
         mapping: dict = None,
         cli_prompt: str = "请输入选项: ",
+        context: dict = None,
     ) -> str:
         """通用询问方法：Web模式走WebSocket+Redis，CLI模式走input()"""
         import asyncio
 
         if self.websocket_callback and self.task_id:
             import redis as redis_lib
-            await self.websocket_callback({
+            message = {
                 "type": "ask_human",
                 "question": question,
                 "options": options,
                 "default": default,
-            })
+            }
+            # Add context if provided
+            if context:
+                message["context"] = context
+
+            await self.websocket_callback(message)
             redis_key = f"ask_human:{self.task_id}"
             client = redis_lib.from_url(self.redis_url, decode_responses=True)
             try:
@@ -1278,7 +1290,7 @@ class PlanningFlow:
                 except (EOFError, KeyboardInterrupt):
                     return default
 
-    async def _ask_user_choice_web(self) -> str:
+    async def _ask_user_choice_web(self, context: dict = None) -> str:
         """Ask user for choice via WebSocket + Redis (kept for compatibility)"""
         return await self._ask_web_or_cli(
             question="请选择后续操作",
@@ -1296,6 +1308,7 @@ class PlanningFlow:
                 "4": "terminate", "terminate": "terminate",
             },
             cli_prompt="请输入选项 (1/2/3/4): ",
+            context=context,
         )
 
     async def _parallel_optimization(
@@ -1534,12 +1547,62 @@ class PlanningFlow:
         # User choice
         valid = list(range(len(all_items)))
         options = ["0 - 原方案"] + [f"{i+1} - 候选方案{i+1}" for i in range(len(candidates))]
+
+        # Build context with proposal comparison data
+        proposals = []
+        for idx, (design, analysis, evaluation) in enumerate(all_items):
+            proposal_name = "原方案" if idx == 0 else f"方案{idx}"
+            is_recommended = (idx == best_overall_idx)
+
+            # Extract metrics
+            results = analysis.get("results", {})
+            dimensions = evaluation.get("dimensions", {})
+
+            metrics = {}
+            # Section
+            if is_frame:
+                metrics["section"] = get_column_section(design) + " / " + get_beam_section(design)
+            else:
+                metrics["section"] = get_section(design)
+
+            # Material
+            metrics["material"] = get_material(design)
+
+            # Stress and displacement
+            stress, disp = get_results(analysis)
+            metrics["stress"] = f"{stress:.2f}"
+            metrics["displacement"] = f"{disp:.2f}"
+
+            # Dimension scores
+            metrics["economy"] = f"{get_dim_score(evaluation, 'economy')}"
+            metrics["efficiency"] = f"{get_dim_score(evaluation, 'structural_efficiency')}"
+            metrics["safety"] = f"{get_dim_score(evaluation, 'safety')}"
+            metrics["sustainability"] = f"{get_dim_score(evaluation, 'sustainability')}"
+
+            # Total score and grade
+            metrics["total_score"] = f"{evaluation.get('comprehensive_score', 0):.1f}"
+            metrics["grade"] = evaluation.get('grade', 'N/A')
+
+            proposals.append({
+                "name": proposal_name,
+                "recommended": is_recommended,
+                "metrics": metrics
+            })
+
+        recommendation = "原方案" if best_overall_idx == 0 else f"方案{best_overall_idx}"
+
+        context = {
+            "proposals": proposals,
+            "recommendation": recommendation
+        }
+
         raw = await self._ask_web_or_cli(
             question=f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案)",
             options=options,
             default=str(best_overall_idx),
             mapping=None,
             cli_prompt=f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案): ",
+            context=context,
         )
         try:
             choice = int(raw.strip())
