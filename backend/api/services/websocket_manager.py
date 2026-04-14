@@ -73,12 +73,17 @@ class WebSocketManager:
             while task_id in self.active_connections:
                 try:
                     message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if message:
+                        print(f"[WebSocket] Received Redis message: type={message.get('type')}, data={message.get('data', '')[:100] if message.get('data') else 'None'}")
                     if message and message['type'] == 'message':
                         data = json.loads(message['data'])
+                        print(f"[WebSocket] Parsed data: {data}")
                         print(f"[WebSocket] Broadcasting to {len(self.active_connections[task_id])} clients")
                         await self.broadcast(task_id, data)
                 except Exception as e:
                     print(f"[WebSocket] Error: {e}")
+                    import traceback
+                    traceback.print_exc()
                     await asyncio.sleep(0.1)
         finally:
             await pubsub.unsubscribe(channel)
