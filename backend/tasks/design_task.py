@@ -177,15 +177,15 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
 
             # Flatten result structure for frontend compatibility
             flattened_result = {
-                "report_file": result.get("report_results", {}).get("report_file", "").replace("\\", "/"),
-                "files": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in result.get("drawing_results", {}).get("files", {}).items()},
+                "report_file": (result.get("report_results") or {}).get("report_file", "").replace("\\", "/") if (result.get("report_results") or {}).get("report_file") else "",
+                "files": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in (result.get("drawing_results") or {}).get("files", {}).items()},
                 "visualizations": {
                     "static": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("static", {}).items()},
                     "interactive": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("interactive", {}).items()}
                 },
                 "evaluation": result.get("evaluation_report"),
-                "bim_url": result.get("bim_results", {}).get("url") or result.get("bim_results", {}).get("embed_url"),
-                "ifc_path": result.get("ifc_results", {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", ""),
+                "bim_url": (result.get("bim_results") or {}).get("url") or (result.get("bim_results") or {}).get("embed_url"),
+                "ifc_path": (result.get("ifc_results") or {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", "") if (result.get("ifc_results") or {}).get("path") else "",
                 "raw": result
             }
 
