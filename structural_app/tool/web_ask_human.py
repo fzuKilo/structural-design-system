@@ -47,22 +47,33 @@ class WebAskHuman(AskHuman):
         # Extract image path from inquire text if present
         image_path = self._extract_image_path(inquire)
 
+        # Parse structured context from inquire text
+        context = self._parse_context(inquire)
+
         # Clean up the question text for display
         clean_question = self._clean_question_text(inquire)
 
-        # Broadcast ask_human event to frontend (no options, use free text input)
+        # Parse options from inquire text
+        question, options = self._parse_inquire(inquire)
+
+        # Broadcast ask_human event to frontend
         if self.websocket_callback and self.task_id:
             print(f"[WebAskHuman] Broadcasting ask_human message via WebSocket")
             message = {
                 "type": "ask_human",
                 "question": clean_question,
-                "options": [],  # Empty options = free text input
-                "default": ""
+                "options": options if options else [],
+                "default": options[0] if options else ""
             }
             # Add image path if found
             if image_path:
                 message["image_path"] = image_path
                 print(f"[WebAskHuman] Including image: {image_path}")
+
+            # Add structured context if found
+            if context:
+                message["context"] = context
+                print(f"[WebAskHuman] Including context: {list(context.keys())}")
 
             await self.websocket_callback(message)
         else:
@@ -115,11 +126,119 @@ class WebAskHuman(AskHuman):
         # Remove option lines like "y - xxx" or "n - xxx"
         text = re.sub(r'\n\s*[yn]\s*-\s*[^\n]+', '', text)
 
+        # Remove numbered option lines like "1 - xxx", "2 - xxx"
+        text = re.sub(r'\n\s*\d+\s*[-–—]\s*[^\n]+', '', text)
+
+        # Remove separator lines (=== or ---)
+        text = re.sub(r'\n\s*[=\-]{3,}\s*\n', '\n', text)
+
+        # Remove comparison tables (lines with multiple columns separated by spaces/tabs)
+        lines = text.split('\n')
+        filtered_lines = []
+        for line in lines:
+            # Skip lines that look like table headers or data rows
+            if re.search(r'(原方案|方案\d|截面|材料|应力|位移|经济性|结构效率|安全性|可持续性|综合得分|等级|推荐方案)', line):
+                continue
+            filtered_lines.append(line)
+        text = '\n'.join(filtered_lines)
+
         # Clean up extra whitespace
         text = re.sub(r'\n{3,}', '\n\n', text)
         text = text.strip()
 
         return text
+
+    def _parse_context(self, inquire: str) -> dict:
+        """Parse structured context from inquire text."""
+        import re
+        context = {}
+
+        # Extract warnings (严重/不合格 patterns)
+        warnings = []
+        warning_patterns = [
+            r'\[严重\]\s*([^\n]+)',
+            r'\[不合格\]\s*([^\n]+)',
+            r'⚠️\s*([^\n]+)',
+        ]
+        for pattern in warning_patterns:
+            matches = re.findall(pattern, inquire)
+            warnings.extend(matches)
+
+        if warnings:
+            context['warnings'] = warnings
+
+        # Extract score and grade
+        score_match = re.search(r'综合得分[：:]\s*([\d.]+)', inquire)
+        if score_match:
+            context['score'] = float(score_match.group(1))
+
+        grade_match = re.search(r'等级[：:]\s*([A-F][+]?)', inquire)
+        if grade_match:
+            context['grade'] = grade_match.group(1)
+
+        # Extract comparison table for multi-proposal scenario
+        if '原方案' in inquire or '方案1' in inquire:
+            proposals = self._parse_proposal_table(inquire)
+            if proposals:
+                context['proposals'] = proposals
+
+        # Extract recommendation
+        recommend_match = re.search(r'[★⭐]\s*推荐方案[：:]\s*([^\n]+)', inquire)
+        if recommend_match:
+            context['recommendation'] = recommend_match.group(1).strip()
+
+        return context
+
+    def _parse_proposal_table(self, inquire: str) -> list:
+        """Parse proposal comparison table from inquire text."""
+        import re
+        proposals = []
+
+        # Find all proposal columns (原方案, 方案1, 方案2, 方案3)
+        proposal_names = re.findall(r'(原方案|方案\d[★⭐]?)', inquire)
+        if not proposal_names:
+            return proposals
+
+        # Extract key metrics for each proposal
+        lines = inquire.split('\n')
+
+        # Initialize proposal data structures
+        for name in proposal_names:
+            proposals.append({
+                'name': name.replace('★', '').replace('⭐', '').strip(),
+                'recommended': '★' in name or '⭐' in name,
+                'metrics': {}
+            })
+
+        # Parse metrics from table rows
+        metric_patterns = {
+            'section': r'截面\s*\(m\)',
+            'material': r'材料',
+            'stress': r'应力\s*\(MPa\)',
+            'displacement': r'位移\s*\(mm\)',
+            'economy': r'经济性',
+            'efficiency': r'结构效率',
+            'safety': r'安全性',
+            'sustainability': r'可持续性',
+            'total_score': r'综合得分',
+            'grade': r'等级',
+        }
+
+        for line in lines:
+            for metric_key, pattern in metric_patterns.items():
+                if re.search(pattern, line):
+                    # Extract values for each proposal
+                    # Remove the metric name part
+                    values_part = re.sub(pattern, '', line).strip()
+                    # Split by whitespace (multiple spaces/tabs)
+                    values = re.split(r'\s{2,}', values_part)
+
+                    # Assign values to proposals
+                    for i, value in enumerate(values):
+                        if i < len(proposals) and value.strip():
+                            proposals[i]['metrics'][metric_key] = value.strip()
+
+        return proposals if proposals else []
 
     def _parse_inquire(self, inquire: str) -> tuple[str, list[str]]:
         """Extract question text and options list from inquire string."""
