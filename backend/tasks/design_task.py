@@ -150,8 +150,31 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             flow.api_base_url = "https://api.deepseek.com/v1"
             flow.api_model = "deepseek-chat"
 
-            # Run workflow
-            result = await flow.run_full_design(user_request)
+            # Run workflow with cancellation monitor
+            async def cancel_monitor():
+                """Poll Redis every 2s for cancellation signal"""
+                while True:
+                    await asyncio.sleep(2)
+                    if redis_client.exists(f"cancel:{task_id}"):
+                        raise asyncio.CancelledError("用户停止，工作流终止")
+
+            workflow_task = asyncio.create_task(flow.run_full_design(user_request))
+            monitor_task = asyncio.create_task(cancel_monitor())
+
+            try:
+                done, pending = await asyncio.wait(
+                    [workflow_task, monitor_task],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                for t in pending:
+                    t.cancel()
+
+                if monitor_task in done:
+                    raise Exception("用户停止，工作流终止")
+
+                result = workflow_task.result()
+            except asyncio.CancelledError:
+                raise Exception("用户停止，工作流终止")
 
             # Extract actual visualization paths from output directory
             import glob
@@ -212,9 +235,9 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             task.status = "failed"
             db.commit()
 
-            # Broadcast error
+            is_cancelled = "用户停止" in str(e)
             await ws_callback({
-                "type": "error",
-                "error_code": "WORKFLOW_FAILED",
-                "message": f"设计流程失败: {str(e)}"
+                "type": "cancelled" if is_cancelled else "error",
+                "error_code": "USER_CANCELLED" if is_cancelled else "WORKFLOW_FAILED",
+                "message": str(e) if is_cancelled else f"设计流程失败: {str(e)}"
             })

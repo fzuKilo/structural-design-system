@@ -133,6 +133,9 @@ const connectWs = () => {
     } else if (msg.type === 'result') {
       addLog(msg.status === 'success' ? '设计完成！' : '设计失败', msg.status === 'success' ? '#52c41a' : '#f5222d');
       loadTask();
+    } else if (msg.type === 'cancelled') {
+      addLog(msg.message || '用户停止，工作流终止', '#fa8c16');
+      loadTask();
     } else {
       console.warn('[WebSocket] Unknown message type:', msg.type);
     }
