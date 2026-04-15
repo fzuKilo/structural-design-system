@@ -64,7 +64,11 @@ const rebuildLogsFromResult = () => {
 
   const result = task.value?.result_json;
   if (!result) {
-    addLog('任务已完成，但无详细日志', '#999');
+    if (task.value?.status === 'failed') {
+      addLog('任务执行失败，请检查 API Key 是否正确或查看后端日志', '#f5222d');
+    } else {
+      addLog('任务已完成，但无详细日志', '#999');
+    }
     return;
   }
 
@@ -135,6 +139,9 @@ const connectWs = () => {
       loadTask();
     } else if (msg.type === 'cancelled') {
       addLog(msg.message || '用户停止，工作流终止', '#fa8c16');
+      loadTask();
+    } else if (msg.type === 'error') {
+      addLog(`错误: ${msg.message || '未知错误'}`, '#f5222d');
       loadTask();
     } else {
       console.warn('[WebSocket] Unknown message type:', msg.type);
