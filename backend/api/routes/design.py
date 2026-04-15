@@ -9,7 +9,7 @@ from backend.database import get_db, User, Task
 from backend.api.models import (
     DesignCreateRequest, AskHumanResponse, TaskResponse, TaskDetailResponse, MessageResponse
 )
-from backend.api.middleware import get_current_user
+from backend.api.middleware import get_current_user, check_quota, deduct_quota
 from backend.tasks.design_task import run_design_task
 from backend.api.config import settings
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/design", tags=["设计任务"])
 @router.post("/create", response_model=TaskResponse)
 async def create_design(
     request: DesignCreateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(check_quota),
     db: Session = Depends(get_db)
 ):
     """创建设计任务"""
@@ -33,6 +33,9 @@ async def create_design(
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Deduct quota immediately after task creation
+    deduct_quota(current_user, db, task.id)
 
     # Queue Celery task and save celery_task_id
     celery_result = run_design_task.delay(str(task.id), request.request_text)

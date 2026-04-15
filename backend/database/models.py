@@ -125,3 +125,18 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="audit_logs")
+
+
+class QuotaUsageHistory(Base):
+    """Quota usage history model"""
+    __tablename__ = "quota_usage_history"
+
+    id = Column(String(36), primary_key=True, default=_uuid_default)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=True)
+    quota_type = Column(String(20), nullable=False)  # "daily" or "monthly"
+    amount = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+    task = relationship("Task")

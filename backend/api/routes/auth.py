@@ -9,7 +9,7 @@ from backend.api.models import (
     UserRegister, UserLogin, TokenResponse, UserResponse, UpdateProfile
 )
 from backend.api.services import (
-    verify_password, get_password_hash, create_access_token
+    verify_password, get_password_hash, create_access_token, encrypt_api_key
 )
 from backend.api.middleware import get_current_user
 from backend.api.config import settings
@@ -82,9 +82,28 @@ async def update_profile(
 ):
     """更新用户信息"""
     if profile_data.api_key:
-        # TODO: Encrypt API key before storing
-        current_user.api_key_encrypted = profile_data.api_key
+        # Encrypt API key before storing
+        try:
+            current_user.api_key_encrypted = encrypt_api_key(profile_data.api_key)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"加密API Key失败: {str(e)}"
+            )
 
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    """刷新访问令牌"""
+    access_token = create_access_token(
+        data={"sub": current_user.username},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )

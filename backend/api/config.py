@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")  # Fernet key for API key encryption
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours for development
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
