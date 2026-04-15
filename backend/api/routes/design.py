@@ -25,6 +25,12 @@ async def create_design(
     db: Session = Depends(get_db)
 ):
     """创建设计任务"""
+    # 提前检查 API Key，避免任务创建后才报错
+    if not current_user.api_key_encrypted:
+        raise HTTPException(
+            status_code=400,
+            detail="请先在个人中心 → API Key 标签页配置您的 API Key"
+        )
     task = Task(
         user_id=current_user.id,
         request_text=request.request_text,

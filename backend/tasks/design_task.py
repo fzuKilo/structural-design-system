@@ -95,6 +95,10 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             if not user.api_key_encrypted:
                 raise Exception("用户未配置 API Key，请在个人设置中添加")
 
+            # Decrypt API key
+            from backend.api.services.encryption_service import decrypt_api_key
+            plain_api_key = decrypt_api_key(user.api_key_encrypted)
+
             # Create agents with user's API config
             from structural_app.agent.structural_design_agent import StructuralDesignAgent
             from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
@@ -104,7 +108,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
 
             # API configuration from user settings
             api_config = {
-                "api_key": user.api_key_encrypted,
+                "api_key": plain_api_key,
                 "provider": "openai",
                 "base_url": "https://api.deepseek.com/v1",
                 "model": "deepseek-chat"
