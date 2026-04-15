@@ -145,6 +145,11 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 redis_url=settings.REDIS_URL,
             )
 
+            # Override PlanningFlow's api_key with user's key (it loads from config.toml by default)
+            flow.api_key = plain_api_key
+            flow.api_base_url = "https://api.deepseek.com/v1"
+            flow.api_model = "deepseek-chat"
+
             # Run workflow
             result = await flow.run_full_design(user_request)
 
