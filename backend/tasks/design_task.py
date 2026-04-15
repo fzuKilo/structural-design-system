@@ -99,9 +99,10 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             from backend.api.services.encryption_service import decrypt_api_key
             plain_api_key = decrypt_api_key(user.api_key_encrypted)
 
-            # Create LLM instance with user's API key
+            # Create LLM instance with user's API key (unique config_name bypasses singleton cache)
             from app.llm import LLM
             from app.config import LLMSettings
+            config_key = f"user_{task_id}"
             user_llm_config = LLMSettings(
                 model="deepseek-chat",
                 base_url="https://api.deepseek.com/v1",
@@ -109,7 +110,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 max_tokens=4000,
                 temperature=0.7,
             )
-            user_llm = LLM(llm_config={"default": user_llm_config})
+            user_llm = LLM(config_name=config_key, llm_config={config_key: user_llm_config})
 
             # Create agents with user's LLM instance
             from structural_app.agent.structural_design_agent import StructuralDesignAgent
