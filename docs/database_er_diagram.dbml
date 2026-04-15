@@ -1,0 +1,96 @@
+// Database ER Diagram for Structural Design System
+// Use dbdiagram.io to visualize this file
+
+Table users {
+  id varchar(36) [pk, note: 'UUID']
+  username varchar(50) [unique, not null, note: '用户名']
+  email varchar(100) [unique, not null, note: '邮箱']
+  password_hash varchar(255) [not null, note: '密码哈希']
+  api_key_encrypted text [null, note: 'API Key加密存储']
+  quota_daily integer [default: 100, note: '每日配额']
+  quota_monthly integer [default: 1000, note: '每月配额']
+  created_at datetime [default: `now()`, note: '创建时间']
+
+  indexes {
+    username
+    email
+  }
+}
+
+Table tasks {
+  id varchar(36) [pk, note: 'UUID']
+  user_id varchar(36) [not null, ref: > users.id, note: '用户ID']
+  status varchar(20) [default: 'pending', note: '任务状态: pending/running/success/failed']
+  celery_task_id varchar(255) [null, note: 'Celery任务ID']
+  request_text text [not null, note: '用户输入的设计需求']
+  structure_type varchar(50) [null, note: '结构类型: beam/frame/truss']
+  created_at datetime [default: `now()`, note: '创建时间']
+  completed_at datetime [null, note: '完成时间']
+  result_json json [null, note: '设计结果JSON']
+
+  indexes {
+    status
+    created_at
+  }
+}
+
+Table task_files {
+  id varchar(36) [pk, note: 'UUID']
+  task_id varchar(36) [not null, ref: > tasks.id, note: '任务ID']
+  file_type varchar(50) [not null, note: '文件类型: dxf/png/html/md']
+  file_path text [not null, note: '文件路径']
+  file_size bigint [null, note: '文件大小(字节)']
+  created_at datetime [default: `now()`, note: '创建时间']
+}
+
+Table roles {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(50) [unique, not null, note: '角色名称: admin/user']
+  display_name varchar(100) [not null, note: '显示名称']
+  description text [null, note: '角色描述']
+  created_at datetime [default: `now()`, note: '创建时间']
+}
+
+Table permissions {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(100) [unique, not null, note: '权限名称']
+  resource varchar(50) [not null, note: '资源类型: task/user/admin']
+  action varchar(50) [not null, note: '操作: create/read/update/delete']
+  description text [null, note: '权限描述']
+  created_at datetime [default: `now()`, note: '创建时间']
+}
+
+Table user_roles {
+  user_id varchar(36) [pk, ref: > users.id, note: '用户ID']
+  role_id varchar(36) [pk, ref: > roles.id, note: '角色ID']
+  assigned_at datetime [default: `now()`, note: '分配时间']
+}
+
+Table role_permissions {
+  role_id varchar(36) [pk, ref: > roles.id, note: '角色ID']
+  permission_id varchar(36) [pk, ref: > permissions.id, note: '权限ID']
+  assigned_at datetime [default: `now()`, note: '分配时间']
+}
+
+Table audit_logs {
+  id varchar(36) [pk, note: 'UUID']
+  user_id varchar(36) [null, ref: > users.id, note: '用户ID']
+  action varchar(100) [not null, note: '操作类型']
+  resource_type varchar(50) [null, note: '资源类型']
+  resource_id varchar(36) [null, note: '资源ID']
+  ip_address varchar(50) [null, note: 'IP地址']
+  user_agent text [null, note: '用户代理']
+  details json [null, note: '详细信息']
+  created_at datetime [default: `now()`, note: '创建时间']
+
+  indexes {
+    created_at
+  }
+}
+
+// Relationships
+// User 1:N Task
+// User 1:N AuditLog
+// Task 1:N TaskFile
+// User M:N Role (through user_roles)
+// Role M:N Permission (through role_permissions)
