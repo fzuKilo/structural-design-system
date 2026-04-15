@@ -112,7 +112,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 max_tokens=4000,
                 temperature=0.7,
             )
-            user_llm = LLM(config_name=config_key, llm_config={config_key: user_llm_config})
+            user_llm = LLM(config_name=config_key, llm_config={config_key: user_llm_config, "default": user_llm_config})
 
             # Create agents with user's LLM instance
             from structural_app.agent.structural_design_agent import StructuralDesignAgent
