@@ -1,28 +1,28 @@
 <mxfile host="app.diagrams.net" agent="Claude">
   <diagram name="数据库ER图" id="er-diagram">
-    <mxGraphModel dx="1334" dy="827" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2000" math="0" shadow="0">
+    <mxGraphModel dx="1334" dy="873" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity-users" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="用户" vertex="1">
+        <mxCell id="entity-users" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;用户&lt;/font&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="400" y="200" as="geometry" />
         </mxCell>
-        <mxCell id="entity-tasks" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="任务" vertex="1">
+        <mxCell id="entity-tasks" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;任务&lt;/font&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="800" y="200" as="geometry" />
         </mxCell>
-        <mxCell id="entity-task-files" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="任务文件" vertex="1">
+        <mxCell id="entity-task-files" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;任务文件&lt;/font&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="1200" y="200" as="geometry" />
         </mxCell>
-        <mxCell id="entity-roles" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="角色" vertex="1">
-          <mxGeometry height="60" width="120" x="670" y="440" as="geometry" />
+        <mxCell id="entity-roles" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;角色&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="670" y="420" as="geometry" />
         </mxCell>
-        <mxCell id="entity-permissions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="权限" vertex="1">
-          <mxGeometry height="60" width="120" x="1070" y="440" as="geometry" />
+        <mxCell id="entity-permissions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;权限&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="1070" y="420" as="geometry" />
         </mxCell>
-        <mxCell id="entity-audit-logs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="审计日志" vertex="1">
+        <mxCell id="entity-audit-logs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;审计日志&lt;/font&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="400" y="640" as="geometry" />
         </mxCell>
-        <mxCell id="rel-creates" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="创建" vertex="1">
+        <mxCell id="rel-creates" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建&lt;/font&gt;" vertex="1">
           <mxGeometry height="80" width="100" x="600" y="190" as="geometry" />
         </mxCell>
         <mxCell id="edge-user-creates" edge="1" parent="1" source="entity-users" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-creates" value="1">
@@ -31,7 +31,7 @@
         <mxCell id="edge-creates-task" edge="1" parent="1" source="rel-creates" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-tasks" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel-contains" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="包含" vertex="1">
+        <mxCell id="rel-contains" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;包含&lt;/font&gt;" vertex="1">
           <mxGeometry height="80" width="100" x="1000" y="190" as="geometry" />
         </mxCell>
         <mxCell id="edge-task-contains" edge="1" parent="1" source="entity-tasks" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-contains" value="1">
@@ -40,17 +40,17 @@
         <mxCell id="edge-contains-file" edge="1" parent="1" source="rel-contains" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-task-files" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel-has-role" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="拥有" vertex="1">
+        <mxCell id="rel-has-role" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;具有&lt;/font&gt;" vertex="1">
           <mxGeometry height="80" width="100" x="410" y="390" as="geometry" />
         </mxCell>
         <mxCell id="edge-user-has-role" edge="1" parent="1" source="entity-users" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="rel-has-role" value="m">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-has-role-role" edge="1" parent="1" source="rel-has-role" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-roles" value="n">
+        <mxCell id="edge-has-role-role" edge="1" parent="1" source="rel-has-role" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-roles" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel-has-perm" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="拥有" vertex="1">
-          <mxGeometry height="80" width="100" x="870" y="430" as="geometry" />
+        <mxCell id="rel-has-perm" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;拥有&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="100" x="870" y="410" as="geometry" />
         </mxCell>
         <mxCell id="edge-role-has-perm" edge="1" parent="1" source="entity-roles" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-has-perm" value="m">
           <mxGeometry relative="1" as="geometry" />
@@ -58,7 +58,7 @@
         <mxCell id="edge-has-perm-perm" edge="1" parent="1" source="rel-has-perm" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-permissions" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel-logs" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="记录" vertex="1">
+        <mxCell id="rel-logs" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;记录&lt;/font&gt;" vertex="1">
           <mxGeometry height="80" width="100" x="410" y="490" as="geometry" />
         </mxCell>
         <mxCell id="edge-user-logs" edge="1" parent="1" source="rel-has-role" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="rel-logs" value="1">
@@ -69,244 +69,246 @@
         <mxCell id="edge-logs-audit" edge="1" parent="1" source="rel-logs" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="entity-audit-logs" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-user-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户ID" vertex="1">
-          <mxGeometry height="50" width="80" x="300" y="100" as="geometry" />
+        <mxCell id="attr-user-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;用户ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="340" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-user-id" edge="1" parent="1" source="attr-user-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
+        <mxCell id="edge-user-id" edge="1" parent="1" source="attr-user-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-username" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户名" vertex="1">
-          <mxGeometry height="50" width="80" x="400" y="100" as="geometry" />
+        <mxCell id="attr-username" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;用户名&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="430" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-username" edge="1" parent="1" source="attr-username" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
+        <mxCell id="edge-username" edge="1" parent="1" source="attr-username" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-email" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="邮箱" vertex="1">
-          <mxGeometry height="50" width="80" x="500" y="100" as="geometry" />
+        <mxCell id="attr-email" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;邮箱&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="520" y="100" as="geometry" />
         </mxCell>
         <mxCell id="edge-email" edge="1" parent="1" source="attr-email" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-password" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="密码哈希" vertex="1">
-          <mxGeometry height="50" width="80" x="200" y="100" as="geometry" />
+        <mxCell id="attr-password" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;密码哈希&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="250" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-password" edge="1" parent="1" source="attr-password" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="entity-users">
+        <mxCell id="edge-password" edge="1" parent="1" source="attr-password" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-api-key" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1" value="API Key加密" vertex="1">
-          <mxGeometry height="50" width="90" x="210" y="220" as="geometry" />
+        <mxCell id="attr-api-key" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;API Key加密&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="90" x="200" y="205" as="geometry" />
         </mxCell>
-        <mxCell id="edge-api-key" edge="1" parent="1" source="attr-api-key" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-users">
+        <mxCell id="edge-api-key" edge="1" parent="1" source="attr-api-key" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-user-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
-          <mxGeometry height="50" width="80" x="460" y="280" as="geometry" />
+        <mxCell id="attr-user-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="480" y="280" as="geometry" />
         </mxCell>
         <mxCell id="edge-user-created" edge="1" parent="1" source="attr-user-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-quota-daily" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="每日配额" vertex="1">
+        <mxCell id="attr-quota-daily" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=center;verticalAlign=middle;fontFamily=Helvetica;fontColor=default;" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;每日配额&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="270" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-quota-daily" edge="1" parent="1" source="attr-quota-daily" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.1;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="edge-quota-daily" edge="1" parent="1" source="attr-quota-daily" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="400" y="260" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="attr-quota-monthly" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="每月配额" vertex="1">
+        <mxCell id="attr-quota-monthly" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontFamily=Helvetica;fontColor=default;fontStyle=0;align=center;verticalAlign=middle;" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;每月配额&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="360" y="280" as="geometry" />
         </mxCell>
         <mxCell id="edge-quota-monthly" edge="1" parent="1" source="attr-quota-monthly" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.35;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-celery-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="Celery任务ID" vertex="1">
-          <mxGeometry height="50" width="90" x="670" y="100" as="geometry" />
+        <mxCell id="attr-celery-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontFamily=Helvetica;fontColor=default;fontStyle=0;align=center;verticalAlign=middle;" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;Celery任务ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="90" x="665" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-celery-id" edge="1" parent="1" source="attr-celery-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
+        <mxCell id="edge-celery-id" edge="1" parent="1" source="attr-celery-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-task-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+        <mxCell id="attr-task-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="670" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-task-created" edge="1" parent="1" source="attr-task-created" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
+        <mxCell id="edge-task-created" edge="1" parent="1" source="attr-task-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-completed-at" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="完成时间" vertex="1">
+        <mxCell id="attr-completed-at" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;完成时间&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="970" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-completed-at" edge="1" parent="1" source="attr-completed-at" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
+        <mxCell id="edge-completed-at" edge="1" parent="1" source="attr-completed-at" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-result-json" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="结果JSON" vertex="1">
+        <mxCell id="attr-result-json" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;结果JSON&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="970" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-result-json" edge="1" parent="1" source="attr-result-json" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
+        <mxCell id="edge-result-json" edge="1" parent="1" source="attr-result-json" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-file-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
-          <mxGeometry height="50" width="80" x="1340" y="280" as="geometry" />
+        <mxCell id="attr-file-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1320" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-created" edge="1" parent="1" source="attr-file-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-task-files">
+        <mxCell id="edge-file-created" edge="1" parent="1" source="attr-file-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-role-display" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="显示名称" vertex="1">
-          <mxGeometry height="50" width="80" x="530" y="540" as="geometry" />
+        <mxCell id="attr-role-display" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;显示名称&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="550" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-role-display" edge="1" parent="1" source="attr-role-display" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
+        <mxCell id="edge-role-display" edge="1" parent="1" source="attr-role-display" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-role-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色描述" vertex="1">
-          <mxGeometry height="50" width="80" x="830" y="540" as="geometry" />
+        <mxCell id="attr-role-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;角色描述&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="830" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-role-desc" edge="1" parent="1" source="attr-role-desc" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
+        <mxCell id="edge-role-desc" edge="1" parent="1" source="attr-role-desc" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-role-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
-          <mxGeometry height="50" width="80" x="810" y="360" as="geometry" />
+        <mxCell id="attr-role-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="800" y="380" as="geometry" />
         </mxCell>
         <mxCell id="edge-role-created" edge="1" parent="1" source="attr-role-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
-          <mxGeometry height="50" width="80" x="940" y="520" as="geometry" />
+        <mxCell id="attr-perm-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;资源类型&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="950" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-perm-resource" edge="1" parent="1" source="attr-perm-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
+        <mxCell id="edge-perm-resource" edge="1" parent="1" source="attr-perm-resource" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限描述" vertex="1">
-          <mxGeometry height="50" width="80" x="1260" y="510" as="geometry" />
+        <mxCell id="attr-perm-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;权限描述&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1220" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-perm-desc" edge="1" parent="1" source="attr-perm-desc" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
+        <mxCell id="edge-perm-desc" edge="1" parent="1" source="attr-perm-desc" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
-          <mxGeometry height="50" width="80" x="1230" y="360" as="geometry" />
+        <mxCell id="attr-perm-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1220" y="380" as="geometry" />
         </mxCell>
         <mxCell id="edge-perm-created" edge="1" parent="1" source="attr-perm-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="操作" vertex="1">
-          <mxGeometry height="50" width="80" x="1260" y="440" as="geometry" />
+        <mxCell id="attr-perm-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;操作&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1220" y="450" as="geometry" />
         </mxCell>
-        <mxCell id="edge-perm-action" edge="1" parent="1" source="attr-perm-action" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
+        <mxCell id="edge-perm-action" edge="1" parent="1" source="attr-perm-action" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-resource-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源ID" vertex="1">
-          <mxGeometry height="50" width="80" x="220" y="680" as="geometry" />
+        <mxCell id="attr-log-resource-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;资源ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="200" y="680" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-resource-id" edge="1" parent="1" source="attr-log-resource-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-resource-id" edge="1" parent="1" source="attr-log-resource-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-user-agent" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户代理" vertex="1">
-          <mxGeometry height="50" width="80" x="560" y="720" as="geometry" />
+        <mxCell id="attr-log-user-agent" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;用户代理&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="630" y="680" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-user-agent" edge="1" parent="1" source="attr-log-user-agent" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-user-agent" edge="1" parent="1" source="attr-log-user-agent" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-details" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="详细信息" vertex="1">
-          <mxGeometry height="50" width="80" x="320" y="800" as="geometry" />
+        <mxCell id="attr-log-details" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;详细信息&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="350" y="750" as="geometry" />
         </mxCell>
         <mxCell id="edge-log-details" edge="1" parent="1" source="attr-log-details" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
-          <mxGeometry height="50" width="80" x="410" y="790" as="geometry" />
+        <mxCell id="attr-log-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;创建时间&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="490" y="750" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-created" edge="1" parent="1" source="attr-log-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-created" edge="1" parent="1" source="attr-log-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
-          <mxGeometry height="50" width="80" x="250" y="610" as="geometry" />
+        <mxCell id="attr-log-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;资源类型&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="200" y="610" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-resource" edge="1" parent="1" source="attr-log-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-resource" edge="1" parent="1" source="attr-log-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-ip" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="IP地址" vertex="1">
-          <mxGeometry height="50" width="80" x="590" y="640" as="geometry" />
+        <mxCell id="attr-log-ip" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;IP地址&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="630" y="610" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-ip" edge="1" parent="1" source="attr-log-ip" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-ip" edge="1" parent="1" source="attr-log-ip" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-task-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="任务ID" vertex="1">
+        <mxCell id="attr-task-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;任务ID&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="770" y="100" as="geometry" />
         </mxCell>
         <mxCell id="edge-task-id" edge="1" parent="1" source="attr-task-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-status" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="状态" vertex="1">
+        <mxCell id="attr-status" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;状态&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="870" y="100" as="geometry" />
         </mxCell>
         <mxCell id="edge-status" edge="1" parent="1" source="attr-status" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-structure-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="结构类型" vertex="1">
+        <mxCell id="attr-structure-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;结构类型&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="770" y="280" as="geometry" />
         </mxCell>
         <mxCell id="edge-structure-type" edge="1" parent="1" source="attr-structure-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-request-text" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="需求文本" vertex="1">
+        <mxCell id="attr-request-text" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;需求文本&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="870" y="280" as="geometry" />
         </mxCell>
         <mxCell id="edge-request-text" edge="1" parent="1" source="attr-request-text" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-file-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件ID" vertex="1">
-          <mxGeometry height="50" width="80" x="1140" y="100" as="geometry" />
+        <mxCell id="attr-file-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;文件ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1170" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-id" edge="1" parent="1" source="attr-file-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-task-files">
+        <mxCell id="edge-file-id" edge="1" parent="1" source="attr-file-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.347;entryY=0.003;entryDx=0;entryDy=0;entryPerimeter=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-file-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件类型" vertex="1">
-          <mxGeometry height="50" width="80" x="1240" y="100" as="geometry" />
+        <mxCell id="attr-file-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;文件类型&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1280" y="100" as="geometry" />
         </mxCell>
         <mxCell id="edge-file-type" edge="1" parent="1" source="attr-file-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-file-path" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件路径" vertex="1">
-          <mxGeometry height="50" width="80" x="1140" y="280" as="geometry" />
+        <mxCell id="attr-file-path" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;文件路径&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1120" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-path" edge="1" parent="1" source="attr-file-path" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
+        <mxCell id="edge-file-path" edge="1" parent="1" source="attr-file-path" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-file-size" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件大小" vertex="1">
-          <mxGeometry height="50" width="80" x="1240" y="280" as="geometry" />
+        <mxCell id="attr-file-size" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;文件大小&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1220" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-size" edge="1" parent="1" source="attr-file-size" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
+        <mxCell id="edge-file-size" edge="1" parent="1" source="attr-file-size" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-role-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色ID" vertex="1">
-          <mxGeometry height="50" width="80" x="630" y="540" as="geometry" />
+        <mxCell id="attr-role-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;角色ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="640" y="520" as="geometry" />
         </mxCell>
         <mxCell id="edge-role-id" edge="1" parent="1" source="attr-role-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-role-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色名称" vertex="1">
-          <mxGeometry height="50" width="80" x="730" y="540" as="geometry" />
+        <mxCell id="attr-role-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;角色名称&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="740" y="520" as="geometry" />
         </mxCell>
         <mxCell id="edge-role-name" edge="1" parent="1" source="attr-role-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限ID" vertex="1">
+        <mxCell id="attr-perm-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;权限ID&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="80" x="1040" y="520" as="geometry" />
         </mxCell>
         <mxCell id="edge-perm-id" edge="1" parent="1" source="attr-perm-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-perm-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限名称" vertex="1">
-          <mxGeometry height="50" width="80" x="1140" y="520" as="geometry" />
+        <mxCell id="attr-perm-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;权限名称&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="1130" y="520" as="geometry" />
         </mxCell>
         <mxCell id="edge-perm-name" edge="1" parent="1" source="attr-perm-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-log-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="日志ID" vertex="1">
-          <mxGeometry height="50" width="80" x="230" y="750" as="geometry" />
+        <mxCell id="attr-log-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;日志ID&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="200" y="750" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-id" edge="1" parent="1" source="attr-log-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-log-id" edge="1" parent="1" source="attr-log-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="attr-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="操作类型" vertex="1">
-          <mxGeometry height="50" width="80" x="510" y="780" as="geometry" />
+        <mxCell id="attr-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;操作类型&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="80" x="630" y="750" as="geometry" />
         </mxCell>
-        <mxCell id="edge-action" edge="1" parent="1" source="attr-action" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+        <mxCell id="edge-action" edge="1" parent="1" source="attr-action" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
