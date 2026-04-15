@@ -65,7 +65,7 @@ const rebuildLogsFromResult = () => {
   const result = task.value?.result_json;
   if (!result) {
     if (task.value?.status === 'failed') {
-      addLog('任务执行失败，请检查 API Key 是否正确或查看后端日志', '#f5222d');
+      addLog('任务执行失败，请检查 API Key 是否正确', '#f5222d');
     } else {
       addLog('任务已完成，但无详细日志', '#999');
     }
