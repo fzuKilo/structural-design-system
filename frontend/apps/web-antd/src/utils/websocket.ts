@@ -1,20 +1,32 @@
 type MessageHandler = (message: any) => void;
+type ReconnectingHandler = (attempt: number, delay: number) => void;
+type MaxRetriesReachedHandler = () => void;
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 10;
   private onMessage: MessageHandler;
   private onOpen?: () => void;
   private onClose?: () => void;
+  private onReconnecting?: ReconnectingHandler;
+  private onMaxRetriesReached?: MaxRetriesReachedHandler;
   private taskId: string = '';
   private token: string = '';
   private manualClose = false;
 
-  constructor(onMessage: MessageHandler, onOpen?: () => void, onClose?: () => void) {
+  constructor(
+    onMessage: MessageHandler,
+    onOpen?: () => void,
+    onClose?: () => void,
+    onReconnecting?: ReconnectingHandler,
+    onMaxRetriesReached?: MaxRetriesReachedHandler
+  ) {
     this.onMessage = onMessage;
     this.onOpen = onOpen;
     this.onClose = onClose;
+    this.onReconnecting = onReconnecting;
+    this.onMaxRetriesReached = onMaxRetriesReached;
   }
 
   connect(taskId: string, token: string) {
@@ -56,10 +68,21 @@ export class WebSocketManager {
         return;
       }
 
-      // 如果未达到最大重连次数，尝试重连
+      // 如果未达到最大重连次数，尝试重连（指数退避策略）
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-        console.log(`WebSocket disconnected. Reconnecting in ${delay}ms... (attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
+        // 指数退避：1s, 2s, 4s, 8s, 16s, 32s, 60s (max)
+        const delay = Math.min(
+          1000 * Math.pow(2, this.reconnectAttempts),
+          60000  // 最大60秒
+        );
+
+        console.log(
+          `WebSocket disconnected. Reconnecting in ${delay}ms... ` +
+          `(attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`
+        );
+
+        // 通知UI重连中
+        this.onReconnecting?.(this.reconnectAttempts + 1, delay);
 
         setTimeout(() => {
           this.reconnectAttempts++;
@@ -67,6 +90,8 @@ export class WebSocketManager {
         }, delay);
       } else {
         console.error('WebSocket max reconnection attempts reached');
+        // 通知UI达到最大重连次数
+        this.onMaxRetriesReached?.();
       }
     };
   }

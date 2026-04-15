@@ -34,10 +34,12 @@ export async function loginApi(data: AuthApi.LoginParams) {
 }
 
 /**
- * 刷新accessToken（FastAPI暂不支持）
+ * 刷新accessToken
  */
 export async function refreshTokenApi() {
-  return { data: '', status: 200 } as AuthApi.RefreshTokenResult;
+  const res = await baseRequestClient.post<any>('/auth/refresh');
+  const token = res?.access_token ?? res?.data?.access_token ?? res?.accessToken;
+  return { data: token, status: 200 } as AuthApi.RefreshTokenResult;
 }
 
 /**
