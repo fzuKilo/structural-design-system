@@ -107,6 +107,8 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 model="deepseek-chat",
                 base_url="https://api.deepseek.com/v1",
                 api_key=plain_api_key,
+                api_type="openai",
+                api_version="",
                 max_tokens=4000,
                 temperature=0.7,
             )
