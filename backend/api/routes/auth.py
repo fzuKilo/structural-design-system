@@ -93,7 +93,15 @@ async def update_profile(
 
     db.commit()
     db.refresh(current_user)
-    return current_user
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        quota_daily=current_user.quota_daily,
+        quota_monthly=current_user.quota_monthly,
+        created_at=current_user.created_at,
+        roles=[role.name for role in current_user.roles]
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse)
