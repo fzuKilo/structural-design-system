@@ -1,236 +1,266 @@
-<mxfile host="app.diagrams.net" modified="2026-04-15T00:00:00.000Z" agent="Claude" version="24.0.0">
+<mxfile host="app.diagrams.net" agent="Claude">
   <diagram name="数据库ER图" id="er-diagram">
-    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2000" math="0" shadow="0">
+    <mxGraphModel dx="1437" dy="891" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-
-        <!-- 用户实体 -->
-        <mxCell id="entity-users" value="用户" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="400" y="200" width="120" height="60" as="geometry" />
+        <mxCell id="entity-users" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="用户" vertex="1">
+          <mxGeometry height="60" width="120" x="400" y="200" as="geometry" />
         </mxCell>
-
-        <!-- 任务实体 -->
-        <mxCell id="entity-tasks" value="任务" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="800" y="200" width="120" height="60" as="geometry" />
+        <mxCell id="entity-tasks" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="任务" vertex="1">
+          <mxGeometry height="60" width="120" x="800" y="200" as="geometry" />
         </mxCell>
-
-        <!-- 任务文件实体 -->
-        <mxCell id="entity-task-files" value="任务文件" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="1200" y="200" width="120" height="60" as="geometry" />
+        <mxCell id="entity-task-files" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="任务文件" vertex="1">
+          <mxGeometry height="60" width="120" x="1200" y="200" as="geometry" />
         </mxCell>
-
-        <!-- 角色实体 -->
-        <mxCell id="entity-roles" value="角色" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="400" y="600" width="120" height="60" as="geometry" />
+        <mxCell id="entity-roles" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="角色" vertex="1">
+          <mxGeometry height="60" width="120" x="670" y="440" as="geometry" />
         </mxCell>
-
-        <!-- 权限实体 -->
-        <mxCell id="entity-permissions" value="权限" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="800" y="600" width="120" height="60" as="geometry" />
+        <mxCell id="entity-permissions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="权限" vertex="1">
+          <mxGeometry height="60" width="120" x="1070" y="440" as="geometry" />
         </mxCell>
-
-        <!-- 审计日志实体 -->
-        <mxCell id="entity-audit-logs" value="审计日志" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="400" y="800" width="120" height="60" as="geometry" />
+        <mxCell id="entity-audit-logs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1" value="审计日志" vertex="1">
+          <mxGeometry height="60" width="120" x="400" y="640" as="geometry" />
         </mxCell>
-
-        <!-- 创建关系（用户-任务）-->
-        <mxCell id="rel-creates" value="创建" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
-          <mxGeometry x="600" y="190" width="100" height="80" as="geometry" />
+        <mxCell id="rel-creates" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="创建" vertex="1">
+          <mxGeometry height="80" width="100" x="600" y="190" as="geometry" />
         </mxCell>
-        <mxCell id="edge-user-creates" value="1" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="entity-users" target="rel-creates">
+        <mxCell id="edge-user-creates" edge="1" parent="1" source="entity-users" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-creates" value="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-creates-task" value="n" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-creates" target="entity-tasks">
+        <mxCell id="edge-creates-task" edge="1" parent="1" source="rel-creates" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-tasks" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 包含关系（任务-文件）-->
-        <mxCell id="rel-contains" value="包含" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
-          <mxGeometry x="1000" y="190" width="100" height="80" as="geometry" />
+        <mxCell id="rel-contains" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="包含" vertex="1">
+          <mxGeometry height="80" width="100" x="1000" y="190" as="geometry" />
         </mxCell>
-        <mxCell id="edge-task-contains" value="1" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="entity-tasks" target="rel-contains">
+        <mxCell id="edge-task-contains" edge="1" parent="1" source="entity-tasks" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-contains" value="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-contains-file" value="n" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-contains" target="entity-task-files">
+        <mxCell id="edge-contains-file" edge="1" parent="1" source="rel-contains" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-task-files" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 拥有关系（用户-角色）-->
-        <mxCell id="rel-has-role" value="拥有" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
-          <mxGeometry x="410" y="390" width="100" height="80" as="geometry" />
+        <mxCell id="rel-has-role" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="拥有" vertex="1">
+          <mxGeometry height="80" width="100" x="410" y="390" as="geometry" />
         </mxCell>
-        <mxCell id="edge-user-has-role" value="m" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="entity-users" target="rel-has-role">
+        <mxCell id="edge-user-has-role" edge="1" parent="1" source="entity-users" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="rel-has-role" value="m">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-has-role-role" value="n" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-has-role" target="entity-roles">
+        <mxCell id="edge-has-role-role" edge="1" parent="1" source="rel-has-role" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-roles" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 拥有关系（角色-权限）-->
-        <mxCell id="rel-has-perm" value="拥有" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
-          <mxGeometry x="600" y="590" width="100" height="80" as="geometry" />
+        <mxCell id="rel-has-perm" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="拥有" vertex="1">
+          <mxGeometry height="80" width="100" x="870" y="430" as="geometry" />
         </mxCell>
-        <mxCell id="edge-role-has-perm" value="m" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="entity-roles" target="rel-has-perm">
+        <mxCell id="edge-role-has-perm" edge="1" parent="1" source="entity-roles" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rel-has-perm" value="m">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-has-perm-perm" value="n" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-has-perm" target="entity-permissions">
+        <mxCell id="edge-has-perm-perm" edge="1" parent="1" source="rel-has-perm" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="entity-permissions" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 记录关系（用户-审计日志）-->
-        <mxCell id="rel-logs" value="记录" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" vertex="1" parent="1">
-          <mxGeometry x="410" y="490" width="100" height="80" as="geometry" />
+        <mxCell id="rel-logs" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12" value="记录" vertex="1">
+          <mxGeometry height="80" width="100" x="410" y="490" as="geometry" />
         </mxCell>
-        <mxCell id="edge-user-logs" value="1" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-has-role" target="rel-logs">
+        <mxCell id="edge-user-logs" edge="1" parent="1" source="rel-has-role" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="rel-logs" value="1">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="460" y="470" as="sourcePoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="edge-logs-audit" value="n" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rel-logs" target="entity-audit-logs">
+        <mxCell id="edge-logs-audit" edge="1" parent="1" source="rel-logs" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="entity-audit-logs" value="n">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 用户属性 -->
-        <mxCell id="attr-user-id" value="用户ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="240" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-user-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户ID" vertex="1">
+          <mxGeometry height="50" width="80" x="300" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-user-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-user-id" target="entity-users">
+        <mxCell id="edge-user-id" edge="1" parent="1" source="attr-user-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-username" value="用户名" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="340" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-username" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户名" vertex="1">
+          <mxGeometry height="50" width="80" x="400" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-username" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-username" target="entity-users">
+        <mxCell id="edge-username" edge="1" parent="1" source="attr-username" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-email" value="邮箱" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="440" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-email" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="邮箱" vertex="1">
+          <mxGeometry height="50" width="80" x="500" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-email" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-email" target="entity-users">
+        <mxCell id="edge-email" edge="1" parent="1" source="attr-email" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-quota-daily" value="每日配额" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="240" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-password" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="密码哈希" vertex="1">
+          <mxGeometry height="50" width="80" x="200" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-quota-daily" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-quota-daily" target="entity-users">
+        <mxCell id="edge-password" edge="1" parent="1" source="attr-password" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-quota-monthly" value="每月配额" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="340" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-api-key" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1" value="API Key加密" vertex="1">
+          <mxGeometry height="50" width="90" x="160" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-quota-monthly" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-quota-monthly" target="entity-users">
+        <mxCell id="edge-api-key" edge="1" parent="1" source="attr-api-key" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 任务属性 -->
-        <mxCell id="attr-task-id" value="任务ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="740" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-user-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="460" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-task-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-task-id" target="entity-tasks">
+        <mxCell id="edge-user-created" edge="1" parent="1" source="attr-user-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-status" value="状态" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="840" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-quota-daily" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="每日配额" vertex="1">
+          <mxGeometry height="50" width="80" x="270" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-status" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-status" target="entity-tasks">
+        <mxCell id="edge-quota-daily" edge="1" parent="1" source="attr-quota-daily" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.1;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-structure-type" value="结构类型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="740" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-quota-monthly" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="每月配额" vertex="1">
+          <mxGeometry height="50" width="80" x="360" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-structure-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-structure-type" target="entity-tasks">
+        <mxCell id="edge-quota-monthly" edge="1" parent="1" source="attr-quota-monthly" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.35;entryY=1;entryDx=0;entryDy=0;" target="entity-users">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-request-text" value="需求文本" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="840" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-celery-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="Celery任务ID" vertex="1">
+          <mxGeometry height="50" width="90" x="670" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-request-text" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-request-text" target="entity-tasks">
+        <mxCell id="edge-celery-id" edge="1" parent="1" source="attr-celery-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 任务文件属性 -->
-        <mxCell id="attr-file-id" value="文件ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="1140" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-task-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="670" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-file-id" target="entity-task-files">
+        <mxCell id="edge-task-created" edge="1" parent="1" source="attr-task-created" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-file-type" value="文件类型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="1240" y="100" width="80" height="50" as="geometry" />
+        <mxCell id="attr-completed-at" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="完成时间" vertex="1">
+          <mxGeometry height="50" width="80" x="970" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-file-type" target="entity-task-files">
+        <mxCell id="edge-completed-at" edge="1" parent="1" source="attr-completed-at" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-file-path" value="文件路径" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="1140" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-result-json" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="结果JSON" vertex="1">
+          <mxGeometry height="50" width="80" x="970" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-path" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-file-path" target="entity-task-files">
+        <mxCell id="edge-result-json" edge="1" parent="1" source="attr-result-json" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-file-size" value="文件大小" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="1240" y="280" width="80" height="50" as="geometry" />
+        <mxCell id="attr-file-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="1340" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge-file-size" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-file-size" target="entity-task-files">
+        <mxCell id="edge-file-created" edge="1" parent="1" source="attr-file-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 角色属性 -->
-        <mxCell id="attr-role-id" value="角色ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="340" y="680" width="80" height="50" as="geometry" />
+        <mxCell id="attr-role-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色描述" vertex="1">
+          <mxGeometry height="50" width="80" x="830" y="540" as="geometry" />
         </mxCell>
-        <mxCell id="edge-role-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-role-id" target="entity-roles">
+        <mxCell id="edge-role-desc" edge="1" parent="1" source="attr-role-desc" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-role-name" value="角色名称" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="440" y="680" width="80" height="50" as="geometry" />
+        <mxCell id="attr-perm-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
+          <mxGeometry height="50" width="80" x="940" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-role-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-role-name" target="entity-roles">
+        <mxCell id="edge-perm-resource" edge="1" parent="1" source="attr-perm-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 权限属性 -->
-        <mxCell id="attr-perm-id" value="权限ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="740" y="680" width="80" height="50" as="geometry" />
+        <mxCell id="attr-perm-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="操作" vertex="1">
+          <mxGeometry height="50" width="80" x="1240" y="520" as="geometry" />
         </mxCell>
-        <mxCell id="edge-perm-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-perm-id" target="entity-permissions">
+        <mxCell id="edge-perm-action" edge="1" parent="1" source="attr-perm-action" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-perm-name" value="权限名称" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="840" y="680" width="80" height="50" as="geometry" />
+        <mxCell id="attr-log-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
+          <mxGeometry height="50" width="80" x="240" y="720" as="geometry" />
         </mxCell>
-        <mxCell id="edge-perm-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-perm-name" target="entity-permissions">
+        <mxCell id="edge-log-resource" edge="1" parent="1" source="attr-log-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 审计日志属性 -->
-        <mxCell id="attr-log-id" value="日志ID" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="340" y="880" width="80" height="50" as="geometry" />
+        <mxCell id="attr-log-ip" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="IP地址" vertex="1">
+          <mxGeometry height="50" width="80" x="540" y="720" as="geometry" />
         </mxCell>
-        <mxCell id="edge-log-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-log-id" target="entity-audit-logs">
+        <mxCell id="edge-log-ip" edge="1" parent="1" source="attr-log-ip" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="attr-action" value="操作类型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" vertex="1" parent="1">
-          <mxGeometry x="440" y="880" width="80" height="50" as="geometry" />
+        <mxCell id="attr-task-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="任务ID" vertex="1">
+          <mxGeometry height="50" width="80" x="770" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="edge-action" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="attr-action" target="entity-audit-logs">
+        <mxCell id="edge-task-id" edge="1" parent="1" source="attr-task-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-tasks">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
+        <mxCell id="attr-status" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="状态" vertex="1">
+          <mxGeometry height="50" width="80" x="870" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-status" edge="1" parent="1" source="attr-status" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-tasks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-structure-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="结构类型" vertex="1">
+          <mxGeometry height="50" width="80" x="770" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-structure-type" edge="1" parent="1" source="attr-structure-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-tasks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-request-text" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="需求文本" vertex="1">
+          <mxGeometry height="50" width="80" x="870" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-request-text" edge="1" parent="1" source="attr-request-text" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-tasks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-file-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件ID" vertex="1">
+          <mxGeometry height="50" width="80" x="1140" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-file-id" edge="1" parent="1" source="attr-file-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="entity-task-files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-file-type" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件类型" vertex="1">
+          <mxGeometry height="50" width="80" x="1240" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-file-type" edge="1" parent="1" source="attr-file-type" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="entity-task-files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-file-path" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件路径" vertex="1">
+          <mxGeometry height="50" width="80" x="1140" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-file-path" edge="1" parent="1" source="attr-file-path" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-file-size" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="文件大小" vertex="1">
+          <mxGeometry height="50" width="80" x="1240" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-file-size" edge="1" parent="1" source="attr-file-size" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-task-files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-role-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色ID" vertex="1">
+          <mxGeometry height="50" width="80" x="630" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-role-id" edge="1" parent="1" source="attr-role-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-roles">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-role-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色名称" vertex="1">
+          <mxGeometry height="50" width="80" x="730" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-role-name" edge="1" parent="1" source="attr-role-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-roles">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-perm-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限ID" vertex="1">
+          <mxGeometry height="50" width="80" x="1040" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-perm-id" edge="1" parent="1" source="attr-perm-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-perm-name" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限名称" vertex="1">
+          <mxGeometry height="50" width="80" x="1140" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-perm-name" edge="1" parent="1" source="attr-perm-name" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-log-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="日志ID" vertex="1">
+          <mxGeometry height="50" width="80" x="340" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-log-id" edge="1" parent="1" source="attr-log-id" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="操作类型" vertex="1">
+          <mxGeometry height="50" width="80" x="440" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-action" edge="1" parent="1" source="attr-action" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
