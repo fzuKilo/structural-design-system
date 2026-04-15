@@ -99,20 +99,24 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             from backend.api.services.encryption_service import decrypt_api_key
             plain_api_key = decrypt_api_key(user.api_key_encrypted)
 
-            # Create agents with user's API config
+            # Create LLM instance with user's API key
+            from app.llm import LLM
+            from app.config import LLMSettings
+            user_llm_config = LLMSettings(
+                model="deepseek-chat",
+                base_url="https://api.deepseek.com/v1",
+                api_key=plain_api_key,
+                max_tokens=4000,
+                temperature=0.7,
+            )
+            user_llm = LLM(llm_config={"default": user_llm_config})
+
+            # Create agents with user's LLM instance
             from structural_app.agent.structural_design_agent import StructuralDesignAgent
             from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
             from structural_app.agent.cad_drawing_agent import CADDrawingAgent
             from structural_app.agent.evaluation_agent import EvaluationAgent
             from structural_app.agent.report_generation_agent import ReportGenerationAgent
-
-            # API configuration from user settings
-            api_config = {
-                "api_key": plain_api_key,
-                "provider": "openai",
-                "base_url": "https://api.deepseek.com/v1",
-                "model": "deepseek-chat"
-            }
 
             # Create WebAskHuman tool first
             from structural_app.tool.web_ask_human import WebAskHuman
@@ -122,18 +126,11 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 redis_url=settings.REDIS_URL,
             )
 
-            # Initialize agents with API config and WebAskHuman tool
-            from structural_app.agent.structural_design_agent import StructuralDesignAgent
-            from structural_app.agent.fe_analysis_agent import FEAnalysisAgent
-            from structural_app.agent.cad_drawing_agent import CADDrawingAgent
-            from structural_app.agent.evaluation_agent import EvaluationAgent
-            from structural_app.agent.report_generation_agent import ReportGenerationAgent
-
-            design_agent = StructuralDesignAgent(tools=[web_ask_human], **api_config)
-            analysis_agent = FEAnalysisAgent(tools=[web_ask_human], **api_config)
-            drawing_agent = CADDrawingAgent(tools=[web_ask_human], **api_config)
-            evaluation_agent = EvaluationAgent(tools=[web_ask_human], **api_config)
-            report_agent = ReportGenerationAgent(tools=[web_ask_human], **api_config)
+            design_agent = StructuralDesignAgent(tools=[web_ask_human], llm=user_llm)
+            analysis_agent = FEAnalysisAgent(tools=[web_ask_human], llm=user_llm)
+            drawing_agent = CADDrawingAgent(tools=[web_ask_human], llm=user_llm)
+            evaluation_agent = EvaluationAgent(tools=[web_ask_human], llm=user_llm)
+            report_agent = ReportGenerationAgent(tools=[web_ask_human], llm=user_llm)
 
             # Initialize PlanningFlow with pre-configured agents
             flow = PlanningFlow(
