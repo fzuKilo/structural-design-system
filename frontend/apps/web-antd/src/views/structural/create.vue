@@ -16,7 +16,7 @@ const form = reactive({ request_text: '' });
 onMounted(async () => {
   const res = await baseRequestClient.get('/auth/profile');
   const profile = (res as any)?.data ?? res;
-  hasApiKey.value = !!profile?.api_key_encrypted;
+  hasApiKey.value = !!profile?.has_api_key;
 });
 
 const handleSubmit = async () => {

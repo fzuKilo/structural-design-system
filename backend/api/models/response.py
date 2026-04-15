@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     quota_monthly: int
     created_at: datetime
     roles: List[str] = []
+    has_api_key: bool = False  # 是否已配置API Key（不暴露加密值）
 
     class Config:
         from_attributes = True

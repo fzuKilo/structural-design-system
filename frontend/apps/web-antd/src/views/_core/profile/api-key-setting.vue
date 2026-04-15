@@ -22,8 +22,9 @@ const handleSave = async () => {
     saved.value = true;
     message.success('API Key 已加密保存');
     apiKey.value = '';
-  } catch {
-    message.error('保存失败，请重试');
+  } catch (err: any) {
+    const detail = err?.response?.data?.detail || '保存失败，请重试';
+    message.error(detail);
   } finally {
     saving.value = false;
   }

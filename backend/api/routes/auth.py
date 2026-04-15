@@ -70,7 +70,8 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         quota_daily=current_user.quota_daily,
         quota_monthly=current_user.quota_monthly,
         created_at=current_user.created_at,
-        roles=[role.name for role in current_user.roles]
+        roles=[role.name for role in current_user.roles],
+        has_api_key=bool(current_user.api_key_encrypted)
     )
 
 
@@ -82,6 +83,12 @@ async def update_profile(
 ):
     """更新用户信息"""
     if profile_data.api_key:
+        # 验证 Key 格式（DeepSeek/OpenAI Key 以 sk- 开头）
+        if not profile_data.api_key.startswith("sk-"):
+            raise HTTPException(
+                status_code=400,
+                detail="API Key 格式无效，应以 sk- 开头"
+            )
         # Encrypt API key before storing
         try:
             current_user.api_key_encrypted = encrypt_api_key(profile_data.api_key)
@@ -100,7 +107,8 @@ async def update_profile(
         quota_daily=current_user.quota_daily,
         quota_monthly=current_user.quota_monthly,
         created_at=current_user.created_at,
-        roles=[role.name for role in current_user.roles]
+        roles=[role.name for role in current_user.roles],
+        has_api_key=bool(current_user.api_key_encrypted)
     )
 
 
