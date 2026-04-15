@@ -233,6 +233,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
 
         except Exception as e:
             task.status = "failed"
+            task.error = str(e)
             db.commit()
 
             is_cancelled = "用户停止" in str(e)

@@ -45,6 +45,7 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)
     result_json = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="tasks")
     files = relationship("TaskFile", back_populates="task", cascade="all, delete-orphan")

@@ -37,6 +37,7 @@ class TaskResponse(BaseModel):
     structure_type: Optional[str]
     created_at: datetime
     completed_at: Optional[datetime]
+    error: Optional[str] = None
 
     class Config:
         from_attributes = True
