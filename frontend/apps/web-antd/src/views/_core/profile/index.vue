@@ -5,6 +5,8 @@ import { Profile } from '@vben/common-ui';
 import { useUserStore } from '@vben/stores';
 
 import ProfileBase from './base-setting.vue';
+import ProfileApiKeySetting from './api-key-setting.vue';
+import ProfileQuotaSetting from './quota-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';
 import ProfilePasswordSetting from './password-setting.vue';
 import ProfileSecuritySetting from './security-setting.vue';
@@ -14,22 +16,12 @@ const userStore = useUserStore();
 const tabsValue = ref<string>('basic');
 
 const tabs = ref([
-  {
-    label: '基本设置',
-    value: 'basic',
-  },
-  {
-    label: '安全设置',
-    value: 'security',
-  },
-  {
-    label: '修改密码',
-    value: 'password',
-  },
-  {
-    label: '新消息提醒',
-    value: 'notice',
-  },
+  { label: '基本设置', value: 'basic' },
+  { label: '安全设置', value: 'security' },
+  { label: 'API Key', value: 'apikey' },
+  { label: '配额使用', value: 'quota' },
+  { label: '修改密码', value: 'password' },
+  { label: '新消息提醒', value: 'notice' },
 ]);
 </script>
 <template>
@@ -42,6 +34,8 @@ const tabs = ref([
     <template #content>
       <ProfileBase v-if="tabsValue === 'basic'" />
       <ProfileSecuritySetting v-if="tabsValue === 'security'" />
+      <ProfileApiKeySetting v-if="tabsValue === 'apikey'" />
+      <ProfileQuotaSetting v-if="tabsValue === 'quota'" />
       <ProfilePasswordSetting v-if="tabsValue === 'password'" />
       <ProfileNotificationSetting v-if="tabsValue === 'notice'" />
     </template>

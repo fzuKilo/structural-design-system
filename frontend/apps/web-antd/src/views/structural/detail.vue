@@ -112,6 +112,9 @@ const rebuildLogsFromResult = () => {
   }
 };
 
+const wsReconnectInfo = ref<{ attempt: number; delay: number } | null>(null);
+const wsMaxRetriesReached = ref(false);
+
 const connectWs = () => {
   const token = accessStore.accessToken;
 
@@ -137,6 +140,8 @@ const connectWs = () => {
 
   const handleWsOpen = () => {
     wsConnected.value = true;
+    wsReconnectInfo.value = null;
+    wsMaxRetriesReached.value = false;
     addLog('已连接，等待任务更新...', '#1890ff');
   };
 
@@ -145,7 +150,17 @@ const connectWs = () => {
     addLog('连接已断开', '#999');
   };
 
-  wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose);
+  const handleWsReconnecting = (attempt: number, delay: number) => {
+    wsReconnectInfo.value = { attempt, delay };
+    addLog(`第 ${attempt}/10 次重连（${delay / 1000}s 后）...`, '#fa8c16');
+  };
+
+  const handleWsMaxRetries = () => {
+    wsMaxRetriesReached.value = true;
+    addLog('连接失败，请检查网络或刷新页面', '#f5222d');
+  };
+
+  wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose, handleWsReconnecting, handleWsMaxRetries);
   wsManager.connect(route.params.id as string, token);
 };
 
@@ -200,6 +215,12 @@ onUnmounted(() => { wsManager?.disconnect(); });
         {{ statusTextMap[task.status] || task.status }}
       </ATag>
       <ABadge v-if="task && (task.status === 'running' || task.status === 'pending')" :status="wsConnected ? 'processing' : 'default'" :text="wsConnected ? 'WebSocket已连接' : 'WebSocket未连接'" />
+      <span v-if="wsReconnectInfo" style="color: #fa8c16; font-size: 12px;">
+        重连中 {{ wsReconnectInfo.attempt }}/10（{{ wsReconnectInfo.delay / 1000 }}s 后）
+      </span>
+      <span v-if="wsMaxRetriesReached" style="color: #f5222d; font-size: 12px;">
+        连接失败，请检查网络
+      </span>
       <APopconfirm
         v-if="task && (task.status === 'running' || task.status === 'pending')"
         title="确认停止该任务吗？停止后无法恢复。"
@@ -232,6 +253,16 @@ onUnmounted(() => { wsManager?.disconnect(); });
       </ACard>
 
       <ResultViewer v-if="task.status === 'success'" :result="task.result_json" :task-id="(route.params.id as string)" />
+
+      <!-- CAD 预览图 -->
+      <ACard v-if="task.status === 'success' && task.result_json?.preview_image" title="模型预览" size="small" class="mb-3">
+        <img
+          :src="`/api/design/${route.params.id}/preview`"
+          alt="模型预览图"
+          style="max-width: 100%; cursor: zoom-in;"
+          @click="previewVisible = true"
+        />
+      </ACard>
     </template>
 
     <AskHumanModal :request="askHumanRequest" @submit="handleAskHumanSubmit" />
