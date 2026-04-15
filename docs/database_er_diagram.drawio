@@ -147,10 +147,22 @@
         <mxCell id="edge-file-created" edge="1" parent="1" source="attr-file-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-task-files">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="attr-role-display" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="显示名称" vertex="1">
+          <mxGeometry height="50" width="80" x="530" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-role-display" edge="1" parent="1" source="attr-role-display" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="attr-role-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="角色描述" vertex="1">
           <mxGeometry height="50" width="80" x="830" y="540" as="geometry" />
         </mxCell>
         <mxCell id="edge-role-desc" edge="1" parent="1" source="attr-role-desc" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-roles">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-role-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="830" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-role-created" edge="1" parent="1" source="attr-role-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-roles">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr-perm-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
@@ -159,10 +171,46 @@
         <mxCell id="edge-perm-resource" edge="1" parent="1" source="attr-perm-resource" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="attr-perm-desc" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="权限描述" vertex="1">
+          <mxGeometry height="50" width="80" x="1340" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-perm-desc" edge="1" parent="1" source="attr-perm-desc" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-permissions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-perm-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="1230" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-perm-created" edge="1" parent="1" source="attr-perm-created" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="entity-permissions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="attr-perm-action" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="操作" vertex="1">
           <mxGeometry height="50" width="80" x="1240" y="520" as="geometry" />
         </mxCell>
         <mxCell id="edge-perm-action" edge="1" parent="1" source="attr-perm-action" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="entity-permissions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-log-resource-id" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源ID" vertex="1">
+          <mxGeometry height="50" width="80" x="140" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-log-resource-id" edge="1" parent="1" source="attr-log-resource-id" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-log-user-agent" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="用户代理" vertex="1">
+          <mxGeometry height="50" width="80" x="640" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-log-user-agent" edge="1" parent="1" source="attr-log-user-agent" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-log-details" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="详细信息" vertex="1">
+          <mxGeometry height="50" width="80" x="240" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-log-details" edge="1" parent="1" source="attr-log-details" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="attr-log-created" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="创建时间" vertex="1">
+          <mxGeometry height="50" width="80" x="340" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-log-created" edge="1" parent="1" source="attr-log-created" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="entity-audit-logs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="attr-log-resource" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10" value="资源类型" vertex="1">
