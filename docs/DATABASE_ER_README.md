@@ -1,6 +1,13 @@
 # 数据库ER图
 
-## 使用方法
+本目录包含两种风格的ER图：
+
+1. **database_er_diagram.dbml** - 现代数据库表结构图（类似UML类图）
+2. **database_er_diagram.drawio** - 传统Chen's ER图（实体-关系-属性风格）
+
+---
+
+## 方式1：DBML格式（现代风格）
 
 ### 在线查看和编辑
 
@@ -22,6 +29,33 @@ dbml2img database_er_diagram.dbml -o database_er_diagram.png
 # 生成SQL
 dbml2sql database_er_diagram.dbml -o database_schema.sql
 ```
+
+---
+
+## 方式2：Draw.io格式（传统Chen's ER图）
+
+### 在线查看和编辑
+
+1. 访问 [draw.io](https://app.diagrams.net/)
+2. 点击 "Open Existing Diagram"
+3. 选择 `database_er_diagram.drawio` 文件
+4. 可以编辑和导出为PNG、PDF、SVG等格式
+
+### 本地使用
+
+```bash
+# 下载 draw.io 桌面版
+# https://github.com/jgraph/drawio-desktop/releases
+
+# 直接双击打开 database_er_diagram.drawio 文件
+```
+
+### 图例说明
+
+- **矩形** - 实体（如：用户、任务、角色等）
+- **菱形** - 关系（如：创建、包含、拥有等）
+- **椭圆** - 属性（如：用户ID、用户名、邮箱等）
+- **连线标注** - 基数（1, n, m表示一对一、一对多、多对多）
 
 ## 数据库结构概览
 
