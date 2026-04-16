@@ -121,8 +121,9 @@ async def cancel_task(
         from backend.tasks.celery_app import celery_app
         celery_app.control.revoke(task.celery_task_id, terminate=True, signal="SIGTERM")
 
-    # Mark cancelled in DB
+    # Mark cancelled in DB with error message
     task.status = "failed"
+    task.error = "用户停止，工作流终止"
     db.commit()
 
     # Clean up Redis keys

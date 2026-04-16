@@ -44,8 +44,18 @@ const loadTask = async () => {
   try {
     const res = await getDesignDetailApi(route.params.id as string);
     task.value = (res as any)?.data ?? res;
-    if (task.value?.status === 'failed' && task.value?.error) {
-      errorMessage.value = task.value.error;
+    if (task.value?.status === 'failed') {
+      // 区分用户主动取消和真正的错误
+      const errorMsg = task.value.error || '';
+      const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
+
+      // 如果 error 为空但 result_json 也为空，很可能是用户取消的（兼容旧数据）
+      const isLikelyCancelled = !errorMsg && !task.value.result_json;
+
+      // 只有真正的错误才显示在顶部 Alert 中，用户取消不显示
+      if (!isCancelled && !isLikelyCancelled && errorMsg) {
+        errorMessage.value = task.value.error;
+      }
     }
 
     // 如果任务已完成或失败，根据结果重建日志
@@ -65,7 +75,22 @@ const rebuildLogsFromResult = () => {
   const result = task.value?.result_json;
   if (!result) {
     if (task.value?.status === 'failed') {
-      addLog(task.value.error ? `错误: ${task.value.error}` : '任务执行失败，请检查 API Key 是否正确', '#f5222d');
+      // 区分用户主动取消和真正的错误
+      const errorMsg = task.value.error || '';
+      console.log('[DEBUG] Task failed, error message:', errorMsg);
+      const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
+
+      // 如果 error 为空，很可能是用户取消的（兼容旧数据）
+      const isLikelyCancelled = !errorMsg;
+      console.log('[DEBUG] Is cancelled:', isCancelled || isLikelyCancelled);
+
+      if (isCancelled) {
+        addLog(`任务已取消: ${errorMsg}`, '#fa8c16');
+      } else if (isLikelyCancelled) {
+        addLog('任务已被用户停止', '#fa8c16');
+      } else {
+        addLog(errorMsg ? `错误: ${errorMsg}` : '任务执行失败，请检查 API Key 是否正确', '#f5222d');
+      }
     } else {
       addLog('任务已完成，但无详细日志', '#999');
     }
@@ -109,9 +134,17 @@ const rebuildLogsFromResult = () => {
   if (task.value?.status === 'success') {
     addLog('✓ 设计任务全部完成！', '#52c41a');
   } else if (task.value?.status === 'failed') {
-    addLog('✗ 设计任务失败', '#f5222d');
-    if (task.value?.error) {
-      addLog(`错误: ${task.value.error}`, '#f5222d');
+    const errorMsg = task.value?.error || '';
+    const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
+    const isLikelyCancelled = !errorMsg;
+
+    if (isCancelled || isLikelyCancelled) {
+      addLog('○ 任务已被用户停止', '#fa8c16');
+    } else {
+      addLog('✗ 设计任务失败', '#f5222d');
+      if (task.value?.error) {
+        addLog(`错误: ${task.value.error}`, '#f5222d');
+      }
     }
   }
 };
