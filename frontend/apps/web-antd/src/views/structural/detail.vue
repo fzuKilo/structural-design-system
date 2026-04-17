@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, nextTick, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 
 import { Button as AButton, Card as ACard, Descriptions as ADescriptions, DescriptionsItem as ADescriptionsItem, Popconfirm as APopconfirm, Tag as ATag, Badge as ABadge, Alert as AAlert, message } from 'ant-design-vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -7,10 +7,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAccessStore } from '@vben/stores';
 
 import { cancelDesignApi, getDesignDetailApi } from '#/api/design';
-import AskHumanModal from '#/components/design/AskHumanModal.vue';
-import ProgressTracker from '#/components/design/ProgressTracker.vue';
+import ProgressBar from '#/components/design/ProgressBar.vue';
 import ResultViewer from '#/components/design/ResultViewer.vue';
-import { getStageMessage, getStatusColor } from '#/utils/i18n';
 import { WebSocketManager } from '#/utils/websocket';
 
 const route = useRoute();
@@ -21,11 +19,32 @@ const loading = ref(false);
 const cancelling = ref(false);
 const wsConnected = ref(false);
 const errorMessage = ref<string>('');
-const logs = ref<{ time: string; message: string; color: string }[]>([]);
-const logRef = ref<HTMLElement | null>(null);
 const stages = ref<any[]>([]);
+const progressData = ref<any>(null);
 const askHumanRequest = ref<any>(null);
+const schemeUpdates = ref<any[]>([]);  // 实时方案数据
 let wsManager: WebSocketManager | null = null;
+
+const taskParams = computed(() => {
+  if (!task.value) return null;
+  const r = task.value.result_json || {};
+  return {
+    designDescription: task.value.request_text,
+    maxStress: r.analysis_results?.results?.max_stress_MPa ?? null,
+    maxDeflection: r.analysis_results?.results?.max_displacement_mm ?? null,
+    safetyFactor: r.analysis_results?.results?.safety_factor ?? null,
+    complianceStatus: r.analysis_results?.code_check?.compliant ? 'compliant' : 'non_compliant',
+    violations: r.analysis_results?.code_check?.violations || [],
+    safetyScore: r.evaluation_report?.dimensions?.safety?.score ?? null,
+    economyScore: r.evaluation_report?.dimensions?.economy?.score ?? null,
+    overallScore: r.evaluation_report?.comprehensive_score ?? null,
+    warnings: r.evaluation_report?.warnings || [],
+    drawingStatus: r.drawing_results?.status || 'pending',
+    speckleExported: r.bim_results?.status === 'success',
+    ifcExported: r.ifc_results?.status === 'success',
+    reportStatus: r.report_results?.status || 'pending',
+  };
+});
 
 const statusColorMap: Record<string, string> = {
   pending: 'blue', running: 'orange', success: 'green', failed: 'red',
@@ -34,118 +53,21 @@ const statusTextMap: Record<string, string> = {
   pending: '等待中', running: '运行中', success: '已完成', failed: '失败',
 };
 
-const addLog = (message: string, color = '#333') => {
-  const time = new Date().toLocaleTimeString();
-  logs.value.push({ time, message, color });
-  nextTick(() => { if (logRef.value) logRef.value.scrollTop = logRef.value.scrollHeight; });
-};
-
 const loadTask = async () => {
   try {
     const res = await getDesignDetailApi(route.params.id as string);
     task.value = (res as any)?.data ?? res;
     if (task.value?.status === 'failed') {
-      // 区分用户主动取消和真正的错误
       const errorMsg = task.value.error || '';
       const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
-
-      // 如果 error 为空但 result_json 也为空，很可能是用户取消的（兼容旧数据）
       const isLikelyCancelled = !errorMsg && !task.value.result_json;
-
-      // 只有真正的错误才显示在顶部 Alert 中，用户取消不显示
       if (!isCancelled && !isLikelyCancelled && errorMsg) {
         errorMessage.value = task.value.error;
       }
     }
-
-    // 如果任务已完成或失败，根据结果重建日志
-    if (task.value?.status === 'success' || task.value?.status === 'failed') {
-      rebuildLogsFromResult();
-    }
   } catch (error) {
     message.error('加载任务详情失败');
     errorMessage.value = '加载任务详情失败，请刷新页面重试';
-  }
-};
-
-const rebuildLogsFromResult = () => {
-  // 清空现有日志
-  logs.value = [];
-
-  const result = task.value?.result_json;
-  if (!result) {
-    if (task.value?.status === 'failed') {
-      // 区分用户主动取消和真正的错误
-      const errorMsg = task.value.error || '';
-      console.log('[DEBUG] Task failed, error message:', errorMsg);
-      const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
-
-      // 如果 error 为空，很可能是用户取消的（兼容旧数据）
-      const isLikelyCancelled = !errorMsg;
-      console.log('[DEBUG] Is cancelled:', isCancelled || isLikelyCancelled);
-
-      if (isCancelled) {
-        addLog(`任务已取消: ${errorMsg}`, '#fa8c16');
-      } else if (isLikelyCancelled) {
-        addLog('任务已被用户停止', '#fa8c16');
-      } else {
-        addLog(errorMsg ? `错误: ${errorMsg}` : '任务执行失败，请检查 API Key 是否正确', '#f5222d');
-      }
-    } else {
-      addLog('任务已完成，但无详细日志', '#999');
-    }
-    return;
-  }
-
-  // 根据结果推断执行的阶段
-  addLog('任务开始执行', '#1890ff');
-
-  // 设计方案阶段
-  if (result.raw?.design_proposal) {
-    addLog('设计方案生成完成', '#52c41a');
-  }
-
-  // 有限元分析阶段
-  if (result.raw?.analysis_results) {
-    addLog('有限元分析完成', '#52c41a');
-  }
-
-  // 设计评估阶段
-  if (result.evaluation) {
-    addLog('设计评估完成', '#52c41a');
-  }
-
-  // CAD绘图阶段
-  if (result.files && Object.keys(result.files).length > 0) {
-    addLog('CAD图纸生成完成', '#52c41a');
-  }
-
-  // 报告生成阶段
-  if (result.report_file) {
-    addLog('设计报告生成完成', '#52c41a');
-  }
-
-  // BIM导出
-  if (result.bim_url) {
-    addLog('BIM模型导出完成', '#52c41a');
-  }
-
-  // 最终状态
-  if (task.value?.status === 'success') {
-    addLog('✓ 设计任务全部完成！', '#52c41a');
-  } else if (task.value?.status === 'failed') {
-    const errorMsg = task.value?.error || '';
-    const isCancelled = errorMsg.includes('用户停止') || errorMsg.includes('已取消');
-    const isLikelyCancelled = !errorMsg;
-
-    if (isCancelled || isLikelyCancelled) {
-      addLog('○ 任务已被用户停止', '#fa8c16');
-    } else {
-      addLog('✗ 设计任务失败', '#f5222d');
-      if (task.value?.error) {
-        addLog(`错误: ${task.value.error}`, '#f5222d');
-      }
-    }
   }
 };
 
@@ -156,28 +78,15 @@ const connectWs = () => {
   const token = accessStore.accessToken;
 
   const handleWsMessage = (msg: any) => {
-    console.log('[WebSocket] Received message:', msg);
     if (msg.type === 'stage') {
       stages.value.push(msg);
-      const color = getStatusColor(msg.status);
-      const message = getStageMessage(msg.stage, msg.status);
-      addLog(message, color);
-      if (msg.status === 'completed' || msg.status === 'failed') loadTask();
+      if (msg.status === 'completed' || msg.status === 'failed' || msg.status === 'skipped') loadTask();
+    } else if (msg.type === 'progress') {
+      progressData.value = msg;
     } else if (msg.type === 'ask_human') {
-      console.log('[WebSocket] ask_human message received, setting askHumanRequest:', msg);
       askHumanRequest.value = msg;
-      addLog(`等待用户输入: ${msg.question}`, '#fa8c16');
-    } else if (msg.type === 'result') {
-      addLog(msg.status === 'success' ? '设计完成！' : '设计失败', msg.status === 'success' ? '#52c41a' : '#f5222d');
+    } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
       loadTask();
-    } else if (msg.type === 'cancelled') {
-      addLog(msg.message || '用户停止，工作流终止', '#fa8c16');
-      loadTask();
-    } else if (msg.type === 'error') {
-      addLog(`错误: ${msg.message || '未知错误'}`, '#f5222d');
-      loadTask();
-    } else {
-      console.warn('[WebSocket] Unknown message type:', msg.type);
     }
   };
 
@@ -185,23 +94,15 @@ const connectWs = () => {
     wsConnected.value = true;
     wsReconnectInfo.value = null;
     wsMaxRetriesReached.value = false;
-    addLog('已连接，等待任务更新...', '#1890ff');
   };
 
-  const handleWsClose = () => {
-    wsConnected.value = false;
-    addLog('连接已断开', '#999');
-  };
+  const handleWsClose = () => { wsConnected.value = false; };
 
   const handleWsReconnecting = (attempt: number, delay: number) => {
     wsReconnectInfo.value = { attempt, delay };
-    addLog(`第 ${attempt}/10 次重连（${delay / 1000}s 后）...`, '#fa8c16');
   };
 
-  const handleWsMaxRetries = () => {
-    wsMaxRetriesReached.value = true;
-    addLog('连接失败，请检查网络或刷新页面', '#f5222d');
-  };
+  const handleWsMaxRetries = () => { wsMaxRetriesReached.value = true; };
 
   wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose, handleWsReconnecting, handleWsMaxRetries);
   wsManager.connect(route.params.id as string, token);
@@ -209,7 +110,6 @@ const connectWs = () => {
 
 const handleAskHumanSubmit = async (answer: string) => {
   askHumanRequest.value = null;
-  addLog(`已提交回答: ${answer}`, '#722ed1');
   const token = accessStore.accessToken;
   await fetch(`/api/design/${route.params.id}/respond`, {
     method: 'POST',
@@ -284,16 +184,14 @@ onUnmounted(() => { wsManager?.disconnect(); });
         <p style="margin: 0; color: #666;">{{ task.request_text }}</p>
       </ACard>
 
-      <ProgressTracker :stages="stages" class="mb-3" />
-
-      <ACard title="实时日志" size="small" class="mb-3">
-        <div ref="logRef" style="height: 240px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.6;">
-          <div v-for="(log, i) in logs" :key="i" :style="{ color: log.color }">
-            [{{ log.time }}] {{ log.message }}
-          </div>
-          <div v-if="!logs.length" style="color: #999;">等待任务开始...</div>
-        </div>
-      </ACard>
+      <ProgressBar
+        :stages="stages"
+        :progress-data="progressData"
+        :task-params="taskParams"
+        :ask-human-request="askHumanRequest"
+        class="mb-3"
+        @submit="handleAskHumanSubmit"
+      />
 
       <ResultViewer v-if="task.status === 'success'" :result="task.result_json" :task-id="(route.params.id as string)" />
 
@@ -307,7 +205,5 @@ onUnmounted(() => { wsManager?.disconnect(); });
         />
       </ACard>
     </template>
-
-    <AskHumanModal :request="askHumanRequest" @submit="handleAskHumanSubmit" />
   </div>
 </template>

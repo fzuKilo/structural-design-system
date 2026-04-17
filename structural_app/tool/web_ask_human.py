@@ -44,7 +44,7 @@ class WebAskHuman(AskHuman):
     task_id: str = ""
     websocket_callback: object = None  # async callable
     redis_url: str = "redis://localhost:6379/0"
-    timeout: int = 300  # seconds to wait for user response
+    timeout: int = 1800  # seconds to wait for user response (30 minutes)
 
     class Config:
         arbitrary_types_allowed = True
@@ -128,7 +128,7 @@ class WebAskHuman(AskHuman):
             return ""
 
         # Poll Redis for answer
-        answer = await self._wait_for_answer()
+        answer = await self._wait_for_answer(default=final_options[0].split(' - ')[0].strip() if final_options else "")
         print(f"[WebAskHuman] Received answer: {answer}")
         return answer
 
@@ -318,7 +318,7 @@ class WebAskHuman(AskHuman):
         question = '\n'.join(question_lines).strip() or inquire.strip()
         return question, options
 
-    async def _wait_for_answer(self) -> str:
+    async def _wait_for_answer(self, default: str = "") -> str:
         """Poll Redis every second until answer appears or timeout."""
         try:
             import redis.asyncio as aioredis
@@ -340,4 +340,4 @@ class WebAskHuman(AskHuman):
         finally:
             await client.aclose()
 
-        return ""  # timeout — return empty, agent will handle gracefully
+        return default  # timeout — return default option

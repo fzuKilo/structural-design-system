@@ -1,0 +1,586 @@
+<template>
+  <ACard size="small" class="progress-panel">
+    <!-- 顶部步骤导航 -->
+    <div class="steps-nav">
+      <div
+        v-for="(step, i) in steps"
+        :key="step.key"
+        class="step-item"
+        :class="getStepClass(step.key)"
+        @click="onStepClick(step.key)"
+      >
+        <div class="step-icon">
+          <span v-if="getStageStatus(step.key) === 'completed'">✅</span>
+          <span v-else-if="getStageStatus(step.key) === 'failed'">❌</span>
+          <span v-else-if="getStageStatus(step.key) === 'skipped'">⏭</span>
+          <span v-else>{{ step.icon }}</span>
+        </div>
+        <div class="step-title">{{ step.label }}</div>
+        <div class="step-status">{{ getStepStatusText(step.key) }}</div>
+        <div v-if="i < steps.length - 1" class="step-connector" />
+      </div>
+    </div>
+
+    <!-- 主体两栏 -->
+    <div class="main-body">
+      <!-- 左侧：交互面板 -->
+      <div class="left-panel">
+        <!-- 有 ask_human 时显示交互 UI -->
+        <template v-if="askHumanRequest">
+          <div class="ask-human-banner">🔔 需要您的确认，请查看并回复</div>
+          <!-- 图片预览（可视化确认） -->
+          <div v-if="askHumanRequest.image_path" class="preview-box">
+            <img
+              :src="`/api/file/view?path=${encodeURIComponent(askHumanRequest.image_path)}`"
+              style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid #d9d9d9;"
+              alt="模型预览图"
+            />
+          </div>
+
+          <!-- warnings 列表 -->
+          <div v-if="askHumanRequest.context?.warnings?.length" class="warnings-list">
+            <div v-for="(w, i) in askHumanRequest.context.warnings" :key="i" class="violation-item">
+              ⚠️ {{ w }}
+            </div>
+          </div>
+
+          <!-- 评估得分 -->
+          <div v-if="askHumanRequest.context?.score !== undefined" class="score-summary">
+            <span>综合得分：<strong style="font-size:20px;color:#1890ff;">{{ askHumanRequest.context.score }}</strong></span>
+            <ATag :color="getGradeColor(askHumanRequest.context.grade)" style="margin-left:12px;">{{ askHumanRequest.context.grade }}</ATag>
+          </div>
+
+          <!-- 多方案卡片（逐个动画展示） -->
+          <div v-if="askHumanRequest.context?.proposals?.length" style="margin-bottom:16px;">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化</h3>
+            <div class="schemes-container">
+              <div
+                v-for="(p, i) in askHumanRequest.context.proposals"
+                :key="p.name"
+                class="scheme-card"
+                :class="{
+                  optimizing: schemeAnimState[i] === 'optimizing',
+                  completed: schemeAnimState[i] === 'completed',
+                  selected: selectedSchemeIdx === i
+                }"
+              >
+                <div class="scheme-header-card">
+                  <span class="scheme-name">{{ p.name }}<span v-if="p.recommended" class="scheme-badge">推荐</span></span>
+                  <span>{{ schemeAnimState[i] === 'optimizing' ? '⚙️' : schemeAnimState[i] === 'completed' ? '✅' : '⏳' }}</span>
+                </div>
+                <!-- 分析中 -->
+                <template v-if="schemeAnimState[i] === 'optimizing'">
+                  <div class="optimizing-text"><div class="spinner-small"></div><span>分析中...</span></div>
+                  <div class="progress-bar-container"><div class="progress-bar-fill" :style="{ width: schemeProgress[i] + '%' }"></div></div>
+                </template>
+                <!-- 等待 -->
+                <template v-else-if="schemeAnimState[i] === 'pending'">
+                  <div style="text-align:center;padding:8px;color:#999;">⏳ 等待优化</div>
+                </template>
+                <!-- 完成 -->
+                <template v-else>
+                  <div class="scheme-body">
+                    <div v-for="(val, key) in p.metrics" :key="key" class="scheme-metric">
+                      <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                      <div class="scheme-metric-value">{{ val }}</div>
+                    </div>
+                    <div class="scheme-metric">
+                      <button class="select-btn" :disabled="selectedSchemeIdx === i" @click="selectedSchemeIdx = i">
+                        {{ selectedSchemeIdx === i ? '✓已选' : '选择' }}
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- 推荐方案说明 -->
+          <div v-if="askHumanRequest.context?.recommendation" class="recommendation">
+            ★ 推荐方案：{{ askHumanRequest.context.recommendation }}
+          </div>
+
+          <!-- 问题文字 -->
+          <p class="question-text">{{ askHumanRequest.question }}</p>
+
+          <!-- 选项模式 -->
+          <template v-if="askHumanRequest.options?.length">
+            <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+              <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
+            </ARadioGroup>
+          </template>
+
+          <!-- 自由文本模式 -->
+          <template v-else>
+            <ATextarea v-model:value="answer" :rows="3" placeholder="请输入您的回答" style="margin-bottom:12px;" />
+          </template>
+
+          <AButton
+            type="primary"
+            :disabled="askHumanRequest.context?.proposals?.length ? schemeAnimState.some(s => s !== 'completed') : !answer"
+            @click="submitAnswer"
+          >
+            {{ askHumanRequest.context?.proposals?.length ? '✅ 确认选择' : '确认提交' }}
+          </AButton>
+        </template>
+
+        <!-- 无 ask_human 时显示子进度 -->
+        <template v-else>
+          <!-- 交互历史记录 -->
+          <div v-if="interactionHistory.length" class="interaction-history">
+            <div v-for="(item, i) in interactionHistory" :key="i" class="history-item">
+              <div class="history-q">🔔 {{ item.question }}</div>
+              <div class="history-a">✅ 您的回答：{{ item.answer }} <span class="history-time">{{ item.time }}</span></div>
+            </div>
+          </div>
+          <template v-if="progressData">
+            <div class="sub-stage-title">
+              {{ getStageLabel(progressData.stage) }}
+              <span class="sub-pct">{{ Math.round(progressData.progress * 100) }}%</span>
+            </div>
+            <AProgress
+              :percent="Math.round(progressData.progress * 100)"
+              :stroke-color="{ '0%': '#108ee9', '100%': '#87d068' }"
+              :status="progressData.progress >= 1 ? 'success' : 'active'"
+            />
+            <div class="sub-message">{{ progressData.message }}</div>
+          </template>
+          <template v-else>
+            <div style="color:#999; padding:20px 0;">等待任务开始...</div>
+          </template>
+        </template>
+      </div>
+
+      <!-- 右侧：设计状态面板 -->
+      <div class="right-panel">
+        <div class="panel-header">
+          <span>📊 设计状态</span>
+          <span v-if="viewingStage" class="history-badge">📜 历史 - {{ getStageLabel(viewingStage) }}</span>
+          <span v-else class="live-badge">📍 当前进度</span>
+        </div>
+        <div v-if="viewingStage && snapshots[viewingStage]" class="snapshot-time">
+          ⏱️ {{ snapshots[viewingStage].timestamp }}
+        </div>
+
+        <div class="params-content">
+          <template v-if="displayStage === 'design_proposal'">
+            <div class="param-card">
+              <div class="param-title">📐 设计需求</div>
+              <div style="font-size:13px; color:#555; line-height:1.5;">{{ displayParams?.designDescription || '未填写' }}</div>
+            </div>
+          </template>
+
+          <template v-else-if="displayStage === 'fe_analysis'">
+            <div class="param-card">
+              <div class="param-title">🔬 有限元分析结果</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">最大应力</span><span class="param-value" :class="{ warning: (displayParams?.maxStress ?? 0) > 235 }">{{ displayParams?.maxStress != null ? displayParams.maxStress + ' MPa' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">最大挠度</span><span class="param-value">{{ displayParams?.maxDeflection != null ? displayParams.maxDeflection + ' mm' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">安全系数</span><span class="param-value">{{ displayParams?.safetyFactor ?? '—' }}</span></div>
+                <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="displayParams?.complianceStatus === 'compliant' ? 'success' : 'warning'">{{ displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—' }}</span></div>
+              </div>
+              <div v-if="displayParams?.violations?.length" class="violations">
+                <div v-for="(v, i) in displayParams.violations" :key="i" class="violation-item">🔴 {{ typeof v === 'string' ? v : (v.description || '') }}</div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="displayStage === 'evaluation'">
+            <div class="param-card">
+              <div class="param-title">📊 综合评估得分</div>
+              <div class="score-grid">
+                <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.safetyScore) }">{{ displayParams?.safetyScore ?? '—' }}</div><div class="score-label">安全性</div></div>
+                <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.economyScore) }">{{ displayParams?.economyScore ?? '—' }}</div><div class="score-label">经济性</div></div>
+                <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.overallScore) }">{{ displayParams?.overallScore ?? '—' }}</div><div class="score-label">综合</div></div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="displayStage === 'cad_drawing'">
+            <div class="param-card">
+              <div class="param-title">✏️ CAD绘图</div>
+              <div class="param-value" :class="displayParams?.drawingStatus === 'completed' ? 'success' : ''">
+                {{ displayParams?.drawingStatus === 'completed' ? '✅ DXF已生成' : displayParams?.drawingStatus === 'skipped' ? '⏭ 已跳过' : '⏳ 等待中' }}
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="displayStage === 'report_generation'">
+            <div class="param-card">
+              <div class="param-title">🏗️ BIM导出</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">Speckle</span><span class="param-value" :class="displayParams?.speckleExported ? 'success' : ''">{{ displayParams?.speckleExported ? '✅ 已导出' : '⏸ 未导出' }}</span></div>
+                <div class="param-item"><span class="param-label">IFC</span><span class="param-value" :class="displayParams?.ifcExported ? 'success' : ''">{{ displayParams?.ifcExported ? '✅ 已生成' : '⏸ 未生成' }}</span></div>
+              </div>
+            </div>
+            <div class="param-card">
+              <div class="param-title">📄 报告</div>
+              <div class="param-value" :class="displayParams?.reportStatus === 'completed' ? 'success' : ''">{{ displayParams?.reportStatus === 'completed' ? '✅ 已生成' : '⏳ 生成中' }}</div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="param-card" style="text-align:center; color:#999; padding:20px;">等待任务开始...</div>
+          </template>
+        </div>
+
+        <div v-if="viewingStage" class="back-btn-wrap">
+          <AButton size="small" @click="viewingStage = null">← 返回当前进度</AButton>
+        </div>
+      </div>
+    </div>
+  </ACard>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, reactive } from 'vue';
+import { Card as ACard, Progress as AProgress, Button as AButton, Radio as ARadio, RadioGroup as ARadioGroup, Input, Tag as ATag, Table as ATable } from 'ant-design-vue';
+import { getStageLabel } from '#/utils/i18n';
+
+const ATextarea = Input.TextArea;
+
+const props = defineProps<{
+  stages: any[];
+  progressData: any | null;
+  taskParams: any | null;
+  askHumanRequest: any | null;
+}>();
+
+const emit = defineEmits<{ submit: [answer: string] }>();
+
+const steps = [
+  { key: 'design_proposal', label: '设计方案', icon: '📋' },
+  { key: 'fe_analysis', label: '有限元分析', icon: '🔬' },
+  { key: 'evaluation', label: '设计评估', icon: '📊' },
+  { key: 'cad_drawing', label: 'CAD绘图', icon: '✏️' },
+  { key: 'report_generation', label: 'BIM/报告', icon: '🏗️' },
+];
+
+const answer = ref('');
+const snapshots = reactive<Record<string, any>>({});
+const viewingStage = ref<string | null>(null);
+const interactionHistory = ref<{ question: string; answer: string; time: string }[]>([]);
+
+// 多方案动画状态
+const schemeAnimState = ref<string[]>([]);  // 'pending' | 'optimizing' | 'completed'
+const schemeProgress = ref<number[]>([]);
+const selectedSchemeIdx = ref<number>(-1);
+
+const metricLabels: Record<string, string> = {
+  section: '截面(m)', material: '材料', stress: '应力(MPa)',
+  displacement: '位移(mm)', safety: '安全性', economy: '经济性',
+  total_score: '综合得分', grade: '等级',
+};
+
+// 当 ask_human 包含 proposals 时，触发逐个动画
+watch(() => props.askHumanRequest, (req) => {
+  answer.value = req?.default || (req?.options?.[0] ?? '');
+  if (req?.context?.proposals?.length) {
+    const n = req.context.proposals.length;
+    schemeAnimState.value = Array(n).fill('pending');
+    schemeProgress.value = Array(n).fill(0);
+    // 找推荐方案作为默认选中
+    const recIdx = req.context.proposals.findIndex((p: any) => p.recommended);
+    selectedSchemeIdx.value = recIdx >= 0 ? recIdx : 0;
+    // 逐个播放动画
+    animateScheme(0, n);
+  }
+});
+
+function animateScheme(idx: number, total: number) {
+  if (idx >= total) return;
+  schemeAnimState.value[idx] = 'optimizing';
+  schemeProgress.value[idx] = 0;
+  const interval = setInterval(() => {
+    schemeProgress.value[idx] = Math.min(schemeProgress.value[idx] + 8, 100);
+    if (schemeProgress.value[idx] >= 100) {
+      clearInterval(interval);
+      schemeAnimState.value[idx] = 'completed';
+      setTimeout(() => animateScheme(idx + 1, total), 150);
+    }
+  }, 30);
+}
+
+watch(() => props.stages, (newStages) => {
+  for (const s of newStages) {
+    if ((s.status === 'completed' || s.status === 'skipped') && !snapshots[s.stage]) {
+      snapshots[s.stage] = {
+        timestamp: new Date().toLocaleTimeString(),
+        data: s.data || null,  // 使用后端携带的阶段数据
+      };
+    }
+  }
+}, { deep: true });
+
+const latestByStage = computed(() => {
+  const map: Record<string, any> = {};
+  for (const s of props.stages) map[s.stage] = s;
+  return map;
+});
+
+const activeStage = computed(() => {
+  let last = '';
+  for (const step of steps) { if (latestByStage.value[step.key]) last = step.key; }
+  return last;
+});
+
+const displayStage = computed(() => viewingStage.value || activeStage.value);
+const displayParams = computed(() => {
+  if (viewingStage.value && snapshots[viewingStage.value]) {
+    const d = snapshots[viewingStage.value].data;
+    if (!d) return null;
+    // 将后端 stage data 字段映射为面板期望的字段名
+    return {
+      // design_proposal
+      designDescription: d.description,
+      designType: d.type,
+      geometry: d.geometry,
+      material: d.material,
+      // fe_analysis
+      maxStress: d.max_stress_MPa,
+      maxDeflection: d.max_displacement_mm,
+      safetyFactor: d.safety_factor,
+      complianceStatus: d.compliant === true ? 'compliant' : d.compliant === false ? 'non_compliant' : null,
+      violations: d.violations,
+      // evaluation
+      overallScore: d.comprehensive_score,
+      safetyScore: d.safety_score,
+      economyScore: d.economy_score,
+      grade: d.grade,
+      warnings: d.warnings,
+      // cad_drawing
+      drawingStatus: d.status,
+      drawingFiles: d.files,
+      // report_generation
+      reportStatus: d.report_status,
+      speckleExported: d.speckle_exported,
+      ifcExported: d.ifc_exported,
+    };
+  }
+  return props.taskParams;
+});
+
+const getStageStatus = (key: string) => latestByStage.value[key]?.status || 'pending';
+
+const getStepClass = (key: string) => ({
+  completed: getStageStatus(key) === 'completed',
+  active: getStageStatus(key) === 'started' || getStageStatus(key) === 'running',
+  failed: getStageStatus(key) === 'failed',
+  skipped: getStageStatus(key) === 'skipped',
+  viewing: viewingStage.value === key,
+  clickable: !!latestByStage.value[key],
+});
+
+const statusTextMap: Record<string, string> = { completed: '✅ 完成', started: '⏳ 进行中', running: '⏳ 进行中', failed: '❌ 失败', skipped: '⏭ 跳过' };
+const getStepStatusText = (key: string) => statusTextMap[getStageStatus(key)] || '⏸ 等待';
+
+const onStepClick = (key: string) => {
+  if (latestByStage.value[key]) viewingStage.value = viewingStage.value === key ? null : key;
+};
+
+const getScoreColor = (score: number | null) => {
+  if (score == null) return '#999';
+  return score >= 80 ? '#52c41a' : score >= 70 ? '#faad14' : '#f5222d';
+};
+
+const getGradeColor = (grade: string) => {
+  if (!grade) return 'default';
+  if (grade.startsWith('A')) return 'green';
+  if (grade.startsWith('B')) return 'blue';
+  if (grade.startsWith('C')) return 'orange';
+  return 'red';
+};
+
+const proposalColumns = computed(() => {
+  if (!props.askHumanRequest?.context?.proposals?.length) return [];
+  const metrics = props.askHumanRequest.context.proposals[0]?.metrics || {};
+  const metricLabels: Record<string, string> = { section: '截面(m)', material: '材料', stress: '应力(MPa)', displacement: '位移(mm)', safety: '安全性', economy: '经济性', total_score: '综合得分', grade: '等级' };
+  return [
+    { title: '方案', key: 'name', dataIndex: 'name', width: 100 },
+    ...Object.keys(metrics).map(k => ({ title: metricLabels[k] || k, key: k, dataIndex: ['metrics', k], width: 100 })),
+  ];
+});
+
+const submitAnswer = () => {
+  let submitted = '';
+  if (props.askHumanRequest?.context?.proposals?.length) {
+    submitted = String(selectedSchemeIdx.value);
+  } else {
+    if (!answer.value) return;
+    submitted = answer.value.split(' - ')[0].trim();
+  }
+  // 保存交互记录
+  interactionHistory.value.push({
+    question: props.askHumanRequest?.question || '',
+    answer: submitted,
+    time: new Date().toLocaleTimeString(),
+  });
+  emit('submit', submitted);
+  answer.value = '';
+};
+</script>
+
+<style scoped>
+.progress-panel { margin-bottom: 12px; }
+
+.steps-nav {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 8px 20px;
+  overflow-x: auto;
+}
+
+.step-item {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  cursor: default;
+  min-width: 80px;
+}
+.step-item.clickable { cursor: pointer; }
+.step-item.clickable:hover .step-icon { transform: scale(1.08); }
+
+.step-icon {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 3px solid #dee2e6;
+  background: white;
+  margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  transition: all 0.3s;
+}
+.step-item.completed .step-icon { border-color: #52c41a; background: #f6ffed; }
+.step-item.active .step-icon { border-color: #1890ff; animation: pulse 2s infinite; }
+.step-item.failed .step-icon { border-color: #f5222d; background: #fff1f0; }
+.step-item.skipped .step-icon { border-color: #d9d9d9; background: #f5f5f5; opacity: 0.6; }
+.step-item.viewing .step-icon { box-shadow: 0 0 0 3px rgba(23,162,184,0.4); }
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(24,144,255,0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(24,144,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(24,144,255,0); }
+}
+
+.step-title { font-size: 12px; font-weight: 600; color: #495057; margin-bottom: 2px; }
+.step-status { font-size: 11px; color: #6c757d; }
+
+.step-connector {
+  position: absolute; top: 24px; right: -50%;
+  width: 100%; height: 2px; background: #dee2e6; z-index: 0;
+}
+
+.main-body {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0;
+  border-top: 1px solid #f0f0f0;
+  min-height: 180px;
+}
+
+.left-panel { padding: 16px; border-right: 1px solid #f0f0f0; }
+
+.preview-box { margin-bottom: 16px; text-align: center; background: #f0f7ff; padding: 16px; border-radius: 8px; }
+
+.warnings-list { margin-bottom: 12px; }
+.violation-item { font-size: 13px; color: #fa8c16; padding: 3px 0; }
+
+.score-summary { margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; }
+
+.recommendation { margin-bottom: 12px; padding: 10px 12px; background: #e6f7ff; border-left: 4px solid #1890ff; border-radius: 4px; font-size: 13px; color: #333; }
+
+.question-text { font-size: 16px; font-weight: 500; color: #1890ff; margin-bottom: 16px; white-space: pre-wrap; }
+
+.sub-stage-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; display: flex; justify-content: space-between; }
+.sub-pct { color: #1890ff; }
+.sub-message { margin-top: 8px; font-size: 13px; color: #666; }
+
+.right-panel { padding: 12px 16px; background: #fafafa; }
+
+.panel-header { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+.history-badge { font-size: 11px; background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; }
+.live-badge { font-size: 11px; background: #e9ecef; color: #6c757d; padding: 2px 8px; border-radius: 10px; }
+.snapshot-time { font-size: 11px; color: #6c757d; margin-bottom: 8px; }
+
+.params-content { margin-top: 8px; }
+.param-card { background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.param-title { font-size: 12px; font-weight: 600; color: #495057; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.param-item { display: flex; flex-direction: column; gap: 2px; }
+.param-label { font-size: 11px; color: #999; }
+.param-value { font-size: 13px; color: #333; font-weight: 500; }
+.param-value.success { color: #52c41a; }
+.param-value.warning { color: #faad14; }
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.score-num { font-size: 26px; font-weight: bold; }
+.score-label { font-size: 12px; color: #666; }
+.violations { margin-top: 8px; }
+.back-btn-wrap { margin-top: 8px; text-align: center; }
+
+@media (max-width: 768px) {
+  .main-body { grid-template-columns: 1fr; }
+  .left-panel { border-right: none; border-bottom: 1px solid #f0f0f0; }
+}
+
+.interaction-history { margin-bottom: 12px; }
+.history-item { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+.history-q { font-size: 12px; color: #666; margin-bottom: 4px; }
+.history-a { font-size: 13px; color: #389e0d; font-weight: 500; }
+.history-time { font-size: 11px; color: #999; margin-left: 8px; }
+
+.ask-human-banner {  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #d46b08;
+  font-weight: 600;
+  margin-bottom: 12px;
+  animation: pulse-banner 1.5s ease-in-out infinite;
+}
+@keyframes pulse-banner {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.schemes-container { display: flex; flex-direction: column; gap: 8px; }
+
+.scheme-card {
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: all 0.3s;
+}
+.scheme-card.optimizing { border-color: #1890ff; background: #f0f7ff; }
+.scheme-card.completed { border-color: #d9d9d9; }
+.scheme-card.selected { border-color: #52c41a; background: #f6ffed; }
+
+.scheme-header-card { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.scheme-name { font-size: 13px; font-weight: 600; }
+.scheme-badge { font-size: 11px; background: #faad14; color: white; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+
+.optimizing-text { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1890ff; margin-bottom: 6px; }
+.spinner-small {
+  width: 14px; height: 14px;
+  border: 2px solid #d9d9d9;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress-bar-container { height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #108ee9, #87d068); transition: width 0.05s linear; }
+
+.scheme-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+.scheme-metric { text-align: center; }
+.scheme-metric-label { font-size: 11px; color: #999; }
+.scheme-metric-value { font-size: 12px; font-weight: 600; color: #333; }
+
+.select-btn {
+  padding: 3px 10px; border-radius: 4px; border: 1px solid #1890ff;
+  background: white; color: #1890ff; cursor: pointer; font-size: 12px;
+}
+.select-btn:disabled { border-color: #52c41a; color: #52c41a; cursor: default; }
+</style>

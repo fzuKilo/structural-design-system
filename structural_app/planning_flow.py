@@ -200,7 +200,7 @@ class PlanningFlow:
                 if hasattr(tool_collection, '__tools_map__'):
                     tool_collection.__tools_map__['ask_human'] = web_ask_human
 
-    async def _broadcast_stage(self, stage: str, status: str, message: str = ""):
+    async def _broadcast_stage(self, stage: str, status: str, message: str = "", data: dict = None):
         """
         Broadcast stage update via WebSocket
 
@@ -208,13 +208,41 @@ class PlanningFlow:
             stage: Stage name (design_proposal, fe_analysis, evaluation, cad_drawing, report_generation)
             status: Status (started, completed, failed)
             message: Optional message
+            data: Optional stage result data for frontend snapshots
+        """
+        if self.websocket_callback:
+            from datetime import datetime
+            payload = {
+                "type": "stage",
+                "stage": stage,
+                "status": status,
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            }
+            if data:
+                payload["data"] = data
+            await self.websocket_callback(payload)
+
+    async def _broadcast_progress(self, stage: str, current: int, total: int, sub_stage: str, message: str):
+        """
+        Broadcast detailed progress update via WebSocket
+
+        Args:
+            stage: Stage name (design_proposal, fe_analysis, etc.)
+            current: Current step number
+            total: Total steps in this stage
+            sub_stage: Sub-stage identifier
+            message: Progress message
         """
         if self.websocket_callback:
             from datetime import datetime
             await self.websocket_callback({
-                "type": "stage",
+                "type": "progress",
                 "stage": stage,
-                "status": status,
+                "current": current,
+                "total": total,
+                "sub_stage": sub_stage,
+                "progress": current / total if total > 0 else 0,
                 "message": message,
                 "timestamp": datetime.now().isoformat()
             })
@@ -692,7 +720,9 @@ class PlanningFlow:
             print("-" * 40)
 
         await self._broadcast_stage("design_proposal", "started", "开始生成设计方案")
+        await self._broadcast_progress("design_proposal", 0, 3, "initializing", "正在初始化设计参数...")
         design_result = await self.design_agent.run(request)
+        await self._broadcast_progress("design_proposal", 2, 3, "generating", "正在生成设计方案...")
 
         # 检测用户取消：Agent 调用 terminate 后返回的字符串中包含终止信号
         if self._is_agent_cancelled(design_result):
@@ -715,7 +745,12 @@ class PlanningFlow:
         if verbose and self.results["design_proposal"]:
             print(f"[OK] Design proposal created: {self.results['design_proposal'].get('type')}")
 
-        await self._broadcast_stage("design_proposal", "completed", "设计方案生成完成")
+        await self._broadcast_stage("design_proposal", "completed", "设计方案生成完成", data={
+            "type": self.results["design_proposal"].get("type"),
+            "description": self.results["design_proposal"].get("description", ""),
+            "geometry": self.results["design_proposal"].get("geometry", {}),
+            "material": self.results["design_proposal"].get("material", {}),
+        })
 
         # Create output directory with structure type name
         structure_type = self.results["design_proposal"].get("type", "unknown") if self.results["design_proposal"] else "unknown"
@@ -755,9 +790,12 @@ class PlanningFlow:
             print("-" * 40)
 
         await self._broadcast_stage("fe_analysis", "started", "开始有限元分析")
+        await self._broadcast_progress("fe_analysis", 0, 4, "building_model", "正在构建有限元模型...")
         analysis_request = self._build_analysis_request(self.results["design_proposal"])
         self.analysis_agent.output_dir = str(self.main_output_dir)
+        await self._broadcast_progress("fe_analysis", 1, 4, "analyzing", "正在进行结构分析...")
         analysis_result = await self.analysis_agent.run(analysis_request)
+        await self._broadcast_progress("fe_analysis", 3, 4, "solving", "正在求解位移和内力...")
 
         if analysis_result == "__CANCELLED__":
             print("\n[PlanningFlow] 用户取消了模型确认，工作流终止。")
@@ -769,7 +807,13 @@ class PlanningFlow:
             status = self.results['analysis_results'].get('status', 'unknown')
             print(f"[OK] FE analysis completed: {status}")
 
-        await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成")
+        await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成", data={
+            "max_stress_MPa": self.results["analysis_results"].get("results", {}).get("max_stress_MPa"),
+            "max_displacement_mm": self.results["analysis_results"].get("results", {}).get("max_displacement_mm"),
+            "safety_factor": self.results["analysis_results"].get("results", {}).get("safety_factor"),
+            "compliant": self.results["analysis_results"].get("code_check", {}).get("compliant"),
+            "violations": self.results["analysis_results"].get("code_check", {}).get("violations", []),
+        })
 
         # Export OpenSees script for expert review
         if self.results.get("analysis_results") and self.results["analysis_results"].get("status") == "success":
@@ -913,10 +957,12 @@ class PlanningFlow:
             print("-" * 40)
 
         await self._broadcast_stage("evaluation", "started", "开始设计评估")
+        await self._broadcast_progress("evaluation", 0, 2, "analyzing", "正在分析设计质量...")
         self.results["evaluation_report"] = await self._run_evaluation(
             self.results["design_proposal"],
             self.results["analysis_results"]
         )
+        await self._broadcast_progress("evaluation", 1, 2, "grading", "正在计算综合评分...")
 
         if verbose and self.results["evaluation_report"]:
             status = self.results['evaluation_report'].get('status', 'unknown')
@@ -924,7 +970,16 @@ class PlanningFlow:
             score = self.results['evaluation_report'].get('comprehensive_score', 0)
             print(f"[OK] Evaluation completed: {status}, Grade: {grade}, Score: {score}")
 
-        await self._broadcast_stage("evaluation", "completed", "设计评估完成")
+        await self._broadcast_stage("evaluation", "completed", "设计评估完成", data={
+            "comprehensive_score": self.results["evaluation_report"].get("comprehensive_score"),
+            "grade": self.results["evaluation_report"].get("grade"),
+            "safety_score": self.results["evaluation_report"].get("dimensions", {}).get("safety", {}).get("score"),
+            "economy_score": self.results["evaluation_report"].get("dimensions", {}).get("economy", {}).get("score"),
+            "warnings": self.results["evaluation_report"].get("warnings", []),
+            "design_type": self.results["design_proposal"].get("type"),
+            "geometry": self.results["design_proposal"].get("geometry", {}),
+            "material": self.results["design_proposal"].get("material", {}),
+        })
 
         # Step 3.5: Evaluation Alert（预警与优化决策）
         self.skip_drawing = False
@@ -965,11 +1020,14 @@ class PlanningFlow:
                 print("-" * 40)
 
             await self._broadcast_stage("cad_drawing", "started", "开始生成CAD图纸")
+            await self._broadcast_progress("cad_drawing", 0, 3, "preparing", "正在准备绘图数据...")
             drawing_request = self._build_drawing_request(
                 self.results["design_proposal"],
                 self.results["analysis_results"]
             )
+            await self._broadcast_progress("cad_drawing", 1, 3, "drawing", "正在绘制CAD图纸...")
             drawing_result = await self.drawing_agent.run(drawing_request)
+            await self._broadcast_progress("cad_drawing", 2, 3, "generating", "正在生成DXF文件...")
             self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
 
             if verbose:
@@ -980,11 +1038,15 @@ class PlanningFlow:
                     print(f"[WARNING] Failed to extract drawing results from response")
                     print(f"[DEBUG] Drawing agent response (first 500 chars): {str(drawing_result)[:500]}")
 
-            await self._broadcast_stage("cad_drawing", "completed", "CAD图纸生成完成")
+            await self._broadcast_stage("cad_drawing", "completed", "CAD图纸生成完成", data={
+                "status": self.results["drawing_results"].get("status"),
+                "files": list(self.results["drawing_results"].get("files", {}).keys()),
+            })
         else:
             if verbose:
                 print()
                 print("Step 4: 跳过绘图（report_only 模式）")
+            await self._broadcast_stage("cad_drawing", "skipped", "CAD绘图已跳过（仅生成报告模式）")
             self.results["drawing_results"] = {"status": "skipped", "files": {}}
 
         # Step 5: BIM/IFC Export + Report Generation
@@ -994,9 +1056,11 @@ class PlanningFlow:
             print("-" * 40)
 
         await self._broadcast_stage("report_generation", "started", "开始生成报告")
+        await self._broadcast_progress("report_generation", 0, 3, "collecting", "正在收集设计数据...")
 
         # 5.1: BIM/IFC Export (unless report_only mode)
         if not self.skip_drawing:
+            await self._broadcast_progress("report_generation", 1, 3, "exporting", "正在导出BIM/IFC模型...")
             bim_result, ifc_result = await self._run_bim_and_ifc_export(verbose)
             self.results["bim_results"] = bim_result
             self.results["ifc_results"] = ifc_result
@@ -1010,6 +1074,7 @@ class PlanningFlow:
         if verbose:
             print("Step 5.2: Generating comprehensive report...")
 
+        await self._broadcast_progress("report_generation", 2, 3, "writing", "正在编写报告文档...")
         report_request = self._build_report_request(
             self.results["design_proposal"],
             self.results["analysis_results"],
@@ -1026,7 +1091,11 @@ class PlanningFlow:
             status = self.results['report_results'].get('status', 'unknown')
             print(f"[OK] Report generated: {status}")
 
-        await self._broadcast_stage("report_generation", "completed", "报告生成完成")
+        await self._broadcast_stage("report_generation", "completed", "报告生成完成", data={
+            "report_status": self.results["report_results"].get("status") if self.results.get("report_results") else None,
+            "speckle_exported": self.results.get("bim_results", {}).get("status") == "success" if self.results.get("bim_results") else False,
+            "ifc_exported": self.results.get("ifc_results", {}).get("status") == "success" if self.results.get("ifc_results") else False,
+        })
 
         if verbose:
             print()
@@ -1332,14 +1401,16 @@ class PlanningFlow:
             return original_design, original_analysis, original_evaluation
 
         candidates = []
+        total = len(candidate_designs)
         for i, new_design in enumerate(candidate_designs):
             if verbose:
-                print(f"\n[优化] 正在评估候选方案 {i+1}/{len(candidate_designs)}...")
+                print(f"\n[优化] 正在评估候选方案 {i+1}/{total}...")
             if new_design == original_design:
                 if verbose:
                     print(f"[优化] 方案{i+1}未产生变化，跳过")
                 continue
 
+            await self._broadcast_progress("evaluation", i, total, f"scheme_{i+1}_analyzing", f"正在分析候选方案 {i+1}/{total}...")
             analysis_req = self._build_analysis_request(new_design)
             analysis_resp = await self.analysis_agent.run(
                 analysis_req,
@@ -1360,6 +1431,26 @@ class PlanningFlow:
             score = new_evaluation.get("comprehensive_score", 0)
             if verbose:
                 print(f"[优化] 方案{i+1}得分：{score:.1f}")
+            await self._broadcast_progress("evaluation", i + 1, total, f"scheme_{i+1}_done", f"方案 {i+1}/{total} 分析完成，得分：{score:.1f}")
+            # 实时推送该方案数据给前端
+            if self.websocket_callback:
+                from datetime import datetime
+                results_data = new_analysis.get("results", {})
+                dims = new_evaluation.get("dimensions", {})
+                await self.websocket_callback({
+                    "type": "scheme_ready",
+                    "index": i + 1,
+                    "total": total,
+                    "metrics": {
+                        "stress": f"{results_data.get('max_stress_MPa', 0):.1f}",
+                        "displacement": f"{results_data.get('max_displacement_mm', 0):.1f}",
+                        "safety": f"{dims.get('safety', {}).get('score', 0):.1f}",
+                        "economy": f"{dims.get('economy', {}).get('score', 0):.1f}",
+                        "total_score": f"{score:.1f}",
+                        "grade": new_evaluation.get("grade", "N/A"),
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                })
             candidates.append((new_design, new_analysis, new_evaluation))
 
         if not candidates:
