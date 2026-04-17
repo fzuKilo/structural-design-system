@@ -65,10 +65,82 @@ const loadTask = async () => {
         errorMessage.value = task.value.error;
       }
     }
+    // 任务完成后从 result_json 重建 stages，保留所有阶段数据
+    if ((task.value?.status === 'success' || task.value?.status === 'failed') && stages.value.length === 0) {
+      rebuildStagesFromResult(task.value);
+    }
   } catch (error) {
     message.error('加载任务详情失败');
     errorMessage.value = '加载任务详情失败，请刷新页面重试';
   }
+};
+
+// 从 result_json.raw 重建 stages，让 ProgressBar 的 snapshot 机制正常工作
+const rebuildStagesFromResult = (t: any) => {
+  const raw = t?.result_json?.raw || {};
+  const stageMap: Record<string, any> = {
+    design_proposal: raw.design_proposal,
+    fe_analysis: raw.analysis_results,
+    evaluation: raw.evaluation_report,
+    cad_drawing: raw.drawing_results,
+    report_generation: raw.report_results,
+  };
+  const rebuilt: any[] = [];
+  for (const [stageName, data] of Object.entries(stageMap)) {
+    if (!data) continue;
+    // 将 raw 数据映射为 ProgressBar snapshot 期望的字段格式
+    const mappedData = mapRawToSnapshotData(stageName, data);
+    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mappedData });
+  }
+  if (rebuilt.length > 0) stages.value = rebuilt;
+};
+
+// 将 result_json.raw 各阶段数据映射为 snapshot 期望的字段
+const mapRawToSnapshotData = (stage: string, raw: any): any => {
+  if (stage === 'design_proposal') {
+    return {
+      type: raw.type,
+      description: raw.description || '',
+      geometry: raw.geometry || {},
+      material: raw.material || {},
+      standards: raw.standards || [],
+    };
+  }
+  if (stage === 'fe_analysis') {
+    const results = raw.results || {};
+    const check = raw.code_check || {};
+    return {
+      max_stress_MPa: results.max_stress_MPa,
+      max_displacement_mm: results.max_displacement_mm,
+      safety_factor: check.safety_factors?.stress,
+      compliant: check.compliant,
+      violations: check.violations || [],
+    };
+  }
+  if (stage === 'evaluation') {
+    const dims = raw.dimensions || {};
+    return {
+      comprehensive_score: raw.comprehensive_score,
+      safety_score: dims.safety?.score,
+      economy_score: dims.economy?.score,
+      efficiency_score: dims.structural_efficiency?.score,
+      sustainability_score: dims.sustainability?.score,
+      grade: raw.grade,
+      warnings: raw.warnings || [],
+    };
+  }
+  if (stage === 'cad_drawing') {
+    return {
+      status: raw.status,
+      files: raw.files ? Object.values(raw.files) : [],
+    };
+  }
+  if (stage === 'report_generation') {
+    return {
+      report_status: raw.status || 'completed',
+    };
+  }
+  return raw;
 };
 
 const wsReconnectInfo = ref<{ attempt: number; delay: number } | null>(null);
