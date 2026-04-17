@@ -97,6 +97,7 @@ class PlanningFlow:
         self.websocket_callback = websocket_callback
         self.task_id = task_id
         self.redis_url = redis_url
+        self._current_stage = "unknown"  # 追踪当前阶段
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -201,15 +202,8 @@ class PlanningFlow:
                     tool_collection.__tools_map__['ask_human'] = web_ask_human
 
     async def _broadcast_stage(self, stage: str, status: str, message: str = "", data: dict = None):
-        """
-        Broadcast stage update via WebSocket
-
-        Args:
-            stage: Stage name (design_proposal, fe_analysis, evaluation, cad_drawing, report_generation)
-            status: Status (started, completed, failed)
-            message: Optional message
-            data: Optional stage result data for frontend snapshots
-        """
+        """Broadcast stage update via WebSocket"""
+        self._current_stage = stage  # 追踪当前阶段，供 _ask_web_or_cli 使用
         if self.websocket_callback:
             from datetime import datetime
             payload = {
@@ -1326,13 +1320,13 @@ class PlanningFlow:
 
         if self.websocket_callback and self.task_id:
             import redis as redis_lib
+            from datetime import datetime
             message = {
                 "type": "ask_human",
                 "question": question,
                 "options": options,
                 "default": default,
             }
-            # Add context if provided
             if context:
                 message["context"] = context
 
@@ -1340,14 +1334,24 @@ class PlanningFlow:
             redis_key = f"ask_human:{self.task_id}"
             client = redis_lib.from_url(self.redis_url, decode_responses=True)
             try:
-                timeout = 300
+                timeout = 1800
                 elapsed = 0
                 while elapsed < timeout:
                     answer = client.get(redis_key)
                     if answer is not None:
                         client.delete(redis_key)
                         answer = answer.strip().lower()
-                        return mapping.get(answer, default) if mapping else answer
+                        final = mapping.get(answer, default) if mapping else answer
+                        # 记录交互历史
+                        if "interaction_history" not in self.results:
+                            self.results["interaction_history"] = []
+                        self.results["interaction_history"].append({
+                            "stage": self._current_stage or "unknown",
+                            "question": question,
+                            "answer": final,
+                            "time": datetime.now().strftime("%H:%M:%S"),
+                        })
+                        return final
                     await asyncio.sleep(1)
                     elapsed += 1
             finally:

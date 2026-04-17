@@ -218,6 +218,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 "evaluation": result.get("evaluation_report"),
                 "bim_url": (result.get("bim_results") or {}).get("url") or (result.get("bim_results") or {}).get("embed_url"),
                 "ifc_path": (result.get("ifc_results") or {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", "") if (result.get("ifc_results") or {}).get("path") else "",
+                "interaction_history": result.get("interaction_history", []),
                 "raw": result
             }
 

@@ -68,8 +68,7 @@ const loadTask = async () => {
     // 任务完成后从 result_json 重建 stages，保留所有阶段数据
     if ((task.value?.status === 'success' || task.value?.status === 'failed') && stages.value.length === 0) {
       rebuildStagesFromResult(task.value);
-    }
-  } catch (error) {
+    }  } catch (error) {
     message.error('加载任务详情失败');
     errorMessage.value = '加载任务详情失败，请刷新页面重试';
   }
@@ -284,6 +283,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         :task-params="taskParams"
         :ask-human-request="askHumanRequest"
         :scheme-updates="schemeUpdates"
+        :saved-interaction-history="task.result_json?.interaction_history || []"
         class="mb-3"
         @submit="handleAskHumanSubmit"
       />

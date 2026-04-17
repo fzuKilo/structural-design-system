@@ -371,6 +371,7 @@ const props = defineProps<{
   taskParams: any | null;
   askHumanRequest: any | null;
   schemeUpdates: any[];
+  savedInteractionHistory: { stage: string; question: string; answer: string; time: string }[];
 }>();
 
 const emit = defineEmits<{ submit: [answer: string] }>();
@@ -388,6 +389,19 @@ const snapshots = reactive<Record<string, any>>({});
 const viewingStage = ref<string | null>(null);
 // 交互历史按阶段存储，key 为 stage name
 const interactionHistoryByStage = reactive<Record<string, { question: string; answer: string; time: string }[]>>({});
+
+// 从持久化历史初始化（任务完成后刷新页面时恢复）
+watch(() => props.savedInteractionHistory, (history) => {
+  if (!history?.length) return;
+  for (const item of history) {
+    if (!interactionHistoryByStage[item.stage]) interactionHistoryByStage[item.stage] = [];
+    // 避免重复添加
+    const exists = interactionHistoryByStage[item.stage].some(
+      h => h.question === item.question && h.answer === item.answer
+    );
+    if (!exists) interactionHistoryByStage[item.stage].push({ question: item.question, answer: item.answer, time: item.time });
+  }
+}, { immediate: true });
 
 // 当前阶段的交互历史（用于实时显示）
 const currentInteractionHistory = computed(() => {
