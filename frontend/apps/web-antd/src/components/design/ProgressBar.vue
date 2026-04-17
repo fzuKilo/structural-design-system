@@ -547,7 +547,12 @@ const getGradeColor = (grade: string) => {
 const proposalColumns = computed(() => {
   if (!props.askHumanRequest?.context?.proposals?.length) return [];
   const metrics = props.askHumanRequest.context.proposals[0]?.metrics || {};
-  const metricLabels: Record<string, string> = { section: '截面(m)', material: '材料', stress: '应力(MPa)', displacement: '位移(mm)', safety: '安全性', economy: '经济性', total_score: '综合得分', grade: '等级' };
+  const metricLabels: Record<string, string> = {
+    section: '截面', material: '材料',
+    stress: '最大应力', displacement: '最大挠度',
+    safety: '安全性', economy: '经济性',
+    total_score: '综合得分', grade: '等级',
+  };
   return [
     { title: '方案', key: 'name', dataIndex: 'name', width: 100 },
     ...Object.keys(metrics).map(k => ({ title: metricLabels[k] || k, key: k, dataIndex: ['metrics', k], width: 100 })),
@@ -578,12 +583,16 @@ const submitAnswer = () => {
 <style scoped>
 .progress-panel { margin-bottom: 12px; }
 
+/* 去掉 ACard body 的默认 padding，让 grid 撑满 */
+:deep(.ant-card-body) { padding: 0; }
+
 .steps-nav {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 8px 20px;
+  padding: 16px 16px 20px;
   overflow-x: auto;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .step-item {
@@ -651,7 +660,7 @@ const submitAnswer = () => {
 .sub-pct { color: #1890ff; }
 .sub-message { margin-top: 8px; font-size: 13px; color: #666; }
 
-.right-panel { padding: 12px 16px; background: #fafafa; }
+.right-panel { padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
 
 .panel-header { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
 .history-badge { font-size: 11px; background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; }
@@ -710,7 +719,7 @@ const submitAnswer = () => {
   50% { opacity: 0.6; }
 }
 
-.schemes-container { display: flex; flex-direction: column; gap: 8px; }
+.schemes-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 
 .scheme-card {
   border: 2px solid #dee2e6;
@@ -739,10 +748,10 @@ const submitAnswer = () => {
 .progress-bar-container { height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #108ee9, #87d068); transition: width 0.05s linear; }
 
-.scheme-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
-.scheme-metric { text-align: center; }
+.scheme-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.scheme-metric { display: flex; flex-direction: column; gap: 2px; }
 .scheme-metric-label { font-size: 11px; color: #999; }
-.scheme-metric-value { font-size: 12px; font-weight: 600; color: #333; }
+.scheme-metric-value { font-size: 13px; font-weight: 600; color: #333; }
 
 .select-btn {
   padding: 3px 10px; border-radius: 4px; border: 1px solid #1890ff;
