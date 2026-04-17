@@ -396,24 +396,25 @@ const realTimeSchemes = ref<any[]>([]);  // 实时接收的方案数据
 const selectedSchemeIdx = ref<number>(-1);
 
 const metricLabels: Record<string, string> = {
-  section: '截面(m)', material: '材料', stress: '应力(MPa)',
-  displacement: '位移(mm)', safety: '安全性', economy: '经济性',
-  efficiency: '结构效率', sustainability: '可持续性',
+  section: '截面', material: '材料',
+  stress: '最大应力', displacement: '最大挠度',
+  safety: '安全性', economy: '经济性',
   total_score: '综合得分', grade: '等级',
 };
 
-// 监听实时方案推送
-watch(() => props.schemeUpdates, (updates) => {
+// 监听实时方案推送 —— 直接 watch 数组长度，push 时可靠触发
+watch(() => props.schemeUpdates.length, () => {
+  const updates = props.schemeUpdates;
   if (!updates || updates.length === 0) return;
 
-  // 按 index 排序并更新 realTimeSchemes
+  // 按 index 排序，逐个追加（不重复）
   const sorted = [...updates].sort((a, b) => a.index - b.index);
   realTimeSchemes.value = sorted.map(u => ({
     name: `方案 ${u.index}`,
     metrics: u.metrics,
     index: u.index,
   }));
-}, { deep: true });
+});
 
 // 当 ask_human 包含 proposals 时，初始化选择状态
 watch(() => props.askHumanRequest, (req) => {

@@ -108,6 +108,10 @@ const connectWs = () => {
   const handleWsMaxRetries = () => { wsMaxRetriesReached.value = true; };
 
   wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose, handleWsReconnecting, handleWsMaxRetries);
+  // 重置实时状态，防止上次数据残留
+  stages.value = [];
+  schemeUpdates.value = [];
+  askHumanRequest.value = null;
   wsManager.connect(route.params.id as string, token);
 };
 
