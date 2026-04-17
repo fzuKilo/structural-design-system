@@ -393,15 +393,16 @@ const interactionHistoryByStage = reactive<Record<string, { question: string; an
 // 从持久化历史初始化（任务完成后刷新页面时恢复）
 watch(() => props.savedInteractionHistory, (history) => {
   if (!history?.length) return;
-  for (const item of history) {
-    if (!interactionHistoryByStage[item.stage]) interactionHistoryByStage[item.stage] = [];
-    // 避免重复添加
-    const exists = interactionHistoryByStage[item.stage].some(
-      h => h.question === item.question && h.answer === item.answer
-    );
-    if (!exists) interactionHistoryByStage[item.stage].push({ question: item.question, answer: item.answer, time: item.time });
+  // 清空再重建，避免重复
+  for (const key of Object.keys(interactionHistoryByStage)) {
+    delete interactionHistoryByStage[key];
   }
-}, { immediate: true });
+  for (const item of history) {
+    const s = item.stage || 'unknown';
+    if (!interactionHistoryByStage[s]) interactionHistoryByStage[s] = [];
+    interactionHistoryByStage[s].push({ question: item.question, answer: item.answer, time: item.time });
+  }
+}, { immediate: true, deep: true });
 
 // 当前阶段的交互历史（用于实时显示）
 const currentInteractionHistory = computed(() => {
@@ -594,8 +595,8 @@ const submitAnswer = () => {
     if (!answer.value) return;
     submitted = answer.value.split(' - ')[0].trim();
   }
-  // 按阶段存储交互记录
-  const stage = activeStage.value || 'unknown';
+  // 用后端明确指定的 stage，而不是 activeStage（可能已变化）
+  const stage = props.askHumanRequest?.stage || activeStage.value || 'unknown';
   if (!interactionHistoryByStage[stage]) interactionHistoryByStage[stage] = [];
   interactionHistoryByStage[stage].push({
     question: props.askHumanRequest?.question || '',

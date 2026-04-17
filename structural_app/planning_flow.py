@@ -1326,6 +1326,7 @@ class PlanningFlow:
                 "question": question,
                 "options": options,
                 "default": default,
+                "stage": self._current_stage or "unknown",
                 # 每次携带完整历史，前端可随时恢复
                 "interaction_history": self.results.get("interaction_history", []),
             }
