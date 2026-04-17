@@ -50,47 +50,48 @@
             <ATag :color="getGradeColor(askHumanRequest.context.grade)" style="margin-left:12px;">{{ askHumanRequest.context.grade }}</ATag>
           </div>
 
-          <!-- 多方案卡片（逐个动画展示） -->
-          <div v-if="askHumanRequest.context?.proposals?.length" style="margin-bottom:16px;">
+          <!-- 多方案卡片（实时显示） -->
+          <div v-if="realTimeSchemes.length > 0 || askHumanRequest?.context?.proposals?.length" style="margin-bottom:16px;">
             <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化</h3>
             <div class="schemes-container">
+              <!-- 显示实时方案数据 -->
               <div
-                v-for="(p, i) in askHumanRequest.context.proposals"
-                :key="p.name"
-                class="scheme-card"
-                :class="{
-                  optimizing: schemeAnimState[i] === 'optimizing',
-                  completed: schemeAnimState[i] === 'completed',
-                  selected: selectedSchemeIdx === i
-                }"
+                v-for="scheme in realTimeSchemes"
+                :key="scheme.index"
+                class="scheme-card completed"
+                :class="{ selected: selectedSchemeIdx === scheme.index - 1 }"
               >
                 <div class="scheme-header-card">
-                  <span class="scheme-name">{{ p.name }}<span v-if="p.recommended" class="scheme-badge">推荐</span></span>
-                  <span>{{ schemeAnimState[i] === 'optimizing' ? '⚙️' : schemeAnimState[i] === 'completed' ? '✅' : '⏳' }}</span>
+                  <span class="scheme-name">{{ scheme.name }}</span>
+                  <span>✅</span>
                 </div>
-                <!-- 分析中 -->
-                <template v-if="schemeAnimState[i] === 'optimizing'">
-                  <div class="optimizing-text"><div class="spinner-small"></div><span>分析中...</span></div>
-                  <div class="progress-bar-container"><div class="progress-bar-fill" :style="{ width: schemeProgress[i] + '%' }"></div></div>
-                </template>
-                <!-- 等待 -->
-                <template v-else-if="schemeAnimState[i] === 'pending'">
-                  <div style="text-align:center;padding:8px;color:#999;">⏳ 等待优化</div>
-                </template>
-                <!-- 完成 -->
-                <template v-else>
-                  <div class="scheme-body">
-                    <div v-for="(val, key) in p.metrics" :key="key" class="scheme-metric">
-                      <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                      <div class="scheme-metric-value">{{ val }}</div>
-                    </div>
-                    <div class="scheme-metric">
-                      <button class="select-btn" :disabled="selectedSchemeIdx === i" @click="selectedSchemeIdx = i">
-                        {{ selectedSchemeIdx === i ? '✓已选' : '选择' }}
-                      </button>
-                    </div>
+                <div class="scheme-body">
+                  <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
+                    <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                    <div class="scheme-metric-value">{{ val }}</div>
                   </div>
-                </template>
+                  <div class="scheme-metric">
+                    <button class="select-btn" :disabled="selectedSchemeIdx === scheme.index - 1" @click="selectedSchemeIdx = scheme.index - 1">
+                      {{ selectedSchemeIdx === scheme.index - 1 ? '✓已选' : '选择' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 如果 ask_human 已到达但实时方案还没全部完成，显示等待中的方案 -->
+              <div
+                v-for="i in Math.max(0, (askHumanRequest?.context?.proposals?.length || 0) - realTimeSchemes.length)"
+                :key="'pending-' + i"
+                class="scheme-card"
+              >
+                <div class="scheme-header-card">
+                  <span class="scheme-name">方案 {{ realTimeSchemes.length + i }}</span>
+                  <span>⏳</span>
+                </div>
+                <div style="text-align:center;padding:16px;color:#999;">
+                  <div class="spinner-small" style="margin:0 auto 8px;"></div>
+                  <div>分析中...</div>
+                </div>
               </div>
             </div>
           </div>
@@ -117,7 +118,7 @@
 
           <AButton
             type="primary"
-            :disabled="askHumanRequest.context?.proposals?.length ? schemeAnimState.some(s => s !== 'completed') : !answer"
+            :disabled="askHumanRequest.context?.proposals?.length ? selectedSchemeIdx < 0 : !answer"
             @click="submitAnswer"
           >
             {{ askHumanRequest.context?.proposals?.length ? '✅ 确认选择' : '确认提交' }}
@@ -126,6 +127,28 @@
 
         <!-- 无 ask_human 时显示子进度 -->
         <template v-else>
+          <!-- 实时方案卡片（后端分析中，ask_human 还未到达） -->
+          <div v-if="realTimeSchemes.length > 0" style="margin-bottom:16px;">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化中...</h3>
+            <div class="schemes-container">
+              <div
+                v-for="scheme in realTimeSchemes"
+                :key="scheme.index"
+                class="scheme-card completed"
+              >
+                <div class="scheme-header-card">
+                  <span class="scheme-name">{{ scheme.name }}</span>
+                  <span>✅</span>
+                </div>
+                <div class="scheme-body">
+                  <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
+                    <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                    <div class="scheme-metric-value">{{ val }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- 交互历史记录 -->
           <div v-if="interactionHistory.length" class="interaction-history">
             <div v-for="(item, i) in interactionHistory" :key="i" class="history-item">
@@ -244,6 +267,7 @@ const props = defineProps<{
   progressData: any | null;
   taskParams: any | null;
   askHumanRequest: any | null;
+  schemeUpdates: any[];
 }>();
 
 const emit = defineEmits<{ submit: [answer: string] }>();
@@ -261,45 +285,49 @@ const snapshots = reactive<Record<string, any>>({});
 const viewingStage = ref<string | null>(null);
 const interactionHistory = ref<{ question: string; answer: string; time: string }[]>([]);
 
-// 多方案动画状态
-const schemeAnimState = ref<string[]>([]);  // 'pending' | 'optimizing' | 'completed'
-const schemeProgress = ref<number[]>([]);
+// 多方案实时数据
+const realTimeSchemes = ref<any[]>([]);  // 实时接收的方案数据
 const selectedSchemeIdx = ref<number>(-1);
 
 const metricLabels: Record<string, string> = {
   section: '截面(m)', material: '材料', stress: '应力(MPa)',
   displacement: '位移(mm)', safety: '安全性', economy: '经济性',
+  efficiency: '结构效率', sustainability: '可持续性',
   total_score: '综合得分', grade: '等级',
 };
 
-// 当 ask_human 包含 proposals 时，触发逐个动画
+// 监听实时方案推送
+watch(() => props.schemeUpdates, (updates) => {
+  if (!updates || updates.length === 0) return;
+
+  // 按 index 排序并更新 realTimeSchemes
+  const sorted = [...updates].sort((a, b) => a.index - b.index);
+  realTimeSchemes.value = sorted.map(u => ({
+    name: `方案 ${u.index}`,
+    metrics: u.metrics,
+    index: u.index,
+  }));
+}, { deep: true });
+
+// 当 ask_human 包含 proposals 时，初始化选择状态
 watch(() => props.askHumanRequest, (req) => {
   answer.value = req?.default || (req?.options?.[0] ?? '');
   if (req?.context?.proposals?.length) {
-    const n = req.context.proposals.length;
-    schemeAnimState.value = Array(n).fill('pending');
-    schemeProgress.value = Array(n).fill(0);
+    // 如果没有实时数据，使用 ask_human 中的 proposals（兼容旧版本）
+    if (realTimeSchemes.value.length === 0) {
+      realTimeSchemes.value = req.context.proposals.map((p: any, i: number) => ({
+        name: p.name,
+        metrics: p.metrics,
+        index: i + 1,
+        recommended: p.recommended,
+      }));
+    }
+
     // 找推荐方案作为默认选中
     const recIdx = req.context.proposals.findIndex((p: any) => p.recommended);
     selectedSchemeIdx.value = recIdx >= 0 ? recIdx : 0;
-    // 逐个播放动画
-    animateScheme(0, n);
   }
 });
-
-function animateScheme(idx: number, total: number) {
-  if (idx >= total) return;
-  schemeAnimState.value[idx] = 'optimizing';
-  schemeProgress.value[idx] = 0;
-  const interval = setInterval(() => {
-    schemeProgress.value[idx] = Math.min(schemeProgress.value[idx] + 8, 100);
-    if (schemeProgress.value[idx] >= 100) {
-      clearInterval(interval);
-      schemeAnimState.value[idx] = 'completed';
-      setTimeout(() => animateScheme(idx + 1, total), 150);
-    }
-  }, 30);
-}
 
 watch(() => props.stages, (newStages) => {
   for (const s of newStages) {

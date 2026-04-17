@@ -85,6 +85,9 @@ const connectWs = () => {
       progressData.value = msg;
     } else if (msg.type === 'ask_human') {
       askHumanRequest.value = msg;
+    } else if (msg.type === 'scheme_ready') {
+      // 实时方案数据推送
+      schemeUpdates.value.push(msg);
     } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
       loadTask();
     }
@@ -189,6 +192,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         :progress-data="progressData"
         :task-params="taskParams"
         :ask-human-request="askHumanRequest"
+        :scheme-updates="schemeUpdates"
         class="mb-3"
         @submit="handleAskHumanSubmit"
       />
