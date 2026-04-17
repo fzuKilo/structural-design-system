@@ -114,8 +114,6 @@
             </div>
           </div>
 
-          </div>
-
           <!-- 推荐方案说明 -->
           <div v-if="askHumanRequest.context?.recommendation" class="recommendation">
             ★ 推荐方案：{{ askHumanRequest.context.recommendation }}
