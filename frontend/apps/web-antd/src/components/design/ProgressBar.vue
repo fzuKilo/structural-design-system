@@ -145,8 +145,8 @@
 
         <!-- 无 ask_human 时显示子进度 -->
         <template v-else>
-          <!-- 实时方案卡片（后端分析中，ask_human 还未到达） -->
-          <div v-if="realTimeSchemes.length > 0 || schemeTotal > 0" style="margin-bottom:16px;">
+          <!-- 实时方案卡片：仅在分析进行中（schemeTotal > 0 且未全部完成）时显示 -->
+          <div v-if="schemeTotal > 0 && realTimeSchemes.length < schemeTotal" style="margin-bottom:16px;">
             <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化中...</h3>
             <div class="schemes-container">
               <div v-for="scheme in realTimeSchemes" :key="scheme.index" class="scheme-card completed">
@@ -750,7 +750,7 @@ const submitAnswer = () => {
   50% { opacity: 0.6; }
 }
 
-.schemes-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.schemes-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; }
 
 .scheme-card {
   border: 2px solid #dee2e6;
