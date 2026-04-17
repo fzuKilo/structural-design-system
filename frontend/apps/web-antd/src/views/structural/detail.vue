@@ -23,6 +23,7 @@ const stages = ref<any[]>([]);
 const progressData = ref<any>(null);
 const askHumanRequest = ref<any>(null);
 const schemeUpdates = ref<any[]>([]);  // 实时方案数据
+const savedHistory = ref<any[]>([]);   // 持久化交互历史
 let wsManager: WebSocketManager | null = null;
 
 const taskParams = computed(() => {
@@ -104,6 +105,9 @@ const rebuildStagesFromResult = (t: any) => {
     rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mapRawToSnapshotData(stageName, data) });
   }
   if (rebuilt.length > 0) stages.value = rebuilt;
+  // 恢复交互历史
+  const history = rj.interaction_history;
+  if (history?.length) savedHistory.value = history;
 };
 
 // 将 result_json.raw 各阶段数据映射为 snapshot 期望的字段
@@ -171,6 +175,10 @@ const connectWs = () => {
       progressData.value = msg;
     } else if (msg.type === 'ask_human') {
       askHumanRequest.value = msg;
+      // 同步后端携带的历史记录到 savedHistory（用于 ProgressBar 恢复）
+      if (msg.interaction_history?.length) {
+        savedHistory.value = msg.interaction_history;
+      }
     } else if (msg.type === 'scheme_ready') {
       // 实时方案数据推送
       schemeUpdates.value.push(msg);
@@ -283,7 +291,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         :task-params="taskParams"
         :ask-human-request="askHumanRequest"
         :scheme-updates="schemeUpdates"
-        :saved-interaction-history="task.result_json?.interaction_history || []"
+        :saved-interaction-history="savedHistory"
         class="mb-3"
         @submit="handleAskHumanSubmit"
       />

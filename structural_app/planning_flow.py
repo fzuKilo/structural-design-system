@@ -1326,6 +1326,8 @@ class PlanningFlow:
                 "question": question,
                 "options": options,
                 "default": default,
+                # 每次携带完整历史，前端可随时恢复
+                "interaction_history": self.results.get("interaction_history", []),
             }
             if context:
                 message["context"] = context
