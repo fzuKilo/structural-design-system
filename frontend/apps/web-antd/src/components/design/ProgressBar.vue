@@ -452,7 +452,6 @@ watch(() => props.askHumanRequest, (req) => {
 watch(() => props.stages, (newStages) => {
   for (const s of newStages) {
     if ((s.status === 'completed' || s.status === 'skipped') && s.data) {
-      // 始终用最新数据覆盖（支持优化后方案更新）
       snapshots[s.stage] = {
         timestamp: new Date().toLocaleTimeString(),
         data: s.data,
@@ -464,7 +463,7 @@ watch(() => props.stages, (newStages) => {
       };
     }
   }
-}, { deep: true });
+}, { deep: true, immediate: true });
 
 const latestByStage = computed(() => {
   const map: Record<string, any> = {};

@@ -75,22 +75,34 @@ const loadTask = async () => {
   }
 };
 
-// 从 result_json.raw 重建 stages，让 ProgressBar 的 snapshot 机制正常工作
+// 从 result_json 重建 stages，让 ProgressBar 的 snapshot 机制正常工作
 const rebuildStagesFromResult = (t: any) => {
-  const raw = t?.result_json?.raw || {};
+  const rj = t?.result_json || {};
+  const raw = rj.raw || {};
+
+  // evaluation 优先用顶层 rj.evaluation（完整结构），fallback 到 raw.evaluation_report
+  const evalData = rj.evaluation || raw.evaluation_report;
+  // fe_analysis 从 raw.analysis_results 取
+  const feData = raw.analysis_results;
+  // design_proposal 从 raw.design_proposal 取
+  const dpData = raw.design_proposal;
+  // cad_drawing 从 raw.drawing_results 取，或用顶层 files 构造
+  const cadData = raw.drawing_results || (rj.files ? { status: 'completed', files: rj.files } : null);
+  // report_generation
+  const reportData = raw.report_results || (rj.report_file ? { status: 'completed' } : null);
+
   const stageMap: Record<string, any> = {
-    design_proposal: raw.design_proposal,
-    fe_analysis: raw.analysis_results,
-    evaluation: raw.evaluation_report,
-    cad_drawing: raw.drawing_results,
-    report_generation: raw.report_results,
+    design_proposal: dpData,
+    fe_analysis: feData,
+    evaluation: evalData,
+    cad_drawing: cadData,
+    report_generation: reportData,
   };
+
   const rebuilt: any[] = [];
   for (const [stageName, data] of Object.entries(stageMap)) {
     if (!data) continue;
-    // 将 raw 数据映射为 ProgressBar snapshot 期望的字段格式
-    const mappedData = mapRawToSnapshotData(stageName, data);
-    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mappedData });
+    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mapRawToSnapshotData(stageName, data) });
   }
   if (rebuilt.length > 0) stages.value = rebuilt;
 };
@@ -107,24 +119,27 @@ const mapRawToSnapshotData = (stage: string, raw: any): any => {
     };
   }
   if (stage === 'fe_analysis') {
+    // result_json.raw.analysis_results 结构：{ results: { max_stress_MPa, ... }, code_check: { ... } }
+    // stage broadcast 结构：直接扁平字段
     const results = raw.results || {};
     const check = raw.code_check || {};
     return {
-      max_stress_MPa: results.max_stress_MPa,
-      max_displacement_mm: results.max_displacement_mm,
-      safety_factor: check.safety_factors?.stress,
-      compliant: check.compliant,
-      violations: check.violations || [],
+      max_stress_MPa: results.max_stress_MPa ?? raw.max_stress_MPa,
+      max_displacement_mm: results.max_displacement_mm ?? raw.max_displacement_mm,
+      safety_factor: check.safety_factors?.stress ?? raw.safety_factor,
+      compliant: check.compliant ?? raw.compliant,
+      violations: check.violations ?? raw.violations ?? [],
     };
   }
   if (stage === 'evaluation') {
     const dims = raw.dimensions || {};
     return {
-      comprehensive_score: raw.comprehensive_score,
-      safety_score: dims.safety?.score,
-      economy_score: dims.economy?.score,
-      efficiency_score: dims.structural_efficiency?.score,
-      sustainability_score: dims.sustainability?.score,
+      // 兼容嵌套结构（result_json）和扁平结构（stage broadcast）
+      comprehensive_score: raw.comprehensive_score ?? raw.overall_score,
+      safety_score: dims.safety?.score ?? raw.safety_score,
+      economy_score: dims.economy?.score ?? raw.economy_score,
+      efficiency_score: dims.structural_efficiency?.score ?? raw.efficiency_score,
+      sustainability_score: dims.sustainability?.score ?? raw.sustainability_score,
       grade: raw.grade,
       warnings: raw.warnings || [],
     };
