@@ -25,8 +25,26 @@
     <div class="main-body">
       <!-- 左侧：交互面板 -->
       <div class="left-panel">
-        <!-- 有 ask_human 时显示交互 UI -->
-        <template v-if="askHumanRequest">
+        <!-- 查看历史阶段时：显示该阶段的交互记录 -->
+        <template v-if="viewingStage">
+          <div class="history-stage-header">
+            📜 {{ getStageLabel(viewingStage) }} — 历史记录
+            <span class="snapshot-time" style="margin-left:8px;">{{ snapshots[viewingStage]?.timestamp }}</span>
+          </div>
+          <div v-if="interactionHistoryByStage[viewingStage]?.length" class="interaction-history">
+            <div v-for="(item, i) in interactionHistoryByStage[viewingStage]" :key="i" class="history-item">
+              <div class="history-q">🔔 {{ item.question }}</div>
+              <div class="history-a">✅ 您的回答：{{ item.answer }} <span class="history-time">{{ item.time }}</span></div>
+            </div>
+          </div>
+          <div v-else style="color:#999; padding:16px 0; font-size:13px;">该阶段无交互记录（自动完成）</div>
+          <div class="back-btn-wrap" style="margin-top:12px;">
+            <AButton size="small" @click="viewingStage = null">← 返回当前进度</AButton>
+          </div>
+        </template>
+
+        <!-- 当前进度：有 ask_human 时显示交互 UI -->
+        <template v-else-if="askHumanRequest">
           <div class="ask-human-banner">🔔 需要您的确认，请查看并回复</div>
           <!-- 图片预览（可视化确认） -->
           <div v-if="askHumanRequest.image_path" class="preview-box">
@@ -149,10 +167,10 @@
               </div>
             </div>
           </div>
-          <!-- 交互历史记录 -->
-          <div v-if="interactionHistory.length" class="interaction-history">
-            <div v-for="(item, i) in interactionHistory" :key="i" class="history-item">
-              <div class="history-q">🔔 {{ item.question }}</div>
+          <!-- 交互历史记录（全部） -->
+          <div v-if="currentInteractionHistory.length" class="interaction-history">
+            <div v-for="(item, i) in currentInteractionHistory" :key="i" class="history-item">
+              <div class="history-q">🔔 [{{ getStageLabel(item.stage) }}] {{ item.question }}</div>
               <div class="history-a">✅ 您的回答：{{ item.answer }} <span class="history-time">{{ item.time }}</span></div>
             </div>
           </div>
@@ -328,10 +346,6 @@
             <div class="param-card" style="text-align:center; color:#999; padding:20px;">等待任务开始...</div>
           </template>
         </div>
-
-        <div v-if="viewingStage" class="back-btn-wrap">
-          <AButton size="small" @click="viewingStage = null">← 返回当前进度</AButton>
-        </div>
       </div>
     </div>
   </ACard>
@@ -365,7 +379,17 @@ const steps = [
 const answer = ref('');
 const snapshots = reactive<Record<string, any>>({});
 const viewingStage = ref<string | null>(null);
-const interactionHistory = ref<{ question: string; answer: string; time: string }[]>([]);
+// 交互历史按阶段存储，key 为 stage name
+const interactionHistoryByStage = reactive<Record<string, { question: string; answer: string; time: string }[]>>({});
+
+// 当前阶段的交互历史（用于实时显示）
+const currentInteractionHistory = computed(() => {
+  const all: { question: string; answer: string; time: string; stage: string }[] = [];
+  for (const [stage, items] of Object.entries(interactionHistoryByStage)) {
+    for (const item of items) all.push({ ...item, stage });
+  }
+  return all.sort((a, b) => a.time.localeCompare(b.time));
+});
 
 // 多方案实时数据
 const realTimeSchemes = ref<any[]>([]);  // 实时接收的方案数据
@@ -494,14 +518,17 @@ const getStepClass = (key: string) => ({
   failed: getStageStatus(key) === 'failed',
   skipped: getStageStatus(key) === 'skipped',
   viewing: viewingStage.value === key,
-  clickable: !!latestByStage.value[key],
+  clickable: !!snapshots[key] || !!latestByStage.value[key],
 });
 
 const statusTextMap: Record<string, string> = { completed: '✅ 完成', started: '⏳ 进行中', running: '⏳ 进行中', failed: '❌ 失败', skipped: '⏭ 跳过' };
 const getStepStatusText = (key: string) => statusTextMap[getStageStatus(key)] || '⏸ 等待';
 
 const onStepClick = (key: string) => {
-  if (latestByStage.value[key]) viewingStage.value = viewingStage.value === key ? null : key;
+  // 有 snapshot 或有 stage 记录都可以点击查看历史
+  if (snapshots[key] || latestByStage.value[key]) {
+    viewingStage.value = viewingStage.value === key ? null : key;
+  }
 };
 
 const getScoreColor = (score: number | null) => {
@@ -535,8 +562,10 @@ const submitAnswer = () => {
     if (!answer.value) return;
     submitted = answer.value.split(' - ')[0].trim();
   }
-  // 保存交互记录
-  interactionHistory.value.push({
+  // 按阶段存储交互记录
+  const stage = activeStage.value || 'unknown';
+  if (!interactionHistoryByStage[stage]) interactionHistoryByStage[stage] = [];
+  interactionHistoryByStage[stage].push({
     question: props.askHumanRequest?.question || '',
     answer: submitted,
     time: new Date().toLocaleTimeString(),
@@ -654,6 +683,17 @@ const submitAnswer = () => {
 .history-q { font-size: 12px; color: #666; margin-bottom: 4px; }
 .history-a { font-size: 13px; color: #389e0d; font-weight: 500; }
 .history-time { font-size: 11px; color: #999; margin-left: 8px; }
+
+.history-stage-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #17a2b8;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
 
 .ask-human-banner {  background: #fff7e6;
   border: 1px solid #ffd591;
