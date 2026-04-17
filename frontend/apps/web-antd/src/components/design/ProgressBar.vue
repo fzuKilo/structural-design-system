@@ -69,10 +69,10 @@
           </div>
 
           <!-- 多方案卡片（实时显示） -->
-          <div v-if="realTimeSchemes.length > 0 || askHumanRequest?.context?.proposals?.length" style="margin-bottom:16px;">
+          <div v-if="realTimeSchemes.length > 0 || schemeTotal > 0" style="margin-bottom:16px;">
             <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化</h3>
             <div class="schemes-container">
-              <!-- 显示实时方案数据 -->
+              <!-- 已完成的方案（实时推送） -->
               <div
                 v-for="scheme in realTimeSchemes"
                 :key="scheme.index"
@@ -80,7 +80,7 @@
                 :class="{ selected: selectedSchemeIdx === scheme.index - 1 }"
               >
                 <div class="scheme-header-card">
-                  <span class="scheme-name">{{ scheme.name }}</span>
+                  <span class="scheme-name">方案 {{ scheme.index }}</span>
                   <span>✅</span>
                 </div>
                 <div class="scheme-body">
@@ -88,17 +88,17 @@
                     <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
                     <div class="scheme-metric-value">{{ val }}</div>
                   </div>
-                  <div class="scheme-metric">
+                  <div class="scheme-metric" style="grid-column: 1 / -1; margin-top:4px;">
                     <button class="select-btn" :disabled="selectedSchemeIdx === scheme.index - 1" @click="selectedSchemeIdx = scheme.index - 1">
-                      {{ selectedSchemeIdx === scheme.index - 1 ? '✓已选' : '选择' }}
+                      {{ selectedSchemeIdx === scheme.index - 1 ? '✓ 已选' : '选择此方案' }}
                     </button>
                   </div>
                 </div>
               </div>
 
-              <!-- 如果 ask_human 已到达但实时方案还没全部完成，显示等待中的方案 -->
+              <!-- 还未完成的方案（分析中占位） -->
               <div
-                v-for="i in Math.max(0, (askHumanRequest?.context?.proposals?.length || 0) - realTimeSchemes.length)"
+                v-for="i in Math.max(0, schemeTotal - realTimeSchemes.length)"
                 :key="'pending-' + i"
                 class="scheme-card"
               >
@@ -106,12 +106,15 @@
                   <span class="scheme-name">方案 {{ realTimeSchemes.length + i }}</span>
                   <span>⏳</span>
                 </div>
-                <div style="text-align:center;padding:16px;color:#999;">
+                <div style="text-align:center;padding:20px;color:#999;">
                   <div class="spinner-small" style="margin:0 auto 8px;"></div>
-                  <div>分析中...</div>
+                  <div style="font-size:12px;">分析中...</div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- 选择确认按钮（ask_human 到达后显示） -->
           </div>
 
           <!-- 推荐方案说明 -->
@@ -146,16 +149,12 @@
         <!-- 无 ask_human 时显示子进度 -->
         <template v-else>
           <!-- 实时方案卡片（后端分析中，ask_human 还未到达） -->
-          <div v-if="realTimeSchemes.length > 0" style="margin-bottom:16px;">
+          <div v-if="realTimeSchemes.length > 0 || schemeTotal > 0" style="margin-bottom:16px;">
             <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化中...</h3>
             <div class="schemes-container">
-              <div
-                v-for="scheme in realTimeSchemes"
-                :key="scheme.index"
-                class="scheme-card completed"
-              >
+              <div v-for="scheme in realTimeSchemes" :key="scheme.index" class="scheme-card completed">
                 <div class="scheme-header-card">
-                  <span class="scheme-name">{{ scheme.name }}</span>
+                  <span class="scheme-name">方案 {{ scheme.index }}</span>
                   <span>✅</span>
                 </div>
                 <div class="scheme-body">
@@ -163,6 +162,17 @@
                     <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
                     <div class="scheme-metric-value">{{ val }}</div>
                   </div>
+                </div>
+              </div>
+              <!-- 还未完成的占位 -->
+              <div v-for="i in Math.max(0, schemeTotal - realTimeSchemes.length)" :key="'p-'+i" class="scheme-card">
+                <div class="scheme-header-card">
+                  <span class="scheme-name">方案 {{ realTimeSchemes.length + i }}</span>
+                  <span>⏳</span>
+                </div>
+                <div style="text-align:center;padding:20px;color:#999;">
+                  <div class="spinner-small" style="margin:0 auto 8px;"></div>
+                  <div style="font-size:12px;">分析中...</div>
                 </div>
               </div>
             </div>
@@ -414,6 +424,12 @@ watch(() => props.schemeUpdates.length, () => {
     metrics: u.metrics,
     index: u.index,
   }));
+});
+
+// 从 scheme_ready 消息获取总方案数（不依赖 proposals.length，避免原方案混入）
+const schemeTotal = computed(() => {
+  if (props.schemeUpdates.length > 0) return props.schemeUpdates[0].total;
+  return 0;
 });
 
 // 当 ask_human 包含 proposals 时，初始化选择状态

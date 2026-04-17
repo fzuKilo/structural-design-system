@@ -1442,13 +1442,16 @@ class PlanningFlow:
             # 实时推送该方案数据给前端
             if self.websocket_callback:
                 from datetime import datetime
-                results_data = new_analysis.get("results", )
+                results_data = new_analysis.get("results", {})
                 dims = new_evaluation.get("dimensions", {})
                 geo = new_design.get("geometry", {})
                 mat = new_design.get("material", {})
-                # 截面描述：优先用 section_name，否则拼接尺寸
-                section_str = geo.get("section_name") or geo.get("section") or (
-                    f"H{geo.get('height_mm','')}x{geo.get('flange_width_mm','')}" if geo.get("height_mm") else "—"
+                # 截面描述：钢结构用 section_name，混凝土梁用 width×height
+                section_str = (
+                    geo.get("section_name")
+                    or geo.get("section")
+                    or (f"H{geo.get('height_mm','')}×{geo.get('flange_width_mm','')}" if geo.get("height_mm") else None)
+                    or (f"{geo.get('width','')}×{geo.get('height','')}" if geo.get("width") and geo.get("height") else "—")
                 )
                 material_str = mat.get("material_name") or mat.get("grade") or "—"
                 await self.websocket_callback({
