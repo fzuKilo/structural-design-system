@@ -1004,6 +1004,13 @@ class PlanningFlow:
                 self.results["analysis_results"] = opt_analysis
                 self.results["evaluation_report"] = opt_evaluation
                 self.skip_drawing = False
+                # 广播更新后的设计方案，前端右侧状态栏同步
+                await self._broadcast_stage("design_proposal", "completed", "设计方案已更新（优化后）", data={
+                    "type": self.results["design_proposal"].get("type"),
+                    "description": self.results["design_proposal"].get("description", ""),
+                    "geometry": self.results["design_proposal"].get("geometry", {}),
+                    "material": self.results["design_proposal"].get("material", {}),
+                })
 
             elif action == "report_only":
                 self.skip_drawing = True

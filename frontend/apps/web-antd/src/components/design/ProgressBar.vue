@@ -186,21 +186,61 @@
         </div>
 
         <div class="params-content">
+          <!-- 设计方案阶段 -->
           <template v-if="displayStage === 'design_proposal'">
             <div class="param-card">
-              <div class="param-title">📐 设计需求</div>
-              <div style="font-size:13px; color:#555; line-height:1.5;">{{ displayParams?.designDescription || '未填写' }}</div>
+              <div class="param-title">📋 设计需求</div>
+              <div style="font-size:12px; color:#555; line-height:1.6;">{{ displayParams?.designDescription || '—' }}</div>
+            </div>
+            <div v-if="displayParams?.geometry || displayParams?.material" class="param-card">
+              <div class="param-title">📐 设计参数</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">结构类型</span><span class="param-value">{{ displayParams?.designType || '—' }}</span></div>
+                <template v-if="displayParams?.geometry">
+                  <div v-for="(val, key) in displayParams.geometry" :key="key" class="param-item">
+                    <span class="param-label">{{ key }}</span>
+                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                  </div>
+                </template>
+                <template v-if="displayParams?.material">
+                  <div v-for="(val, key) in displayParams.material" :key="'mat-'+key" class="param-item">
+                    <span class="param-label">{{ key }}</span>
+                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <div v-if="displayParams?.standards?.length" class="param-card">
+              <div class="param-title">📏 设计规范</div>
+              <div v-for="(s, i) in displayParams.standards" :key="i" style="font-size:12px; color:#555; padding:2px 0;">• {{ s }}</div>
             </div>
           </template>
 
+          <!-- 有限元分析阶段 -->
           <template v-else-if="displayStage === 'fe_analysis'">
+            <div v-if="snapshots['design_proposal']?.data" class="param-card">
+              <div class="param-title">📋 当前设计方案</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <template v-if="snapshots['design_proposal'].data.geometry">
+                  <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
+                    <span class="param-label">{{ key }}</span>
+                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                  </div>
+                </template>
+                <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
+                  <span class="param-label">材料</span>
+                  <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
+                </div>
+              </div>
+            </div>
             <div class="param-card">
               <div class="param-title">🔬 有限元分析结果</div>
               <div class="param-grid">
                 <div class="param-item"><span class="param-label">最大应力</span><span class="param-value" :class="{ warning: (displayParams?.maxStress ?? 0) > 235 }">{{ displayParams?.maxStress != null ? displayParams.maxStress + ' MPa' : '—' }}</span></div>
                 <div class="param-item"><span class="param-label">最大挠度</span><span class="param-value">{{ displayParams?.maxDeflection != null ? displayParams.maxDeflection + ' mm' : '—' }}</span></div>
                 <div class="param-item"><span class="param-label">安全系数</span><span class="param-value">{{ displayParams?.safetyFactor ?? '—' }}</span></div>
-                <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="displayParams?.complianceStatus === 'compliant' ? 'success' : 'warning'">{{ displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="displayParams?.complianceStatus === 'compliant' ? 'success' : displayParams?.complianceStatus === 'non_compliant' ? 'warning' : ''">{{ displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—' }}</span></div>
               </div>
               <div v-if="displayParams?.violations?.length" class="violations">
                 <div v-for="(v, i) in displayParams.violations" :key="i" class="violation-item">🔴 {{ typeof v === 'string' ? v : (v.description || '') }}</div>
@@ -208,7 +248,24 @@
             </div>
           </template>
 
+          <!-- 设计评估阶段 -->
           <template v-else-if="displayStage === 'evaluation'">
+            <div v-if="snapshots['design_proposal']?.data" class="param-card">
+              <div class="param-title">📋 设计方案</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <template v-if="snapshots['design_proposal'].data.geometry">
+                  <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
+                    <span class="param-label">{{ key }}</span>
+                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                  </div>
+                </template>
+                <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
+                  <span class="param-label">材料</span>
+                  <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
+                </div>
+              </div>
+            </div>
             <div class="param-card">
               <div class="param-title">📊 综合评估得分</div>
               <div class="score-grid">
@@ -216,18 +273,43 @@
                 <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.economyScore) }">{{ displayParams?.economyScore ?? '—' }}</div><div class="score-label">经济性</div></div>
                 <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.overallScore) }">{{ displayParams?.overallScore ?? '—' }}</div><div class="score-label">综合</div></div>
               </div>
-            </div>
-          </template>
-
-          <template v-else-if="displayStage === 'cad_drawing'">
-            <div class="param-card">
-              <div class="param-title">✏️ CAD绘图</div>
-              <div class="param-value" :class="displayParams?.drawingStatus === 'completed' ? 'success' : ''">
-                {{ displayParams?.drawingStatus === 'completed' ? '✅ DXF已生成' : displayParams?.drawingStatus === 'skipped' ? '⏭ 已跳过' : '⏳ 等待中' }}
+              <div v-if="displayParams?.grade" style="text-align:center; margin-top:8px;">
+                <ATag :color="getGradeColor(displayParams.grade)" style="font-size:14px; padding:2px 12px;">{{ displayParams.grade }}</ATag>
+              </div>
+              <div v-if="displayParams?.warnings?.length" style="margin-top:8px;">
+                <div v-for="(w, i) in displayParams.warnings" :key="i" class="violation-item">⚠️ {{ w }}</div>
               </div>
             </div>
           </template>
 
+          <!-- CAD绘图阶段 -->
+          <template v-else-if="displayStage === 'cad_drawing'">
+            <div v-if="snapshots['design_proposal']?.data" class="param-card">
+              <div class="param-title">📋 设计方案</div>
+              <div class="param-grid">
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
+                  <span class="param-label">材料</span>
+                  <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="param-card">
+              <div class="param-title">✏️ CAD图纸</div>
+              <div class="param-item" style="margin-bottom:8px;">
+                <span class="param-label">状态</span>
+                <span class="param-value" :class="displayParams?.drawingStatus === 'completed' ? 'success' : ''">
+                  {{ displayParams?.drawingStatus === 'completed' ? '✅ DXF已生成' : displayParams?.drawingStatus === 'skipped' ? '⏭ 已跳过' : '⏳ 生成中...' }}
+                </span>
+              </div>
+              <div v-if="displayParams?.drawingFiles?.length">
+                <div class="param-label" style="margin-bottom:4px;">生成文件：</div>
+                <div v-for="(f, i) in displayParams.drawingFiles" :key="i" style="font-size:12px; color:#1890ff; padding:2px 0;">📄 {{ f }}</div>
+              </div>
+            </div>
+          </template>
+
+          <!-- BIM/报告阶段 -->
           <template v-else-if="displayStage === 'report_generation'">
             <div class="param-card">
               <div class="param-title">🏗️ BIM导出</div>
@@ -331,10 +413,16 @@ watch(() => props.askHumanRequest, (req) => {
 
 watch(() => props.stages, (newStages) => {
   for (const s of newStages) {
-    if ((s.status === 'completed' || s.status === 'skipped') && !snapshots[s.stage]) {
+    if ((s.status === 'completed' || s.status === 'skipped') && s.data) {
+      // 始终用最新数据覆盖（支持优化后方案更新）
       snapshots[s.stage] = {
         timestamp: new Date().toLocaleTimeString(),
-        data: s.data || null,  // 使用后端携带的阶段数据
+        data: s.data,
+      };
+    } else if ((s.status === 'completed' || s.status === 'skipped') && !snapshots[s.stage]) {
+      snapshots[s.stage] = {
+        timestamp: new Date().toLocaleTimeString(),
+        data: null,
       };
     }
   }
@@ -353,38 +441,48 @@ const activeStage = computed(() => {
 });
 
 const displayStage = computed(() => viewingStage.value || activeStage.value);
+
+// 从 snapshot data 映射为面板字段
+function mapSnapshotData(d: any) {
+  if (!d) return null;
+  return {
+    designDescription: d.description,
+    designType: d.type,
+    geometry: d.geometry,
+    material: d.material,
+    standards: d.standards,
+    // fe_analysis
+    maxStress: d.max_stress_MPa,
+    maxDeflection: d.max_displacement_mm,
+    safetyFactor: d.safety_factor,
+    complianceStatus: d.compliant === true ? 'compliant' : d.compliant === false ? 'non_compliant' : null,
+    violations: d.violations,
+    // evaluation
+    overallScore: d.comprehensive_score,
+    safetyScore: d.safety_score,
+    economyScore: d.economy_score,
+    efficiencyScore: d.efficiency_score,
+    sustainabilityScore: d.sustainability_score,
+    grade: d.grade,
+    warnings: d.warnings,
+    // cad_drawing
+    drawingStatus: d.status,
+    drawingFiles: d.files,
+    // report_generation
+    reportStatus: d.report_status,
+    speckleExported: d.speckle_exported,
+    ifcExported: d.ifc_exported,
+  };
+}
+
 const displayParams = computed(() => {
-  if (viewingStage.value && snapshots[viewingStage.value]) {
-    const d = snapshots[viewingStage.value].data;
-    if (!d) return null;
-    // 将后端 stage data 字段映射为面板期望的字段名
-    return {
-      // design_proposal
-      designDescription: d.description,
-      designType: d.type,
-      geometry: d.geometry,
-      material: d.material,
-      // fe_analysis
-      maxStress: d.max_stress_MPa,
-      maxDeflection: d.max_displacement_mm,
-      safetyFactor: d.safety_factor,
-      complianceStatus: d.compliant === true ? 'compliant' : d.compliant === false ? 'non_compliant' : null,
-      violations: d.violations,
-      // evaluation
-      overallScore: d.comprehensive_score,
-      safetyScore: d.safety_score,
-      economyScore: d.economy_score,
-      grade: d.grade,
-      warnings: d.warnings,
-      // cad_drawing
-      drawingStatus: d.status,
-      drawingFiles: d.files,
-      // report_generation
-      reportStatus: d.report_status,
-      speckleExported: d.speckle_exported,
-      ifcExported: d.ifc_exported,
-    };
-  }
+  const stage = displayStage.value;
+  if (!stage) return props.taskParams;
+
+  // 优先用 snapshot（已完成阶段的数据）
+  if (snapshots[stage]?.data) return mapSnapshotData(snapshots[stage].data);
+
+  // 运行中阶段：用 taskParams（任务完成后有数据）或 null
   return props.taskParams;
 });
 
@@ -501,10 +599,10 @@ const submitAnswer = () => {
 
 .main-body {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 380px;
   gap: 0;
   border-top: 1px solid #f0f0f0;
-  min-height: 180px;
+  min-height: 220px;
 }
 
 .left-panel { padding: 16px; border-right: 1px solid #f0f0f0; }
