@@ -668,9 +668,13 @@ const submitAnswer = () => {
   gap: 0;
   border-top: 1px solid #f0f0f0;
   min-height: 220px;
+  width: 100%;
+  overflow: hidden;
 }
 
-.left-panel { padding: 16px; border-right: 1px solid #f0f0f0; }
+.left-panel { padding: 16px; border-right: 1px solid #f0f0f0; min-width: 0; overflow-y: auto; }
+
+.right-panel { width: 380px; min-width: 380px; box-sizing: border-box; padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
 
 .preview-box { margin-bottom: 16px; text-align: center; background: #f0f7ff; padding: 16px; border-radius: 8px; }
 
@@ -687,7 +691,7 @@ const submitAnswer = () => {
 .sub-pct { color: #1890ff; }
 .sub-message { margin-top: 8px; font-size: 13px; color: #666; }
 
-.right-panel { padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
+.right-panel { width: 380px; min-width: 380px; box-sizing: border-box; padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
 
 .panel-header { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
 .history-badge { font-size: 11px; background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; }
