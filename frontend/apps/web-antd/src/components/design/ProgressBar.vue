@@ -473,14 +473,14 @@
                 <div class="param-item"><span class="param-label">结构类型</span><span class="param-value">{{ displayParams?.designType || '—' }}</span></div>
                 <template v-if="displayParams?.geometry">
                   <div v-for="(val, key) in displayParams.geometry" :key="key" class="param-item">
-                    <span class="param-label">{{ key }}</span>
-                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                    <span class="param-label">{{ getFieldLabel(key) }}</span>
+                    <span class="param-value">{{ formatFieldValue(key, val) }}</span>
                   </div>
                 </template>
                 <template v-if="displayParams?.material">
                   <div v-for="(val, key) in displayParams.material" :key="'mat-'+key" class="param-item">
-                    <span class="param-label">{{ key }}</span>
-                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                    <span class="param-label">{{ getFieldLabel(key) }}</span>
+                    <span class="param-value">{{ formatFieldValue(key, val) }}</span>
                   </div>
                 </template>
               </div>
@@ -499,8 +499,8 @@
                 <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
                 <template v-if="snapshots['design_proposal'].data.geometry">
                   <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
-                    <span class="param-label">{{ key }}</span>
-                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                    <span class="param-label">{{ getFieldLabel(key) }}</span>
+                    <span class="param-value">{{ formatFieldValue(key, val) }}</span>
                   </div>
                 </template>
                 <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
@@ -531,8 +531,8 @@
                 <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
                 <template v-if="snapshots['design_proposal'].data.geometry">
                   <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
-                    <span class="param-label">{{ key }}</span>
-                    <span class="param-value">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+                    <span class="param-label">{{ getFieldLabel(key) }}</span>
+                    <span class="param-value">{{ formatFieldValue(key, val) }}</span>
                   </div>
                 </template>
                 <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
@@ -640,6 +640,53 @@ const snapshots = reactive<Record<string, any>>({});
 const viewingStage = ref<string | null>(null);
 // 交互历史按阶段存储，key 为 stage name
 const interactionHistoryByStage = reactive<Record<string, { question: string; answer: string; time: string }[]>>({});
+
+// 字段名中英文映射表（带单位）
+const fieldLabels: Record<string, string> = {
+  // 几何参数
+  'length': '长度 (m)',
+  'width': '宽度 (m)',
+  'height': '高度 (m)',
+  'span': '跨度 (m)',
+  'beam': '梁类型',
+  'column': '柱类型',
+  'n_elements': '单元数量',
+  'thickness': '厚度 (m)',
+  'diameter': '直径 (m)',
+
+  // 材料参数
+  'material_name': '材料名称',
+  'E': '弹性模量 (MPa)',
+  'fy': '屈服强度 (MPa)',
+  'nu': '泊松比',
+  'density': '密度 (kg/m³)',
+  'fc': '混凝土强度 (MPa)',
+
+  // 荷载参数
+  'dead_load': '恒载 (kN/m)',
+  'live_load': '活载 (kN/m)',
+  'wind_load': '风荷载 (kN/m²)',
+  'seismic_load': '地震荷载',
+
+  // 其他
+  'type': '结构类型',
+  'description': '描述',
+};
+
+// 获取字段的中文标签（带单位）
+const getFieldLabel = (key: string): string => {
+  return fieldLabels[key] || key;
+};
+
+// 格式化字段值（添加适当的单位和格式）
+const formatFieldValue = (key: string, val: any): string => {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'object') return JSON.stringify(val);
+
+  // 对于已经在 fieldLabels 中定义了单位的字段，直接返回值
+  // 因为单位已经在标签中显示了
+  return String(val);
+};
 
 // 从持久化历史初始化（任务完成后刷新页面时恢复）
 watch(() => props.savedInteractionHistory, (history) => {
