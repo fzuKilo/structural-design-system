@@ -98,6 +98,12 @@ class WebAskHuman(AskHuman):
         else:
             raise ValueError("Either 'question' or 'inquire' parameter must be provided")
 
+        # 保存到实例变量，供 _wait_for_answer 使用
+        self._last_question = clean_question
+        self._last_options = final_options
+        self._last_context = final_context
+        self._last_image_path = image_path if 'image_path' in locals() else final_context.get('image_path')
+
         # Broadcast ask_human event to frontend
         if self.websocket_callback and self.task_id:
             print(f"[WebAskHuman] Broadcasting ask_human message via WebSocket")
@@ -120,6 +126,16 @@ class WebAskHuman(AskHuman):
                 print(f"[WebAskHuman] Including context: {list(context_without_image.keys())}")
 
             await self.websocket_callback(message)
+
+            # 持久化到 Redis，供重连时恢复
+            try:
+                import redis.asyncio as aioredis
+                _rc = aioredis.from_url(self.redis_url, decode_responses=True)
+                import json as _json
+                await _rc.set(f"ask_human_pending:{self.task_id}", _json.dumps(message), ex=7200)
+                await _rc.aclose()
+            except Exception as _e:
+                print(f"[WebAskHuman] Failed to persist ask_human to Redis: {_e}")
         else:
             print(f"[WebAskHuman] WARNING: Cannot broadcast - missing task_id or callback")
 
@@ -128,8 +144,28 @@ class WebAskHuman(AskHuman):
             return ""
 
         # Poll Redis for answer
-        answer = await self._wait_for_answer(default=final_options[0].split(' - ')[0].strip() if final_options else "")
+        answer = await self._wait_for_answer(
+            question=clean_question,
+            default=final_options[0].split(' - ')[0].strip() if final_options else ""
+        )
         print(f"[WebAskHuman] Received answer: {answer}")
+
+        # 广播更新后的交互历史给前端（实时同步）
+        if self.websocket_callback and self.task_id:
+            try:
+                import redis.asyncio as aioredis
+                import json as _json
+                _rc = aioredis.from_url(self.redis_url, decode_responses=True)
+                raw_list = await _rc.lrange(f"interaction_history:{self.task_id}", 0, -1)
+                await _rc.aclose()
+                history = [_json.loads(x) for x in raw_list]
+                await self.websocket_callback({
+                    "type": "interaction_history",
+                    "interaction_history": history,
+                })
+            except Exception as _e:
+                print(f"[WebAskHuman] Failed to broadcast history: {_e}")
+
         return answer
 
     def _extract_image_path(self, inquire: str) -> str:
@@ -318,12 +354,15 @@ class WebAskHuman(AskHuman):
         question = '\n'.join(question_lines).strip() or inquire.strip()
         return question, options
 
-    async def _wait_for_answer(self, default: str = "") -> str:
+    async def _wait_for_answer(self, question: str = "", default: str = "") -> str:
         """Poll Redis every second until answer appears or timeout."""
         try:
             import redis.asyncio as aioredis
         except ImportError:
             import aioredis  # type: ignore
+
+        import json as _json
+        from datetime import datetime
 
         redis_key = f"ask_human:{self.task_id}"
         client = aioredis.from_url(self.redis_url, decode_responses=True)
@@ -334,6 +373,22 @@ class WebAskHuman(AskHuman):
                 answer = await client.get(redis_key)
                 if answer is not None:
                     await client.delete(redis_key)
+                    # 清除挂起状态，避免重连时重复推送
+                    await client.delete(f"ask_human_pending:{self.task_id}")
+                    # 读取当前阶段（由 planning_flow._broadcast_stage 写入）
+                    current_stage = await client.get(f"current_stage:{self.task_id}") or "unknown"
+                    # 持久化交互记录到 Redis list（保存完整信息）
+                    record = _json.dumps({
+                        "stage": current_stage,
+                        "question": question,
+                        "answer": answer,
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "options": getattr(self, '_last_options', []),  # 保存选项列表
+                        "context": getattr(self, '_last_context', {}),  # 保存完整 context
+                        "image_path": getattr(self, '_last_image_path', None),  # 保存图片路径
+                    }, ensure_ascii=False)
+                    await client.rpush(f"interaction_history:{self.task_id}", record)
+                    await client.expire(f"interaction_history:{self.task_id}", 86400)
                     return answer
                 await asyncio.sleep(1)
                 elapsed += 1

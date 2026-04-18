@@ -204,6 +204,15 @@ class PlanningFlow:
     async def _broadcast_stage(self, stage: str, status: str, message: str = "", data: dict = None):
         """Broadcast stage update via WebSocket"""
         self._current_stage = stage  # 追踪当前阶段，供 _ask_web_or_cli 使用
+        # 同步写入 Redis，供 WebAskHuman 读取当前阶段
+        if self.task_id and self.redis_url:
+            try:
+                import redis as _redis_lib
+                _rc = _redis_lib.from_url(self.redis_url, decode_responses=True)
+                _rc.set(f"current_stage:{self.task_id}", stage, ex=86400)
+                _rc.close()
+            except Exception:
+                pass
         if self.websocket_callback:
             from datetime import datetime
             payload = {
@@ -298,12 +307,20 @@ class PlanningFlow:
             print()
             print("Step 7: IFC Export (可选)")
             print("-" * 40)
+            # 构建 context，包含之前选择的方案信息（如果有）
+            context = {}
+            if "selected_proposal_index" in self.results:
+                context["selected_proposal_index"] = self.results["selected_proposal_index"]
+            if "selected_proposals_context" in self.results:
+                context.update(self.results["selected_proposals_context"])
+
             choice = await self._ask_web_or_cli(
                 question="是否导出为IFC文件（BIM）？",
                 options=["y - 是，导出IFC", "n - 否，跳过"],
                 default="n",
                 mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
                 cli_prompt="是否导出为IFC文件（BIM）？(y/n): ",
+                context=context if context else None,
             )
 
             if choice != 'y':
@@ -404,12 +421,21 @@ class PlanningFlow:
             print()
             print("Step 5.2: BIM/IFC Export (可选)")
             print("-" * 40)
+            # 构建 context，包含之前选择的方案信息（如果有）
+            context = {}
+            if "selected_proposal_index" in self.results:
+                context["selected_proposal_index"] = self.results["selected_proposal_index"]
+            if "selected_proposals_context" in self.results:
+                # 包含完整的方案列表，供前端展示
+                context.update(self.results["selected_proposals_context"])
+
             choice = await self._ask_web_or_cli(
                 question="是否导出BIM模型（Speckle + IFC）？",
                 options=["y - 是，导出BIM/IFC", "n - 否，跳过"],
                 default="n",
                 mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
                 cli_prompt="是否导出BIM模型（Speckle + IFC）？(y/n): ",
+                context=context if context else None,
             )
 
             if choice != 'y':
@@ -471,12 +497,20 @@ class PlanningFlow:
             print()
             print("Step 6: BIM Export (可选)")
             print("-" * 40)
+            # 构建 context，包含之前选择的方案信息（如果有）
+            context = {}
+            if "selected_proposal_index" in self.results:
+                context["selected_proposal_index"] = self.results["selected_proposal_index"]
+            if "selected_proposals_context" in self.results:
+                context.update(self.results["selected_proposals_context"])
+
             choice = await self._ask_web_or_cli(
                 question="是否导出到Speckle BIM查看器？",
                 options=["y - 是，导出BIM", "n - 否，跳过"],
                 default="n",
                 mapping={"y": "y", "yes": "y", "n": "n", "no": "n"},
                 cli_prompt="是否导出到Speckle BIM查看器？(y/n): ",
+                context=context if context else None,
             )
 
             if choice != 'y':
@@ -1092,6 +1126,9 @@ class PlanningFlow:
             status = self.results['report_results'].get('status', 'unknown')
             print(f"[OK] Report generated: {status}")
 
+        # 广播100%进度
+        await self._broadcast_progress("report_generation", 3, 3, "completed", "报告生成完成")
+
         await self._broadcast_stage("report_generation", "completed", "报告生成完成", data={
             "report_status": self.results["report_results"].get("status") if self.results.get("report_results") else None,
             "speckle_exported": self.results.get("bim_results", {}).get("status") == "success" if self.results.get("bim_results") else False,
@@ -1345,7 +1382,7 @@ class PlanningFlow:
                         client.delete(redis_key)
                         answer = answer.strip().lower()
                         final = mapping.get(answer, default) if mapping else answer
-                        # 记录交互历史
+                        # 记录交互历史（保存完整信息）
                         if "interaction_history" not in self.results:
                             self.results["interaction_history"] = []
                         self.results["interaction_history"].append({
@@ -1353,6 +1390,9 @@ class PlanningFlow:
                             "question": question,
                             "answer": final,
                             "time": datetime.now().strftime("%H:%M:%S"),
+                            "options": options,  # 保存选项列表
+                            "context": context or {},  # 保存完整 context
+                            "image_path": context.get("image_path") if context else None,  # 保存图片路径
                         })
                         return final
                     await asyncio.sleep(1)
@@ -1416,6 +1456,16 @@ class PlanningFlow:
 
         candidates = []
         total = len(candidate_designs)
+
+        # 在开始循环前，先告知前端总方案数，让占位卡片立即渲染
+        if self.websocket_callback and total > 0:
+            from datetime import datetime
+            await self.websocket_callback({
+                "type": "scheme_start",
+                "total": total,
+                "timestamp": datetime.now().isoformat(),
+            })
+
         for i, new_design in enumerate(candidate_designs):
             if verbose:
                 print(f"\n[优化] 正在评估候选方案 {i+1}/{total}...")
@@ -1724,9 +1774,15 @@ class PlanningFlow:
         try:
             choice = int(raw.strip())
             if choice in valid:
+                # 保存用户选择的方案索引和方案信息，供后续阶段使用
+                self.results["selected_proposal_index"] = choice
+                self.results["selected_proposals_context"] = context
                 return choice
         except (ValueError, AttributeError):
             pass
+        # 保存默认选择
+        self.results["selected_proposal_index"] = best_overall_idx
+        self.results["selected_proposals_context"] = context
         return best_overall_idx
 
     async def _generate_candidate_descriptions(

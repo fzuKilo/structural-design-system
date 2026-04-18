@@ -23,6 +23,7 @@ const stages = ref<any[]>([]);
 const progressData = ref<any>(null);
 const askHumanRequest = ref<any>(null);
 const schemeUpdates = ref<any[]>([]);  // 实时方案数据
+const schemeTotalHint = ref<number>(0); // scheme_start 提前告知的总数
 const savedHistory = ref<any[]>([]);   // 持久化交互历史
 let wsManager: WebSocketManager | null = null;
 
@@ -168,6 +169,7 @@ const connectWs = () => {
   const token = accessStore.accessToken;
 
   const handleWsMessage = (msg: any) => {
+    console.log('[WebSocket] Received message:', msg.type, msg);
     if (msg.type === 'stage') {
       stages.value.push(msg);
       if (msg.status === 'completed' || msg.status === 'failed' || msg.status === 'skipped') loadTask();
@@ -179,6 +181,10 @@ const connectWs = () => {
       if (msg.interaction_history?.length) {
         savedHistory.value = msg.interaction_history;
       }
+    } else if (msg.type === 'interaction_history') {
+        savedHistory.value = msg.interaction_history;
+    } else if (msg.type === 'scheme_start') {
+      schemeTotalHint.value = msg.total;
     } else if (msg.type === 'scheme_ready') {
       // 实时方案数据推送
       schemeUpdates.value.push(msg);
@@ -202,9 +208,10 @@ const connectWs = () => {
   const handleWsMaxRetries = () => { wsMaxRetriesReached.value = true; };
 
   wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose, handleWsReconnecting, handleWsMaxRetries);
-  // 重置实时状态，防止上次数据残留
+  // 首次连接时重置状态（重连由 WebSocketManager 内部处理，不会再次调用 connectWs）
   stages.value = [];
   schemeUpdates.value = [];
+  schemeTotalHint.value = 0;
   askHumanRequest.value = null;
   wsManager.connect(route.params.id as string, token);
 };
@@ -291,6 +298,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         :task-params="taskParams"
         :ask-human-request="askHumanRequest"
         :scheme-updates="schemeUpdates"
+        :scheme-total-hint="schemeTotalHint"
         :saved-interaction-history="savedHistory"
         class="mb-3"
         @submit="handleAskHumanSubmit"

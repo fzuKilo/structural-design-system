@@ -207,6 +207,23 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                     elif "stress" in basename:
                         actual_visualizations["interactive"]["stress_html"] = html
 
+            # 从 Redis list 读取 WebAskHuman 记录的交互历史，合并 planning_flow 记录的历史
+            web_ask_history_raw = redis_client.lrange(f"interaction_history:{task_id}", 0, -1)
+            web_ask_history = [json.loads(x) for x in web_ask_history_raw] if web_ask_history_raw else []
+            redis_client.delete(f"interaction_history:{task_id}")
+            redis_client.delete(f"current_stage:{task_id}")
+
+            # 合并两个来源：planning_flow._ask_web_or_cli 记录的 + WebAskHuman 记录的
+            planning_flow_history = result.get("interaction_history", [])
+            interaction_history = planning_flow_history + web_ask_history
+
+            # 调试日志
+            print(f"[DEBUG] planning_flow_history count: {len(planning_flow_history)}")
+            print(f"[DEBUG] web_ask_history count: {len(web_ask_history)}")
+            print(f"[DEBUG] Total interaction_history count: {len(interaction_history)}")
+            if interaction_history:
+                print(f"[DEBUG] Stages in history: {[item.get('stage') for item in interaction_history]}")
+
             # Flatten result structure for frontend compatibility
             flattened_result = {
                 "report_file": (result.get("report_results") or {}).get("report_file", "").replace("\\", "/") if (result.get("report_results") or {}).get("report_file") else "",
@@ -218,7 +235,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 "evaluation": result.get("evaluation_report"),
                 "bim_url": (result.get("bim_results") or {}).get("url") or (result.get("bim_results") or {}).get("embed_url"),
                 "ifc_path": (result.get("ifc_results") or {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", "") if (result.get("ifc_results") or {}).get("path") else "",
-                "interaction_history": result.get("interaction_history", []),
+                "interaction_history": interaction_history,
                 "raw": result
             }
 

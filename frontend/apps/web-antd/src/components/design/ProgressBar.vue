@@ -32,12 +32,133 @@
             <span class="snapshot-time" style="margin-left:8px;">{{ snapshots[viewingStage]?.timestamp }}</span>
           </div>
           <div v-if="interactionHistoryByStage[viewingStage]?.length" class="interaction-history">
-            <div v-for="(item, i) in interactionHistoryByStage[viewingStage]" :key="i" class="history-item">
-              <div class="history-q">🔔 {{ item.question }}</div>
-              <div class="history-a">✅ 您的回答：{{ item.answer }} <span class="history-time">{{ item.time }}</span></div>
+            <div v-for="(item, i) in interactionHistoryByStage[viewingStage]" :key="i" class="history-item-full">
+
+              <!-- 问题标题 -->
+              <div class="history-q-title">🔔 {{ item.question }}</div>
+
+              <!-- 图片预览（如果有） -->
+              <div v-if="item.image_path" class="history-preview-box">
+                <img
+                  :src="`/api/file/view?path=${encodeURIComponent(item.image_path)}`"
+                  style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid #d9d9d9;"
+                  alt="历史交互图片"
+                />
+              </div>
+
+              <!-- 预警信息（如果有） -->
+              <div v-if="item.context?.warnings?.length" class="history-warnings">
+                <div v-for="(w, wi) in item.context.warnings" :key="wi" class="violation-item">
+                  ⚠️ {{ w }}
+                </div>
+              </div>
+
+              <!-- 评估得分（如果有） -->
+              <div v-if="item.context?.score !== undefined" class="history-score">
+                <span>综合得分：<strong style="font-size:18px;color:#1890ff;">{{ item.context.score }}</strong></span>
+                <ATag :color="getGradeColor(item.context.grade)" style="margin-left:12px;">{{ item.context.grade }}</ATag>
+              </div>
+
+              <!-- 多方案卡片（如果有） -->
+              <div v-if="item.context?.proposals?.length" class="history-schemes">
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化（历史）</h4>
+                <div class="schemes-container">
+                  <div
+                    v-for="(scheme, si) in item.context.proposals"
+                    :key="si"
+                    class="scheme-card"
+                    :class="{ selected: isSelectedScheme(item.answer, si), recommended: scheme.recommended }"
+                  >
+                    <div class="scheme-header-card">
+                      <span class="scheme-name">{{ scheme.name }}</span>
+                      <span v-if="scheme.recommended">⭐</span>
+                      <span v-else-if="isSelectedScheme(item.answer, si)">✅</span>
+                    </div>
+                    <div class="scheme-body">
+                      <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
+                        <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                        <div class="scheme-metric-value">{{ val }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 推荐说明（如果有） -->
+              <div v-if="item.context?.recommendation" class="history-recommendation">
+                ★ 推荐方案：{{ item.context.recommendation }}
+              </div>
+
+              <!-- 选项列表（如果有） -->
+              <div v-if="item.options?.length" class="history-options">
+                <div v-for="(opt, oi) in item.options" :key="oi" class="history-option-item" :class="{ selected: opt === item.answer || opt.startsWith(item.answer) }">
+                  {{ opt }}
+                </div>
+              </div>
+
+              <!-- 用户的回答 -->
+              <div class="history-a">
+                ✅ 您的回答：<strong>{{ item.answer }}</strong>
+                <span class="history-time">{{ item.time }}</span>
+              </div>
+
             </div>
           </div>
-          <div v-else style="color:#999; padding:16px 0; font-size:13px;">该阶段无交互记录（自动完成）</div>
+          <div v-else style="padding:16px 0;">
+            <div style="color:#999; font-size:13px; text-align:center; margin-bottom:16px;">
+              该阶段无需用户交互（自动完成）
+            </div>
+            <!-- 显示该阶段的关键信息摘要 -->
+            <div v-if="snapshots[viewingStage]?.data" class="auto-stage-summary">
+              <div class="summary-title">📋 阶段摘要</div>
+
+              <!-- 设计方案阶段摘要 -->
+              <template v-if="viewingStage === 'design_proposal'">
+                <div class="summary-item">
+                  <span class="summary-label">结构类型：</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.type || '—' }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">设计描述：</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.description || '—' }}</span>
+                </div>
+              </template>
+
+              <!-- 有限元分析阶段摘要 -->
+              <template v-else-if="viewingStage === 'fe_analysis'">
+                <div class="summary-item">
+                  <span class="summary-label">最大应力：</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.max_stress_MPa || '—' }} MPa</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">最大位移：</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.max_displacement_mm || '—' }} mm</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">合规状态：</span>
+                  <span class="summary-value" :class="snapshots[viewingStage].data.compliant ? 'success' : 'warning'">
+                    {{ snapshots[viewingStage].data.compliant ? '✅ 合规' : '⚠️ 不合规' }}
+                  </span>
+                </div>
+              </template>
+
+              <!-- CAD绘图阶段摘要 -->
+              <template v-else-if="viewingStage === 'cad_drawing'">
+                <div class="summary-item">
+                  <span class="summary-label">绘图状态：</span>
+                  <span class="summary-value success">✅ DXF文件已生成</span>
+                </div>
+              </template>
+
+              <!-- 报告生成阶段摘要 -->
+              <template v-else-if="viewingStage === 'report_generation'">
+                <div class="summary-item">
+                  <span class="summary-label">报告状态：</span>
+                  <span class="summary-value success">✅ 设计报告已生成</span>
+                </div>
+              </template>
+            </div>
+          </div>
           <div class="back-btn-wrap" style="margin-top:12px;">
             <AButton size="small" @click="viewingStage = null">← 返回当前进度</AButton>
           </div>
@@ -69,48 +190,111 @@
           </div>
 
           <!-- 多方案卡片（实时显示） -->
-          <div v-if="realTimeSchemes.length > 0 || schemeTotal > 0" style="margin-bottom:16px;">
-            <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;">🔄 多方案优化</h3>
-            <div class="schemes-container">
-              <!-- 已完成的方案（实时推送） -->
-              <div
-                v-for="scheme in realTimeSchemes"
-                :key="scheme.index"
-                class="scheme-card completed"
-                :class="{ selected: selectedSchemeIdx === scheme.index - 1 }"
-              >
-                <div class="scheme-header-card">
-                  <span class="scheme-name">方案 {{ scheme.index }}</span>
-                  <span>✅</span>
-                </div>
-                <div class="scheme-body">
-                  <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
-                    <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                    <div class="scheme-metric-value">{{ val }}</div>
+          <div v-if="(realTimeSchemes.length > 0 || schemeTotal > 0) || askHumanRequest.context?.proposals?.length" style="margin-bottom:16px;">
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px;">🔄 多方案并行优化</h3>
+            <div class="schemes-container-new">
+              <!-- 使用 context.proposals（包含原方案）或 realTimeSchemes -->
+              <template v-if="askHumanRequest.context?.proposals?.length">
+                <div
+                  v-for="(proposal, pi) in askHumanRequest.context.proposals"
+                  :key="pi"
+                  class="scheme-card-new"
+                  :class="{
+                    selected: isProposalSelected(pi),
+                    recommended: proposal.recommended,
+                    original: proposal.name === '原方案',
+                    'history-mode': isReadonlyMode()
+                  }"
+                >
+                  <div class="scheme-header-new">
+                    <div class="scheme-title">
+                      <span class="scheme-name-new">{{ proposal.name }}</span>
+                      <span v-if="proposal.name === '原方案'" class="scheme-badge original-badge">原案</span>
+                      <span v-else-if="proposal.recommended" class="scheme-badge recommended-badge">推荐</span>
+                      <span v-if="isReadonlyMode() && isProposalSelected(pi)" class="badge-selected">✓ 用户选择</span>
+                    </div>
+                    <div v-if="!isReadonlyMode()" class="scheme-status">
+                      <span v-if="selectedSchemeIdx === pi" class="status-icon selected-icon">✓已选</span>
+                      <span v-else class="status-icon">✅</span>
+                    </div>
                   </div>
-                  <div class="scheme-metric" style="grid-column: 1 / -1; margin-top:4px;">
-                    <button class="select-btn" :disabled="selectedSchemeIdx === scheme.index - 1" @click="selectedSchemeIdx = scheme.index - 1">
-                      {{ selectedSchemeIdx === scheme.index - 1 ? '✓ 已选' : '选择此方案' }}
-                    </button>
+                  <div class="scheme-metrics-grid">
+                    <div class="metric-row">
+                      <span class="metric-label">截面</span>
+                      <span class="metric-value">{{ proposal.metrics.section }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">材料</span>
+                      <span class="metric-value">{{ proposal.metrics.material }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">应力</span>
+                      <span class="metric-value">{{ proposal.metrics.stress }}MPa</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">位移</span>
+                      <span class="metric-value">{{ proposal.metrics.displacement }}mm</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">安全/经济/综合</span>
+                      <span class="metric-value">{{ proposal.metrics.safety }}/{{ proposal.metrics.economy }}/{{ proposal.metrics.total_score }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">等级</span>
+                      <span class="metric-value">{{ proposal.metrics.grade }}</span>
+                    </div>
                   </div>
+                  <!-- 只在非只读模式下显示选择按钮 -->
+                  <button
+                    v-if="!isReadonlyMode()"
+                    class="select-btn-new"
+                    :class="{ selected: selectedSchemeIdx === pi }"
+                    @click="selectedSchemeIdx = pi"
+                  >
+                    {{ selectedSchemeIdx === pi ? '✓ 已选' : '选择' }}
+                  </button>
                 </div>
-              </div>
+              </template>
 
-              <!-- 还未完成的方案（分析中占位） -->
-              <div
-                v-for="i in Math.max(0, schemeTotal - realTimeSchemes.length)"
-                :key="'pending-' + i"
-                class="scheme-card"
-              >
-                <div class="scheme-header-card">
-                  <span class="scheme-name">方案 {{ realTimeSchemes.length + i }}</span>
-                  <span>⏳</span>
+              <!-- 实时推送模式（分析进行中） -->
+              <template v-else>
+                <div
+                  v-for="scheme in realTimeSchemes"
+                  :key="scheme.index"
+                  class="scheme-card-new completed"
+                  :class="{ selected: selectedSchemeIdx === scheme.index - 1 }"
+                >
+                  <div class="scheme-header-new">
+                    <span class="scheme-name-new">方案 {{ scheme.index }}</span>
+                    <span class="status-icon">✅</span>
+                  </div>
+                  <div class="scheme-metrics-grid">
+                    <div v-for="(val, key) in scheme.metrics" :key="key" class="metric-row">
+                      <span class="metric-label">{{ metricLabels[key] || key }}</span>
+                      <span class="metric-value">{{ val }}</span>
+                    </div>
+                  </div>
+                  <button class="select-btn-new" :disabled="selectedSchemeIdx === scheme.index - 1" @click="selectedSchemeIdx = scheme.index - 1">
+                    {{ selectedSchemeIdx === scheme.index - 1 ? '✓ 已选' : '选择' }}
+                  </button>
                 </div>
-                <div style="text-align:center;padding:20px;color:#999;">
-                  <div class="spinner-small" style="margin:0 auto 8px;"></div>
-                  <div style="font-size:12px;">分析中...</div>
+
+                <!-- 还未完成的方案（分析中占位） -->
+                <div
+                  v-for="i in Math.max(0, schemeTotal - realTimeSchemes.length)"
+                  :key="'pending-' + i"
+                  class="scheme-card-new pending"
+                >
+                  <div class="scheme-header-new">
+                    <span class="scheme-name-new">方案 {{ realTimeSchemes.length + i }}</span>
+                    <span class="status-icon">⏳</span>
+                  </div>
+                  <div style="text-align:center;padding:40px 20px;color:#999;">
+                    <div class="spinner-small" style="margin:0 auto 8px;"></div>
+                    <div style="font-size:13px;">分析中...</div>
+                  </div>
                 </div>
-              </div>
+              </template>
             </div>
           </div>
 
@@ -122,15 +306,15 @@
           <!-- 问题文字 -->
           <p class="question-text">{{ askHumanRequest.question }}</p>
 
-          <!-- 选项模式 -->
-          <template v-if="askHumanRequest.options?.length">
+          <!-- 选项模式：只在没有 proposals 时显示单选按钮 -->
+          <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
               <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
             </ARadioGroup>
           </template>
 
           <!-- 自由文本模式 -->
-          <template v-else>
+          <template v-else-if="!askHumanRequest.context?.proposals?.length">
             <ATextarea v-model:value="answer" :rows="3" placeholder="请输入您的回答" style="margin-bottom:12px;" />
           </template>
 
@@ -177,8 +361,74 @@
           <!-- 交互历史记录（全部） -->
           <div v-if="currentInteractionHistory.length" class="interaction-history">
             <div v-for="(item, i) in currentInteractionHistory" :key="i" class="history-item">
-              <div class="history-q">🔔 [{{ getStageLabel(item.stage) }}] {{ item.question }}</div>
-              <div class="history-a">✅ 您的回答：{{ item.answer }} <span class="history-time">{{ item.time }}</span></div>
+              <!-- 阶段标识 -->
+              <div class="history-stage-label">📜 [{{ getStageLabel(item.stage) }}] {{ item.time }}</div>
+
+              <!-- 图片（如果有） -->
+              <div v-if="item.image_path" class="history-image">
+                <img :src="`/api/design/${item.image_path.split('/').pop().split('_')[0]}/visualization/${item.image_path.split('/').pop()}`" alt="可视化图" style="max-width: 100%; border-radius: 4px;" />
+              </div>
+
+              <!-- 警告信息（如果有） -->
+              <div v-if="item.context?.warnings?.length" class="history-warnings">
+                <div v-for="(w, wi) in item.context.warnings" :key="wi" class="warning-item">⚠️ {{ w }}</div>
+              </div>
+
+              <!-- 方案卡片（如果有） - 历史记录模式：只读，无选择按钮 -->
+              <div v-if="item.context?.proposals?.length" class="schemes-container-new" style="margin-bottom: 12px;">
+                <div
+                  v-for="(proposal, pi) in item.context.proposals"
+                  :key="pi"
+                  class="scheme-card-new history-mode"
+                  :class="{
+                    selected: isSelectedProposal(item.answer, proposal, pi),
+                    recommended: proposal.recommended,
+                    original: proposal.name === '原方案'
+                  }"
+                >
+                  <div class="scheme-header-new">
+                    <span class="scheme-name-new">{{ proposal.name }}</span>
+                    <span v-if="proposal.recommended" class="badge-recommended">⭐ 推荐</span>
+                    <span v-if="proposal.name === '原方案'" class="badge-original">原案</span>
+                    <span v-if="isSelectedProposal(item.answer, proposal, pi)" class="badge-selected">✓ 用户选择</span>
+                  </div>
+                  <div class="scheme-metrics-grid">
+                    <div v-if="proposal.metrics.section" class="metric-row">
+                      <span class="metric-label">截面</span>
+                      <span class="metric-value">{{ proposal.metrics.section }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.material" class="metric-row">
+                      <span class="metric-label">材料</span>
+                      <span class="metric-value">{{ proposal.metrics.material }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.stress" class="metric-row">
+                      <span class="metric-label">应力</span>
+                      <span class="metric-value">{{ proposal.metrics.stress }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.displacement" class="metric-row">
+                      <span class="metric-label">位移</span>
+                      <span class="metric-value">{{ proposal.metrics.displacement }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.total_score" class="metric-row">
+                      <span class="metric-label">综合得分</span>
+                      <span class="metric-value">{{ proposal.metrics.total_score }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.grade" class="metric-row">
+                      <span class="metric-label">等级</span>
+                      <span class="metric-value">{{ proposal.metrics.grade }}</span>
+                    </div>
+                  </div>
+                  <!-- 历史记录中不显示选择按钮 -->
+                </div>
+              </div>
+
+              <!-- 问题文字 -->
+              <div class="history-q">{{ item.question }}</div>
+
+              <!-- 答案（非方案选择的情况） -->
+              <div v-if="!item.context?.proposals?.length" class="history-a">
+                ✅ 您的回答：{{ item.answer }}
+              </div>
             </div>
           </div>
           <template v-if="progressData">
@@ -371,6 +621,7 @@ const props = defineProps<{
   taskParams: any | null;
   askHumanRequest: any | null;
   schemeUpdates: any[];
+  schemeTotalHint: number;
   savedInteractionHistory: { stage: string; question: string; answer: string; time: string }[];
 }>();
 
@@ -400,7 +651,14 @@ watch(() => props.savedInteractionHistory, (history) => {
   for (const item of history) {
     const s = item.stage || 'unknown';
     if (!interactionHistoryByStage[s]) interactionHistoryByStage[s] = [];
-    interactionHistoryByStage[s].push({ question: item.question, answer: item.answer, time: item.time });
+    interactionHistoryByStage[s].push({
+      question: item.question,
+      answer: item.answer,
+      time: item.time,
+      options: item.options || [],
+      context: item.context || {},
+      image_path: item.image_path || null,
+    });
   }
 }, { immediate: true, deep: true });
 
@@ -438,8 +696,9 @@ watch(() => props.schemeUpdates.length, () => {
   }));
 });
 
-// 从 scheme_ready 消息获取总方案数（不依赖 proposals.length，避免原方案混入）
+// 从 scheme_ready 消息获取总方案数，优先用 scheme_start 提前告知的总数
 const schemeTotal = computed(() => {
+  if (props.schemeTotalHint > 0) return props.schemeTotalHint;
   if (props.schemeUpdates.length > 0) return props.schemeUpdates[0].total;
   return 0;
 });
@@ -448,19 +707,11 @@ const schemeTotal = computed(() => {
 watch(() => props.askHumanRequest, (req) => {
   answer.value = req?.default || (req?.options?.[0] ?? '');
   if (req?.context?.proposals?.length) {
-    // 如果没有实时数据，使用 ask_human 中的 proposals（兼容旧版本）
-    if (realTimeSchemes.value.length === 0) {
-      realTimeSchemes.value = req.context.proposals.map((p: any, i: number) => ({
-        name: p.name,
-        metrics: p.metrics,
-        index: i + 1,
-        recommended: p.recommended,
-      }));
-    }
-
-    // 找推荐方案作为默认选中
+    // 找推荐方案作为默认选中（proposals 包含原方案，索引从0开始）
     const recIdx = req.context.proposals.findIndex((p: any) => p.recommended);
     selectedSchemeIdx.value = recIdx >= 0 ? recIdx : 0;
+  } else {
+    selectedSchemeIdx.value = -1;
   }
 });
 
@@ -572,6 +823,64 @@ const getGradeColor = (grade: string) => {
   return 'red';
 };
 
+const isSelectedScheme = (answer: string, schemeIndex: number) => {
+  // answer 可能是 "0", "1", "2" 或 "optimize" 等
+  // schemeIndex 是数组索引 0, 1, 2
+  const answerNum = parseInt(answer);
+  if (!isNaN(answerNum)) {
+    return answerNum === schemeIndex;
+  }
+  return false;
+};
+
+// 判断历史记录中某个方案是否是用户选择的方案
+const isSelectedProposal = (answer: string, proposal: any, proposalIndex: number) => {
+  // answer 是用户提交的答案，可能是 "0", "1", "2" 等索引
+  const answerNum = parseInt(answer);
+  if (!isNaN(answerNum)) {
+    return answerNum === proposalIndex;
+  }
+  // 也可能通过方案名称匹配
+  if (answer.includes(proposal.name)) {
+    return true;
+  }
+  return false;
+};
+
+// 判断当前 askHumanRequest 是否是只读模式（已经选择过方案，仅展示）
+const isReadonlyMode = () => {
+  // 如果 context 中有 selected_proposal_index，说明已经选择过方案，现在是只读展示
+  if (props.askHumanRequest?.context?.selected_proposal_index !== undefined) {
+    return true;
+  }
+  // 如果 context 中有 readonly 标识
+  if (props.askHumanRequest?.context?.readonly === true) {
+    return true;
+  }
+  // 如果问题不是关于选择方案的（比如"是否导出BIM"），但包含了 proposals，说明是只读展示
+  const question = props.askHumanRequest?.question || '';
+  if (props.askHumanRequest?.context?.proposals?.length &&
+      !question.includes('选择') &&
+      !question.includes('方案') &&
+      (question.includes('是否') || question.includes('导出'))) {
+    return true;
+  }
+  return false;
+};
+
+// 判断某个方案是否被选中（在只读模式下）
+const isProposalSelected = (proposalIndex: number) => {
+  // 只读模式：使用 context.selected_proposal_index
+  if (isReadonlyMode()) {
+    const selectedIdx = props.askHumanRequest?.context?.selected_proposal_index;
+    if (selectedIdx !== undefined) {
+      return selectedIdx === proposalIndex;
+    }
+  }
+  // 正常选择模式：使用 selectedSchemeIdx
+  return selectedSchemeIdx.value === proposalIndex;
+};
+
 const proposalColumns = computed(() => {
   if (!props.askHumanRequest?.context?.proposals?.length) return [];
   const metrics = props.askHumanRequest.context.proposals[0]?.metrics || {};
@@ -670,12 +979,12 @@ const submitAnswer = () => {
   border-top: 1px solid #f0f0f0;
   min-height: 220px;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .left-panel { padding: 16px; border-right: 1px solid #f0f0f0; min-width: 0; overflow-y: auto; }
 
-.right-panel { width: 380px; min-width: 380px; box-sizing: border-box; padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
+.right-panel { width: 380px; min-width: 380px; box-sizing: border-box; padding: 12px 16px; background: #fafafa; overflow-y: auto; }
 
 .preview-box { margin-bottom: 16px; text-align: center; background: #f0f7ff; padding: 16px; border-radius: 8px; }
 
@@ -691,8 +1000,6 @@ const submitAnswer = () => {
 .sub-stage-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; display: flex; justify-content: space-between; }
 .sub-pct { color: #1890ff; }
 .sub-message { margin-top: 8px; font-size: 13px; color: #666; }
-
-.right-panel { width: 380px; min-width: 380px; box-sizing: border-box; padding: 12px 16px; background: #fafafa; overflow-y: auto; max-height: 600px; }
 
 .panel-header { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
 .history-badge { font-size: 11px; background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; }
@@ -720,10 +1027,69 @@ const submitAnswer = () => {
 }
 
 .interaction-history { margin-bottom: 12px; }
-.history-item { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
-.history-q { font-size: 12px; color: #666; margin-bottom: 4px; }
+.history-item { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+.history-stage-label { font-size: 12px; font-weight: 600; color: #17a2b8; margin-bottom: 8px; }
+.history-image { margin-bottom: 12px; text-align: center; }
+.history-warnings { margin-bottom: 12px; }
+.history-warnings .warning-item { font-size: 13px; color: #fa8c16; padding: 4px 0; }
+.history-q { font-size: 14px; color: #333; margin-bottom: 8px; font-weight: 500; }
 .history-a { font-size: 13px; color: #389e0d; font-weight: 500; }
 .history-time { font-size: 11px; color: #999; margin-left: 8px; }
+
+/* 历史记录中的方案卡片：只读模式，无选择按钮 */
+.scheme-card-new.history-mode {
+  opacity: 0.95;
+  cursor: default;
+}
+
+.scheme-card-new.history-mode.selected {
+  border-color: #52c41a;
+  background: #f6ffed;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+/* 历史记录中的徽章样式 */
+.badge-recommended {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #faad14;
+  color: white;
+  font-weight: 600;
+}
+
+.badge-original {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #52c41a;
+  color: white;
+  font-weight: 600;
+}
+
+.badge-selected {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #1890ff;
+  color: white;
+  font-weight: 600;
+}
+
+/* 历史交互完整显示样式 */
+.history-item-full { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.history-q-title { font-size: 14px; font-weight: 600; color: #1890ff; margin-bottom: 12px; }
+.history-preview-box { margin-bottom: 12px; text-align: center; background: #f0f7ff; padding: 12px; border-radius: 6px; }
+.history-warnings { margin-bottom: 12px; }
+.history-score { margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 6px; }
+.history-schemes { margin-bottom: 12px; }
+.history-schemes h4 { margin: 0 0 12px 0; }
+.history-recommendation { margin-bottom: 12px; padding: 8px 12px; background: #e6f7ff; border-left: 4px solid #1890ff; border-radius: 4px; font-size: 13px; }
+.history-options { margin-bottom: 12px; }
+.history-option-item { padding: 6px 10px; margin-bottom: 4px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; background: white; }
+.history-option-item.selected { border-color: #52c41a; background: #f6ffed; font-weight: 600; }
+.history-a { font-size: 14px; color: #389e0d; font-weight: 600; padding-top: 8px; border-top: 1px solid #d9f7be; }
+.scheme-card.recommended { border-color: #faad14; background: #fffbe6; }
 
 .history-stage-header {
   font-size: 13px;
@@ -751,7 +1117,155 @@ const submitAnswer = () => {
   50% { opacity: 0.6; }
 }
 
+/* 自动完成阶段摘要样式 */
+.auto-stage-summary {
+  background: #f0f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d6e4ff;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e6f7ff;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 13px;
+  color: #262626;
+  font-weight: 600;
+}
+
+.summary-value.success {
+  color: #52c41a;
+}
+
+.summary-value.warning {
+  color: #faad14;
+}
+
 .schemes-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+
+/* 新版方案卡片样式（参考图片） */
+.schemes-container-new { display: flex; flex-direction: column; gap: 16px; }
+
+.scheme-card-new {
+  border: 3px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.scheme-card-new.original { border-color: #52c41a; background: #f6ffed; }
+.scheme-card-new.recommended { border-color: #1890ff; background: #e6f7ff; }
+.scheme-card-new.selected { border-color: #1890ff; background: #e6f7ff; box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3); }
+.scheme-card-new.pending { border-color: #d9d9d9; background: #fafafa; }
+
+.scheme-header-new {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.scheme-title { display: flex; align-items: center; gap: 8px; }
+
+.scheme-name-new {
+  font-size: 16px;
+  font-weight: 700;
+  color: #262626;
+}
+
+.scheme-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.scheme-badge.original-badge { background: #52c41a; color: white; }
+.scheme-badge.recommended-badge { background: #faad14; color: white; }
+
+.status-icon {
+  font-size: 18px;
+}
+
+.status-icon.selected-icon {
+  color: #1890ff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.scheme-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 14px;
+  color: #262626;
+  font-weight: 600;
+}
+
+.select-btn-new {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #1890ff;
+  background: white;
+  color: #1890ff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.select-btn-new:hover { background: #e6f7ff; }
+.select-btn-new.selected { background: #1890ff; color: white; border-color: #1890ff; }
+.select-btn-new:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .scheme-card {
   border: 2px solid #dee2e6;
