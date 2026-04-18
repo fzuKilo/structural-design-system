@@ -307,12 +307,13 @@ class PlanningFlow:
             print()
             print("Step 7: IFC Export (可选)")
             print("-" * 40)
-            # 构建 context，包含之前选择的方案信息（如果有）
+            # 构建 context，只传递选择的索引，不传递完整的方案列表
             context = {}
             if "selected_proposal_index" in self.results:
                 context["selected_proposal_index"] = self.results["selected_proposal_index"]
-            if "selected_proposals_context" in self.results:
-                context.update(self.results["selected_proposals_context"])
+            # 注释掉：不传递完整的方案列表
+            # if "selected_proposals_context" in self.results:
+            #     context.update(self.results["selected_proposals_context"])
 
             choice = await self._ask_web_or_cli(
                 question="是否导出为IFC文件（BIM）？",
@@ -421,13 +422,14 @@ class PlanningFlow:
             print()
             print("Step 5.2: BIM/IFC Export (可选)")
             print("-" * 40)
-            # 构建 context，包含之前选择的方案信息（如果有）
+            # 构建 context，只传递选择的索引，不传递完整的方案列表
+            # 避免在BIM导出阶段重复显示方案卡片
             context = {}
             if "selected_proposal_index" in self.results:
                 context["selected_proposal_index"] = self.results["selected_proposal_index"]
-            if "selected_proposals_context" in self.results:
-                # 包含完整的方案列表，供前端展示
-                context.update(self.results["selected_proposals_context"])
+            # 注释掉：不传递完整的方案列表
+            # if "selected_proposals_context" in self.results:
+            #     context.update(self.results["selected_proposals_context"])
 
             choice = await self._ask_web_or_cli(
                 question="是否导出BIM模型（Speckle + IFC）？",
@@ -497,12 +499,13 @@ class PlanningFlow:
             print()
             print("Step 6: BIM Export (可选)")
             print("-" * 40)
-            # 构建 context，包含之前选择的方案信息（如果有）
+            # 构建 context，只传递选择的索引，不传递完整的方案列表
             context = {}
             if "selected_proposal_index" in self.results:
                 context["selected_proposal_index"] = self.results["selected_proposal_index"]
-            if "selected_proposals_context" in self.results:
-                context.update(self.results["selected_proposals_context"])
+            # 注释掉：不传递完整的方案列表
+            # if "selected_proposals_context" in self.results:
+            #     context.update(self.results["selected_proposals_context"])
 
             choice = await self._ask_web_or_cli(
                 question="是否导出到Speckle BIM查看器？",
