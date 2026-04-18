@@ -683,9 +683,19 @@ const formatFieldValue = (key: string, val: any): string => {
   if (val === null || val === undefined) return '—';
   if (typeof val === 'object') return JSON.stringify(val);
 
-  // 对于已经在 fieldLabels 中定义了单位的字段，直接返回值
-  // 因为单位已经在标签中显示了
-  return String(val);
+  // 转换为数字
+  const numVal = Number(val);
+
+  // 如果不是有效数字，直接返回字符串
+  if (isNaN(numVal)) return String(val);
+
+  // 对于非常大的数字（>= 10000）或非常小的数字（< 0.001 且 != 0），使用科学计数法
+  if (Math.abs(numVal) >= 10000 || (Math.abs(numVal) < 0.001 && numVal !== 0)) {
+    return numVal.toExponential(3);
+  }
+
+  // 对于普通数字，保留3位小数
+  return numVal.toFixed(3);
 };
 
 // 从持久化历史初始化（任务完成后刷新页面时恢复）
