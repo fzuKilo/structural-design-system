@@ -691,11 +691,11 @@ const formatFieldValue = (key: string, val: any): string => {
 
   // 对于非常大的数字（>= 10000）或非常小的数字（< 0.001 且 != 0），使用科学计数法
   if (Math.abs(numVal) >= 10000 || (Math.abs(numVal) < 0.001 && numVal !== 0)) {
-    return numVal.toExponential(3);
+    return numVal.toExponential(2);
   }
 
-  // 对于普通数字，保留3位小数
-  return numVal.toFixed(3);
+  // 对于普通数字，保留2位小数
+  return numVal.toFixed(2);
 };
 
 // 从持久化历史初始化（任务完成后刷新页面时恢复）
