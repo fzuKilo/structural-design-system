@@ -40,6 +40,19 @@ def run_design_task(task_id: str, user_request: str):
         redis_client.publish(channel, json.dumps(message))
         print(f"[DEBUG] Published message to Redis: {message}")
 
+        # Persist interaction_history to DB immediately so it survives page navigation
+        if message.get("type") == "interaction_history" and message.get("interaction_history"):
+            try:
+                with get_db_context() as db:
+                    t = db.query(Task).filter(Task.id == task_id).first()
+                    if t:
+                        rj = t.result_json or {}
+                        rj["interaction_history"] = message["interaction_history"]
+                        t.result_json = rj
+                        db.commit()
+            except Exception as e:
+                print(f"[WARN] Failed to persist interaction_history: {e}")
+
     # Run async workflow
     try:
         asyncio.run(_run_workflow(task_id, user_request, websocket_callback_sync))
