@@ -354,7 +354,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.legend()
 
         plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.savefig(filepath, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_moment_cloud(self, nodes: np.ndarray, moments: list, filepath: str, length: float, n_elem: int):
@@ -401,7 +401,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.set_title('Bending Moment Cloud Plot', fontsize=14, fontweight='bold')
 
         plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.savefig(filepath, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_stress_cloud(self, nodes: np.ndarray, stresses: list, filepath: str, length: float, n_elem: int):
@@ -440,7 +440,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.set_title('Bending Stress Cloud Plot', fontsize=14, fontweight='bold')
 
         plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.savefig(filepath, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_moment_diagram(self, nodes: np.ndarray, moments: list, filepath: str, length: float, n_elem: int):
@@ -513,7 +513,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.legend(fontsize=11)
 
         plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.savefig(filepath, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_interactive_displacement(self, nodes: np.ndarray, displacements: list, filepath: str, n_elem: int):

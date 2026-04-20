@@ -217,7 +217,7 @@ class TrussVisualizer(BaseVisualizer):
 
         if len(nodes) == 0 or len(displacements) == 0:
             ax.text(0.5, 0.5, 'No data available', ha='center', va='center')
-            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            plt.savefig(filename, dpi=200, bbox_inches='tight')
             plt.close()
             return
 
@@ -242,7 +242,7 @@ class TrussVisualizer(BaseVisualizer):
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
 
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_stress_cloud(self, nodes, stresses, filename, span, height, n_panels):
@@ -251,7 +251,7 @@ class TrussVisualizer(BaseVisualizer):
 
         if len(nodes) == 0 or len(stresses) == 0:
             ax.text(0.5, 0.5, 'No data available', ha='center', va='center')
-            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            plt.savefig(filename, dpi=200, bbox_inches='tight')
             plt.close()
             return
 
@@ -281,7 +281,7 @@ class TrussVisualizer(BaseVisualizer):
         ax.set_aspect('equal')
         ax.autoscale()
 
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _plot_topology(self, nodes, displacements, filename, span, height, n_panels):
@@ -290,7 +290,7 @@ class TrussVisualizer(BaseVisualizer):
 
         if len(nodes) == 0:
             ax.text(0.5, 0.5, 'No data available', ha='center', va='center')
-            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            plt.savefig(filename, dpi=200, bbox_inches='tight')
             plt.close()
             return
 
@@ -326,7 +326,7 @@ class TrussVisualizer(BaseVisualizer):
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
 
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.savefig(filename, dpi=200, bbox_inches='tight')
         plt.close()
 
     def _draw_truss_members(self, ax, nodes, n_panels, **kwargs):

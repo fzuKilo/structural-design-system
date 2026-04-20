@@ -156,7 +156,7 @@ class FrameVisualizer(BaseVisualizer):
 
     def _save_png(self, fig, name: str, ts: str) -> str:
         path = os.path.join(self.output_dir, f"frame_{name}_{ts}.png")
-        fig.savefig(path, dpi=150, bbox_inches='tight')
+        fig.savefig(path, dpi=200, bbox_inches='tight')
         plt.close(fig)
         return path
 
