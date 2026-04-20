@@ -140,6 +140,7 @@ const visualizations = computed(() => {
   const labelMap: Record<string, string> = {
     displacement_contour: '位移云图', moment_contour: '弯矩云图',
     stress_contour: '应力云图', moment_diagram: '弯矩图',
+    story_drift: '层间位移角', topology: '结构拓扑图',
   };
   for (const [key, path] of Object.entries(vis.static || {})) {
     if (typeof path === 'string') result.push({ key, label: labelMap[key] || key, path, type: 'img' });
