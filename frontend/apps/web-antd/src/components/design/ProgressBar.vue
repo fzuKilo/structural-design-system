@@ -318,7 +318,8 @@
           <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
               <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
-              <ARadio value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
+              <!-- 只在设计方案阶段显示"其他"选项 -->
+              <ARadio v-if="askHumanRequest.stage === 'design_proposal'" value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
             </ARadioGroup>
             <div v-if="answer === '__other__'" style="margin-bottom:12px;">
               <ATextarea v-model:value="otherInput" :rows="3" placeholder="请输入您的自定义内容..." style="margin-top:8px;" />
