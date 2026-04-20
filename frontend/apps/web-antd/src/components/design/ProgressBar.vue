@@ -667,34 +667,42 @@ const interactionHistoryByStage = reactive<Record<string, { question: string; an
 
 // 字段名中英文映射表（带单位）
 const fieldLabels: Record<string, string> = {
-  // 几何参数
-  'length': '长度 (m)',
-  'width': '宽度 (m)',
-  'height': '高度 (m)',
+  // 几何参数 - 通用
+  'length': '跨度 (m)',
+  'width': '截面宽 (m)',
+  'height': '截面高/桁架高 (m)',
   'span': '跨度 (m)',
-  'beam': '梁类型',
-  'column': '柱类型',
-  'n_elements': '单元数量',
   'thickness': '厚度 (m)',
   'diameter': '直径 (m)',
-
+  'n_elements': '单元数量',
+  // 几何参数 - 桁架
+  'n_panels': '节间数',
+  'truss_type': '桁架类型',
+  'A': '截面积 (m²)',
+  // 几何参数 - 框架
+  'num_bays': '跨数',
+  'num_stories': '层数',
+  'bay_widths': '各跨宽度 (m)',
+  'story_heights': '各层高度 (m)',
+  'columns': '柱截面',
+  'beams': '梁截面',
   // 材料参数
   'material_name': '材料名称',
-  'E': '弹性模量 (MPa)',
-  'fy': '屈服强度 (MPa)',
+  'E': '弹性模量',
+  'fy': '屈服/抗压强度',
   'nu': '泊松比',
   'density': '密度 (kg/m³)',
   'fc': '混凝土强度 (MPa)',
-
   // 荷载参数
   'dead_load': '恒载 (kN/m)',
   'live_load': '活载 (kN/m)',
   'wind_load': '风荷载 (kN/m²)',
   'seismic_load': '地震荷载',
-
   // 其他
   'type': '结构类型',
   'description': '描述',
+  'beam': '梁类型',
+  'column': '柱类型',
 };
 
 // 获取字段的中文标签（带单位）
@@ -702,24 +710,46 @@ const getFieldLabel = (key: string): string => {
   return fieldLabels[key] || key;
 };
 
-// 格式化字段值（添加适当的单位和格式）
 const formatFieldValue = (key: string, val: any): string => {
   if (val === null || val === undefined) return '—';
-  if (typeof val === 'object') return JSON.stringify(val);
 
-  // 转换为数字
-  const numVal = Number(val);
+  // Arrays: show as comma-separated values
+  if (Array.isArray(val)) return val.join(' / ') + (key.includes('width') || key.includes('height') ? ' m' : '');
 
-  // 如果不是有效数字，直接返回字符串
-  if (isNaN(numVal)) return String(val);
-
-  // 对于非常大的数字（>= 10000）或非常小的数字（< 0.001 且 != 0），使用科学计数法
-  if (Math.abs(numVal) >= 10000 || (Math.abs(numVal) < 0.001 && numVal !== 0)) {
-    return numVal.toExponential(2);
+  // Objects: format section info (columns/beams)
+  if (typeof val === 'object') {
+    const parts: string[] = [];
+    if (val.width != null && val.depth != null) parts.push(`${val.width * 1000}×${val.depth * 1000} mm`);
+    else if (val.width != null) parts.push(`宽 ${val.width * 1000} mm`);
+    else if (val.depth != null) parts.push(`高 ${val.depth * 1000} mm`);
+    if (val.type) parts.push(val.type === 'rectangular' ? '矩形' : val.type);
+    return parts.length ? parts.join('，') : JSON.stringify(val);
   }
 
-  // 对于普通数字，保留2位小数
-  return numVal.toFixed(2);
+  const numVal = Number(val);
+  if (isNaN(numVal)) return String(val);
+
+  // Elastic modulus E: convert Pa → GPa or MPa
+  if (key === 'E') {
+    if (Math.abs(numVal) >= 1e9) return (numVal / 1e9).toFixed(1) + ' GPa';
+    if (Math.abs(numVal) >= 1e6) return (numVal / 1e6).toFixed(0) + ' MPa';
+    return numVal.toFixed(0) + ' Pa';
+  }
+
+  // Strength fy/fc: convert Pa → MPa if large
+  if (key === 'fy' || key === 'fc') {
+    if (Math.abs(numVal) >= 1e6) return (numVal / 1e6).toFixed(1) + ' MPa';
+    return numVal.toFixed(1) + ' MPa';
+  }
+
+  // Cross-section area A: m² with 4 decimal places
+  if (key === 'A') return numVal.toFixed(4) + ' m²';
+
+  // Normal numbers: up to 3 significant digits, no scientific notation
+  if (Math.abs(numVal) >= 1000) return numVal.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+  if (Math.abs(numVal) >= 1) return numVal.toFixed(2);
+  if (numVal === 0) return '0';
+  return numVal.toPrecision(3);
 };
 
 // 从持久化历史初始化（任务完成后刷新页面时恢复）
