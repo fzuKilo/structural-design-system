@@ -22,12 +22,15 @@ async def _replay_state(websocket: WebSocket, task_id: str):
             if task and task.status == 'running' and task.result_json:
                 rj = task.result_json or {}
                 raw = rj.get('raw') or {}
+                # Prefer stages_snapshot (written incrementally during execution)
+                # Fallback to raw (written only on completion)
+                snapshot = rj.get('stages_snapshot', {})
                 stage_data_map = {
-                    'design_proposal': raw.get('design_proposal'),
-                    'fe_analysis': raw.get('analysis_results'),
-                    'evaluation': rj.get('evaluation') or raw.get('evaluation_report'),
-                    'cad_drawing': raw.get('drawing_results'),
-                    'report_generation': raw.get('report_results'),
+                    'design_proposal': snapshot.get('design_proposal') or raw.get('design_proposal'),
+                    'fe_analysis': snapshot.get('fe_analysis') or raw.get('analysis_results'),
+                    'evaluation': snapshot.get('evaluation') or rj.get('evaluation') or raw.get('evaluation_report'),
+                    'cad_drawing': snapshot.get('cad_drawing') or raw.get('drawing_results'),
+                    'report_generation': snapshot.get('report_generation') or raw.get('report_results'),
                 }
                 for stage_name, data in stage_data_map.items():
                     if data:

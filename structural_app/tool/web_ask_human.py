@@ -150,22 +150,6 @@ class WebAskHuman(AskHuman):
         )
         print(f"[WebAskHuman] Received answer: {answer}")
 
-        # 广播更新后的交互历史给前端（实时同步）
-        if self.websocket_callback and self.task_id:
-            try:
-                import redis.asyncio as aioredis
-                import json as _json
-                _rc = aioredis.from_url(self.redis_url, decode_responses=True)
-                raw_list = await _rc.lrange(f"interaction_history:{self.task_id}", 0, -1)
-                await _rc.aclose()
-                history = [_json.loads(x) for x in raw_list]
-                await self.websocket_callback({
-                    "type": "interaction_history",
-                    "interaction_history": history,
-                })
-            except Exception as _e:
-                print(f"[WebAskHuman] Failed to broadcast history: {_e}")
-
         return answer
 
     def _extract_image_path(self, inquire: str) -> str:
@@ -389,6 +373,17 @@ class WebAskHuman(AskHuman):
                     }, ensure_ascii=False)
                     await client.rpush(f"interaction_history:{self.task_id}", record)
                     await client.expire(f"interaction_history:{self.task_id}", 86400)
+                    # 立即广播完整历史，触发数据库持久化（不等 execute() 返回）
+                    if self.websocket_callback:
+                        try:
+                            raw_list = await client.lrange(f"interaction_history:{self.task_id}", 0, -1)
+                            history = [_json.loads(x) for x in raw_list]
+                            await self.websocket_callback({
+                                "type": "interaction_history",
+                                "interaction_history": history,
+                            })
+                        except Exception as _e:
+                            print(f"[WebAskHuman] Failed to broadcast history immediately: {_e}")
                     return answer
                 await asyncio.sleep(1)
                 elapsed += 1
