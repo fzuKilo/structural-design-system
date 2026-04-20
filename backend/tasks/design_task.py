@@ -215,7 +215,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 # Static images
                 for png in glob.glob(os.path.join(vis_dir, "*.png")):
                     basename = os.path.basename(png)
-                    if "displacement_cloud" in basename or "displacement" in basename and "cloud" in basename:
+                    if "displacement_cloud" in basename or ("displacement" in basename and "cloud" in basename):
                         actual_visualizations["static"]["displacement_contour"] = png
                     elif "moment_cloud" in basename:
                         actual_visualizations["static"]["moment_contour"] = png
@@ -223,6 +223,16 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                         actual_visualizations["static"]["stress_contour"] = png
                     elif "moment_diagram" in basename:
                         actual_visualizations["static"]["moment_diagram"] = png
+                    # Frame-specific filenames: frame_displacement_*.png, frame_moment_*.png, frame_story_drift_*.png
+                    elif basename.startswith("frame_displacement"):
+                        actual_visualizations["static"]["displacement_contour"] = png
+                    elif basename.startswith("frame_moment"):
+                        actual_visualizations["static"]["moment_contour"] = png
+                    elif basename.startswith("frame_story_drift"):
+                        actual_visualizations["static"]["story_drift"] = png
+                    # Truss-specific: truss_topology_*.png
+                    elif "topology" in basename:
+                        actual_visualizations["static"]["topology"] = png
 
                 # Interactive HTML
                 for html in glob.glob(os.path.join(vis_dir, "*.html")):
