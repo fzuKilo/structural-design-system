@@ -2239,15 +2239,71 @@ class PlanningFlow:
         results = analysis_results.get('results', {})
         detailed_results = results.get('detailed_results', {})
 
+        # Build design type specific parameter description and supported params hint
+        design_type = design_proposal.get('type', 'unknown')
+        geometry = design_proposal.get('geometry', {})
+        material = design_proposal.get('material', {})
+
+        if design_type == 'truss':
+            current_params_text = f"""- 跨度 (geometry.span): {geometry.get('span', 'N/A')} m
+- 桁架高度 (geometry.height): {geometry.get('height', 'N/A')} m
+- 节间数 (geometry.n_panels): {geometry.get('n_panels', 'N/A')}
+- 桁架类型 (geometry.truss_type): {geometry.get('truss_type', 'pratt')}
+- 弹性模量 (material.E): {material.get('E', 'N/A')} Pa
+- 截面积 (material.A): {material.get('A', 'N/A')} m²
+- 屈服强度 (material.fy): {material.get('fy', 'N/A')} Pa
+- 材料名称 (material.material_name): {material.get('material_name', 'N/A')}"""
+            supported_params_text = """系统支持修改的参数（请在建议中直接使用这些字段名）：
+- geometry.span：桁架跨度（m）
+- geometry.height：桁架高度（m），增大可降低长细比
+- geometry.n_panels：节间数，增大可缩短杆件计算长度
+- geometry.truss_type：桁架类型（pratt/howe/warren）
+- material.A：杆件截面积（m²），增大可直接降低长细比
+- material.E：弹性模量（Pa），如Q235=200GPa，Q355=206GPa
+- material.fy：屈服强度（Pa），如Q235=235MPa，Q355=355MPa
+- material.material_name：材料名称（如Q235、Q355）"""
+
+        elif design_type == 'frame':
+            current_params_text = f"""- 跨数 (geometry.num_bays): {geometry.get('num_bays', 'N/A')}
+- 层数 (geometry.num_stories): {geometry.get('num_stories', 'N/A')}
+- 各跨宽度 (geometry.bay_widths): {geometry.get('bay_widths', 'N/A')} m
+- 各层高度 (geometry.story_heights): {geometry.get('story_heights', 'N/A')} m
+- 柱截面宽 (geometry.columns.width): {geometry.get('columns', {}).get('width', 'N/A')} m
+- 柱截面高 (geometry.columns.depth): {geometry.get('columns', {}).get('depth', 'N/A')} m
+- 梁截面宽 (geometry.beams.width): {geometry.get('beams', {}).get('width', 'N/A')} m
+- 梁截面高 (geometry.beams.depth): {geometry.get('beams', {}).get('depth', 'N/A')} m
+- 弹性模量 (material.E): {material.get('E', 'N/A')} Pa
+- 屈服强度 (material.fy): {material.get('fy', 'N/A')} Pa"""
+            supported_params_text = """系统支持修改的参数（请在建议中直接使用这些字段名）：
+- geometry.bay_widths：各跨宽度列表（m），如[3.0, 3.0]
+- geometry.story_heights：各层高度列表（m），如[4.0, 3.5, 3.5]
+- geometry.columns.width / depth：柱截面宽/高（m）
+- geometry.beams.width / depth：梁截面宽/高（m）
+- material.E：弹性模量（Pa），如C30混凝土=30GPa
+- material.fy：屈服强度/抗压强度（Pa），如C30=14.3MPa"""
+
+        else:  # beam
+            current_params_text = f"""- 跨度 (geometry.length): {geometry.get('length', 'N/A')} m
+- 截面宽 (geometry.width): {geometry.get('width', 'N/A')} m
+- 截面高 (geometry.height): {geometry.get('height', 'N/A')} m
+- 弹性模量 (material.E): {material.get('E', 'N/A')} Pa
+- 泊松比 (material.nu): {material.get('nu', 'N/A')}
+- 屈服强度 (material.fy): {material.get('fy', 'N/A')} Pa"""
+            supported_params_text = """系统支持修改的参数（请在建议中直接使用这些字段名）：
+- geometry.length：梁跨度（m）
+- geometry.width：截面宽度（m）
+- geometry.height：截面高度（m），增大可提高抗弯刚度
+- material.E：弹性模量（Pa），如C30=30GPa，C40=32.5GPa
+- material.nu：泊松比（如混凝土取0.2）
+- material.fy：屈服强度（Pa）"""
+
         # Build prompt for LLM
         prompt = f"""你是一位结构工程专家。请分析以下结构设计的规范检查违规项，并给出改进建议。
 
-设计类型：{design_proposal.get('type', 'Unknown')}
+设计类型：{design_type}
 
 当前设计参数：
-- 跨度: {design_proposal.get('geometry', {}).get('length', 'N/A')} m
-- 截面: {design_proposal.get('geometry', {}).get('width', 'N/A')} x {design_proposal.get('geometry', {}).get('height', 'N/A')} m
-- 材料: {design_proposal.get('material', {}).get('material_name', 'N/A')}
+{current_params_text}
 
 分析结果：
 - 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
@@ -2259,14 +2315,14 @@ class PlanningFlow:
 {json.dumps(violations, ensure_ascii=False, indent=2)}
 
 **要求**：
-1. 简要分析违规原因（每个违规项2-3句话）
-2. 给出具体的改进建议，包括：
-   - 应该调整哪些参数
-   - 建议的参数值或调整方向
-   - 调整的优先级
-3. 保持简洁明了，总字数控制在400-500字
+1. 简要分析违规原因（2-3句话）
+2. 给出具体的改进建议，直接对应系统支持的参数字段，给出建议值
+3. 调整优先级排序
+4. 末尾单独列出"建议修改的参数"，格式为：参数字段名 → 建议值（原因）
 
-请用中文回答，格式清晰。"""
+{supported_params_text}
+
+请用中文回答，格式清晰，总字数控制在500字以内。"""
 
         try:
             # Use OpenAI-compatible API (supports DeepSeek, OpenAI, etc.)
