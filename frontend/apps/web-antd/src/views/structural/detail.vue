@@ -208,11 +208,12 @@ const connectWs = () => {
   const handleWsMaxRetries = () => { wsMaxRetriesReached.value = true; };
 
   wsManager = new WebSocketManager(handleWsMessage, handleWsOpen, handleWsClose, handleWsReconnecting, handleWsMaxRetries);
-  // 首次连接时重置状态（重连由 WebSocketManager 内部处理，不会再次调用 connectWs）
-  stages.value = [];
-  schemeUpdates.value = [];
-  schemeTotalHint.value = 0;
-  askHumanRequest.value = null;
+  // 只在没有已有数据时才重置状态（避免重新进入页面时清空已积累的阶段数据）
+  if (stages.value.length === 0) {
+    schemeUpdates.value = [];
+    schemeTotalHint.value = 0;
+    askHumanRequest.value = null;
+  }
   wsManager.connect(route.params.id as string, token);
 };
 
@@ -248,6 +249,10 @@ onMounted(async () => {
   try {
     await loadTask();
     if (task.value?.status === 'running' || task.value?.status === 'pending') {
+      // 先从 interaction_history 恢复已完成的阶段，再连 WS
+      if (stages.value.length === 0) {
+        rebuildStagesFromResult(task.value);
+      }
       connectWs();
     }
   } finally {
