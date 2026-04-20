@@ -303,6 +303,12 @@
             ★ 推荐方案：{{ askHumanRequest.context.recommendation }}
           </div>
 
+          <!-- LLM 改进建议 -->
+          <div v-if="askHumanRequest.context?.suggestions_text" style="margin-bottom:14px; padding:12px; background:#f6ffed; border-left:4px solid #52c41a; border-radius:4px; max-height:300px; overflow-y:auto;">
+            <div style="font-weight:500; color:#389e0d; margin-bottom:6px;">💡 LLM 改进建议</div>
+            <pre style="margin:0; font-size:12px; color:#333; white-space:pre-wrap; font-family:inherit;">{{ askHumanRequest.context.suggestions_text }}</pre>
+          </div>
+
           <!-- 问题文字 -->
           <p class="question-text">{{ askHumanRequest.question }}</p>
 
@@ -546,6 +552,8 @@
               <div class="score-grid">
                 <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.safetyScore) }">{{ displayParams?.safetyScore ?? '—' }}</div><div class="score-label">安全性</div></div>
                 <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.economyScore) }">{{ displayParams?.economyScore ?? '—' }}</div><div class="score-label">经济性</div></div>
+                <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.efficiencyScore) }">{{ displayParams?.efficiencyScore ?? '—' }}</div><div class="score-label">结构效率</div></div>
+                <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.sustainabilityScore) }">{{ displayParams?.sustainabilityScore ?? '—' }}</div><div class="score-label">可持续性</div></div>
                 <div class="score-item"><div class="score-num" :style="{ color: getScoreColor(displayParams?.overallScore) }">{{ displayParams?.overallScore ?? '—' }}</div><div class="score-label">综合</div></div>
               </div>
               <div v-if="displayParams?.grade" style="text-align:center; margin-top:8px;">

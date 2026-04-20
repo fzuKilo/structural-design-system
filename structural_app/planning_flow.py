@@ -1006,6 +1006,8 @@ class PlanningFlow:
             "grade": self.results["evaluation_report"].get("grade"),
             "safety_score": self.results["evaluation_report"].get("dimensions", {}).get("safety", {}).get("score"),
             "economy_score": self.results["evaluation_report"].get("dimensions", {}).get("economy", {}).get("score"),
+            "efficiency_score": self.results["evaluation_report"].get("dimensions", {}).get("structural_efficiency", {}).get("score"),
+            "sustainability_score": self.results["evaluation_report"].get("dimensions", {}).get("sustainability", {}).get("score"),
             "warnings": self.results["evaluation_report"].get("warnings", []),
             "design_type": self.results["design_proposal"].get("type"),
             "geometry": self.results["design_proposal"].get("geometry", {}),
@@ -2410,17 +2412,18 @@ class PlanningFlow:
                 print(suggestions)
                 print("=" * 60)
 
-            # Ask user for improvements
+            # Ask user for improvements - show LLM suggestions and text input in one step
             print()
             user_input = await self._ask_web_or_cli(
-                question="请输入改进方案（或选择跳过）",
-                options=["skip - 跳过，使用当前方案"],
-                default="skip",
+                question="请根据以下改进建议，输入您的改进方案（输入 skip 可跳过）",
+                options=[],
+                default="",
                 mapping=None,
                 cli_prompt="请输入改进方案（或输入 'skip' 跳过）: ",
+                context={"suggestions_text": suggestions or "（LLM建议生成失败，请直接输入改进方案）"},
             )
 
-            if user_input.lower() == 'skip':
+            if user_input.lower().startswith('skip') or user_input.strip() == '':
                 if verbose:
                     print("[PlanningFlow] 用户跳过改进，使用当前结果")
                 return (current_results, current_design_proposal)

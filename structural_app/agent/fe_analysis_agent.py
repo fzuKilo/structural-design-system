@@ -375,26 +375,27 @@ Return the complete AnalysisResults."""
             # Build violation message
             violation_text = "\n".join([f"  - {v.get('description', 'Unknown violation')}" for v in violations])
 
-            # Build AskHuman prompt (clean, no markdown symbols)
-            ask_human_prompt = f"""有限元分析结果 - 规范校核未通过（第 {loop_count} 轮）
-
-您的设计方案未通过规范校核。具体违规如下：
-{violation_text}
-
-关键结果：
-- 最大位移: {results.get('max_displacement_mm', 'N/A')} mm
-- 最大应力: {results.get('max_stress_MPa', 'N/A')} MPa
-- 最大弯矩: {results.get('max_moment_kNm', 'N/A')} kN*m
-
-当前设计参数：
-- 跨度: {geometry.get('length', 'N/A')} m
-- 截面: {geometry.get('width', 'N/A')} x {geometry.get('height', 'N/A')} m
-- 材料: {material.get('material_name', 'N/A')}
-
-请根据以上信息，提供具体的设计改进方案：
-1. 直接输入改进后的设计参数（JSON格式）
-2. 描述需要调整的地方（如：增加截面高度到0.5m，改用C40混凝土）
-3. 输入 "skip" 跳过改进，直接返回当前结果"""
+            # Build structured question and context for ask_human
+            ask_question = f"有限元分析结果 - 规范校核未通过（第 {loop_count} 轮）\n\n请根据以下信息提供改进方案，或选择跳过："
+            ask_context = {
+                "violations": violation_text,
+                "max_displacement": f"{results.get('max_displacement_mm', 'N/A')} mm",
+                "max_stress": f"{results.get('max_stress_MPa', 'N/A')} MPa",
+                "max_moment": f"{results.get('max_moment_kNm', 'N/A')} kN·m",
+                "current_span": f"{geometry.get('length', 'N/A')} m",
+                "current_section": f"{geometry.get('width', 'N/A')} x {geometry.get('height', 'N/A')} m",
+                "current_material": material.get('material_name', 'N/A'),
+                "suggestions": [
+                    "增加截面高度（如：将高度从当前值增加20%）",
+                    "提高混凝土强度等级（如：C30 → C40）",
+                    "增加配筋率",
+                    "减小跨度或增加支撑",
+                ],
+            }
+            ask_options = [
+                "manual - 手动输入改进方案",
+                "skip - 跳过改进，使用当前结果",
+            ]
 
             try:
                 # Use AskHuman tool to get user input
@@ -403,11 +404,15 @@ Return the complete AnalysisResults."""
                     if hasattr(t, 'name') and t.name == 'ask_human'
                 )
 
-                user_input_result = await ask_human_tool.execute(inquire=ask_human_prompt)
+                user_input_result = await ask_human_tool.execute(
+                    question=ask_question,
+                    options=ask_options,
+                    context=ask_context,
+                )
                 user_input = user_input_result.output if hasattr(user_input_result, 'output') else str(user_input_result)
 
-                # Check if user wants to skip
-                if user_input.strip().lower() == 'skip':
+                # Check if user wants to skip (handles both "skip" and "skip - ..." option format)
+                if user_input.strip().lower().startswith('skip'):
                     # Append skip message to result
                     return f"""{result}
 

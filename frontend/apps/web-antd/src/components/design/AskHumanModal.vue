@@ -77,43 +77,141 @@
           <span style="color: #333;">{{ request.context.recommendation }}</span>
         </div>
 
+        <!-- Context: FE Analysis violations and current params -->
+        <div v-if="request.context?.violations" style="margin-bottom: 16px; padding: 12px; background: #fff2f0; border-left: 4px solid #ff4d4f; border-radius: 4px;">
+          <div style="font-weight: 500; color: #ff4d4f; margin-bottom: 6px;">⚠️ 违规详情</div>
+          <pre style="margin: 0; font-size: 13px; color: #333; white-space: pre-wrap;">{{ request.context.violations }}</pre>
+        </div>
+        <div v-if="request.context?.max_stress" style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+          <div style="font-weight: 500; margin-bottom: 6px;">📊 关键结果</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px;">
+            <span v-if="request.context.max_stress"><b>最大应力：</b>{{ request.context.max_stress }}</span>
+            <span v-if="request.context.max_displacement"><b>最大位移：</b>{{ request.context.max_displacement }}</span>
+            <span v-if="request.context.max_moment"><b>最大弯矩：</b>{{ request.context.max_moment }}</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; margin-top: 6px;">
+            <span v-if="request.context.current_span"><b>跨度：</b>{{ request.context.current_span }}</span>
+            <span v-if="request.context.current_section"><b>截面：</b>{{ request.context.current_section }}</span>
+            <span v-if="request.context.current_material"><b>材料：</b>{{ request.context.current_material }}</span>
+          </div>
+        </div>
+
+        <!-- Context: Suggestions (array) -->
+        <div v-if="request.context?.suggestions?.length" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-left: 4px solid #52c41a; border-radius: 4px;">
+          <div style="font-weight: 500; color: #389e0d; margin-bottom: 6px;">💡 改进建议</div>
+          <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #333;">
+            <li v-for="(s, i) in request.context.suggestions" :key="i" style="margin-bottom: 4px;">{{ s }}</li>
+          </ul>
+        </div>
+
+        <!-- Context: Suggestions text (LLM generated, string) -->
+        <div v-if="request.context?.suggestions_text" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-left: 4px solid #52c41a; border-radius: 4px;">
+          <div style="font-weight: 500; color: #389e0d; margin-bottom: 6px;">💡 LLM 改进建议</div>
+          <pre style="margin: 0; font-size: 13px; color: #333; white-space: pre-wrap; font-family: inherit;">{{ request.context.suggestions_text }}</pre>
+        </div>
+
+        <!-- Context: Generic fields (fallback for any unhandled context fields) -->
+        <div v-if="otherContextFields.length" style="margin-bottom: 16px;">
+          <div v-for="field in otherContextFields" :key="field.key" style="margin-bottom: 12px; padding: 12px; background: #fafafa; border-left: 4px solid #d9d9d9; border-radius: 4px;">
+            <div style="font-weight: 500; color: #595959; margin-bottom: 6px;">{{ formatContextKey(field.key) }}</div>
+            <div v-if="typeof field.value === 'object' && !Array.isArray(field.value)" style="font-size: 13px; color: #333;">
+              <div v-for="(val, key) in field.value" :key="key" style="padding: 4px 0; border-bottom: 1px solid #f0f0f0;">
+                <span style="color: #8c8c8c; min-width: 100px; display: inline-block;">{{ key }}：</span>
+                <span>{{ val }}</span>
+              </div>
+            </div>
+            <div v-else style="font-size: 13px; color: #333; white-space: pre-wrap;">{{ field.value }}</div>
+          </div>
+        </div>
+
         <p style="font-size: 18px; font-weight: 500; margin-bottom: 20px; color: #1890ff; white-space: pre-wrap;">
           {{ request.question }}
         </p>
 
-        <!-- Options mode -->
-        <template v-if="request.options?.length">
-          <ARadioGroup v-model:value="answer" style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- suggestions_text mode: text input + skip button -->
+        <template v-if="request.context?.suggestions_text">
+          <ATextarea v-model:value="answer" :rows="4" placeholder="描述改进方案，如：增大截面尺寸、更换材料等" />
+          <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <AButton size="large" @click="handleSkip">跳过，使用当前方案</AButton>
+            <AButton type="primary" size="large" :disabled="!answer.trim()" @click="handleSubmit">提交改进方案</AButton>
+          </div>
+        </template>
+
+        <!-- Options mode: show radio -->
+        <template v-else-if="request.options?.length">
+          <ARadioGroup v-model:value="radioAnswer" style="display: flex; flex-direction: column; gap: 12px;" @change="onRadioChange">
             <ARadio v-for="opt in request.options" :key="opt" :value="opt" style="font-size: 15px;">
               {{ opt }}
             </ARadio>
           </ARadioGroup>
+          <div v-if="isManualMode" style="margin-top: 16px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">请输入改进方案（如：增加截面高度到0.5m，改用C40混凝土）：</div>
+            <ATextarea v-model:value="manualInput" :rows="4" placeholder="描述改进方案，或直接输入JSON格式的设计参数" />
+          </div>
+          <div style="margin-top: 24px; text-align: right;">
+            <AButton type="primary" size="large" :disabled="isManualMode ? !manualInput.trim() : !radioAnswer" @click="handleSubmit">
+              确认提交
+            </AButton>
+          </div>
         </template>
 
         <!-- Free text mode -->
         <template v-else>
-          <AInput v-model:value="answer" placeholder="请输入您的回答" size="large" />
+          <ATextarea v-model:value="answer" :rows="4" placeholder="请输入您的回答" size="large" />
+          <div style="margin-top: 24px; text-align: right;">
+            <AButton type="primary" size="large" :disabled="!answer" @click="handleSubmit">确认提交</AButton>
+          </div>
         </template>
-
-        <div style="margin-top: 24px; text-align: right;">
-          <AButton type="primary" size="large" :disabled="!answer" @click="handleSubmit">
-            确认提交
-          </AButton>
-        </div>
       </div>
     </template>
   </AModal>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
-import { Button as AButton, Input as AInput, Modal as AModal, Radio as ARadio, RadioGroup as ARadioGroup, Alert as AAlert, Tag as ATag, Table as ATable } from 'ant-design-vue';
+import { Button as AButton, Input as AInput, Modal as AModal, Radio as ARadio, RadioGroup as ARadioGroup, Alert as AAlert, Tag as ATag, Table as ATable, Textarea as ATextarea } from 'ant-design-vue';
 
 const props = defineProps<{ request: any | null }>();
 const emit = defineEmits<{ submit: [answer: string] }>();
 
 const answer = ref('');
+const radioAnswer = ref('');
+const manualInput = ref('');
+
+const isManualMode = computed(() => radioAnswer.value.startsWith('manual'));
+
+// Extract context fields that are not handled by specific UI sections
+const otherContextFields = computed(() => {
+  if (!props.request?.context) return [];
+
+  const handledKeys = new Set([
+    'warnings', 'score', 'grade', 'proposals', 'recommendation', 'image_path',
+    'violations', 'max_stress', 'max_displacement', 'max_moment',
+    'current_span', 'current_section', 'current_material', 'suggestions',
+    'suggestions_text', 'summary', 'description'
+  ]);
+
+  const fields = [];
+  for (const [key, value] of Object.entries(props.request.context)) {
+    if (!handledKeys.has(key) && value !== null && value !== undefined) {
+      fields.push({ key, value });
+    }
+  }
+  return fields;
+});
+
+const formatContextKey = (key: string) => {
+  // Convert snake_case or camelCase to readable format
+  const formatted = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+};
+
+const onRadioChange = () => {
+  if (!isManualMode.value) {
+    manualInput.value = '';
+  }
+};
 
 const proposalColumns = computed(() => {
   if (!props.request?.context?.proposals?.length) return [];
@@ -160,18 +258,39 @@ const getGradeColor = (grade: string) => {
 
 watch(() => props.request, (req) => {
   answer.value = req?.default || (req?.options?.[0] ?? '');
-  // Debug: 打印接收到的请求数据
+  radioAnswer.value = req?.default || (req?.options?.[0] ?? '');
+  manualInput.value = '';
   if (req) {
     console.log('[AskHumanModal] Received request:', req);
     console.log('[AskHumanModal] Context:', req.context);
   }
 });
 
+const handleSkip = () => {
+  emit('submit', 'skip');
+  answer.value = '';
+  radioAnswer.value = '';
+  manualInput.value = '';
+};
+
 const handleSubmit = () => {
-  if (answer.value) {
-    const shortValue = answer.value.split(' - ')[0].trim();
-    emit('submit', shortValue);
+  let finalAnswer: string;
+  if (props.request?.options?.length) {
+    if (isManualMode.value) {
+      // manual mode: submit the text input content
+      finalAnswer = manualInput.value.trim();
+      if (!finalAnswer) return;
+    } else {
+      finalAnswer = radioAnswer.value.split(' - ')[0].trim();
+    }
+  } else {
+    finalAnswer = answer.value;
+  }
+  if (finalAnswer) {
+    emit('submit', finalAnswer);
     answer.value = '';
+    radioAnswer.value = '';
+    manualInput.value = '';
   }
 };
 </script>
