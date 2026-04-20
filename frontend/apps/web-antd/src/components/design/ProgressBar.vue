@@ -532,8 +532,8 @@
                 <div class="param-item"><span class="param-label">安全系数</span><span class="param-value">{{ displayParams?.safetyFactor ?? '—' }}</span></div>
                 <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="displayParams?.complianceStatus === 'compliant' ? 'success' : displayParams?.complianceStatus === 'non_compliant' ? 'warning' : ''">{{ displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—' }}</span></div>
               </div>
-              <div v-if="displayParams?.violations?.length" class="violations">
-                <div v-for="(v, i) in displayParams.violations" :key="i" class="violation-item">🔴 {{ typeof v === 'string' ? v : (v.description || '') }}</div>
+              <div v-if="mergedViolations.length" class="violations">
+                <div v-for="(v, i) in mergedViolations" :key="i" class="violation-item">🔴 {{ v }}</div>
               </div>
             </div>
           </template>
@@ -851,6 +851,33 @@ function mapSnapshotData(d: any) {
     ifcExported: d.ifc_exported,
   };
 }
+
+const translateViolation = (text: string): string => {
+  let m;
+  m = text.match(/slenderness ratio too high: λ=([\d.]+) > (\d+)/);
+  if (m) return `杆件长细比超限：λ=${m[1]} > 限值 ${m[2]}`;
+  m = text.match(/Max stress ([\d.]+) MPa exceeds allowable ([\d.]+) MPa/);
+  if (m) return `应力超限：实际值 ${m[1]} MPa > 限值 ${m[2]} MPa`;
+  m = text.match(/Max deflection ([\d.]+) mm exceeds limit ([\d.]+) mm/);
+  if (m) return `挠度超限：实际值 ${m[1]} mm > 限值 ${m[2]} mm`;
+  m = text.match(/Deflection exceeds limit: ([\d.]+)m > ([\d.]+)m/);
+  if (m) return `挠度超限：实际值 ${(parseFloat(m[1])*1000).toFixed(2)} mm > 限值 ${(parseFloat(m[2])*1000).toFixed(2)} mm`;
+  return text;
+};
+
+const mergedViolations = computed(() => {
+  const raw = displayParams.value?.violations;
+  if (!raw?.length) return [];
+  // Group by type, merge duplicates
+  const groups: Record<string, { msg: string; count: number }> = {};
+  for (const v of raw) {
+    const text = typeof v === 'string' ? v : (v.message || v.description || '未知违规');
+    const type = typeof v === 'object' ? (v.type || 'unknown') : 'unknown';
+    if (!groups[type]) groups[type] = { msg: translateViolation(text), count: 0 };
+    groups[type].count++;
+  }
+  return Object.values(groups).map(g => g.count > 1 ? `${g.msg}（共 ${g.count} 处）` : g.msg);
+});
 
 const displayParams = computed(() => {
   const stage = displayStage.value;

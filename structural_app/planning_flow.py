@@ -2164,6 +2164,18 @@ class PlanningFlow:
             actual, limit = match.groups()
             return f"应力超限：实际值 {actual} MPa > 限值 {limit} MPa"
 
+        # Pattern 5: "Member X slenderness ratio too high: λ=Y > Z"
+        match = re.search(r'slenderness ratio too high: λ=([\d.]+) > (\d+)', text)
+        if match:
+            actual, limit = match.groups()
+            return f"杆件长细比超限：λ={actual} > 限值 {limit}"
+
+        # Pattern 6: "Member X slenderness ratio Y > Z"
+        match = re.search(r'slenderness ratio ([\d.]+) > (\d+)', text)
+        if match:
+            actual, limit = match.groups()
+            return f"杆件长细比超限：λ={actual} > 限值 {limit}"
+
         # Fallback: return original text if no pattern matches
         return text
 
