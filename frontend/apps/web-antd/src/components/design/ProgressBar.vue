@@ -41,8 +41,9 @@
               <div v-if="item.image_path" class="history-preview-box">
                 <img
                   :src="`/api/file/view?path=${encodeURIComponent(item.image_path)}`"
-                  style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid #d9d9d9;"
+                  style="width:100%; max-height:600px; object-fit:contain; border-radius:8px; border:1px solid #d9d9d9; cursor:zoom-in;"
                   alt="历史交互图片"
+                  @click="previewImageUrl = `/api/file/view?path=${encodeURIComponent(item.image_path)}`; previewImageVisible = true"
                 />
               </div>
 
@@ -171,8 +172,9 @@
           <div v-if="askHumanRequest.image_path" class="preview-box">
             <img
               :src="`/api/file/view?path=${encodeURIComponent(askHumanRequest.image_path)}`"
-              style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid #d9d9d9;"
+              style="width:100%; max-height:600px; object-fit:contain; border-radius:8px; border:1px solid #d9d9d9; cursor:zoom-in;"
               alt="模型预览图"
+              @click="previewImageUrl = `/api/file/view?path=${encodeURIComponent(askHumanRequest.image_path)}`; previewImageVisible = true"
             />
           </div>
 
@@ -623,6 +625,11 @@
       </div>
     </div>
   </ACard>
+
+  <!-- 图片放大预览 -->
+  <AModal v-model:open="previewImageVisible" :footer="null" width="90vw" style="top:20px">
+    <img :src="previewImageUrl" style="width:100%; object-fit:contain;" alt="预览图" />
+  </AModal>
 </template>
 
 <script setup lang="ts">
@@ -851,6 +858,9 @@ function mapSnapshotData(d: any) {
     ifcExported: d.ifc_exported,
   };
 }
+
+const previewImageUrl = ref('');
+const previewImageVisible = ref(false);
 
 const translateViolation = (text: string): string => {
   let m;
