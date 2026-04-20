@@ -2079,19 +2079,29 @@ class PlanningFlow:
             print("  3 - terminate : 终止工作流")
             print("=" * 60)
 
-        # Format violations for frontend display
-        violation_messages = []
+        # Format violations for frontend display, merging duplicates by type
+        type_groups: dict = {}
         for v in violations:
-            # Support both dict format and string format
             if isinstance(v, dict):
-                # Dict format: {'code': '...', 'description': '...', 'severity': '...'}
-                description = v.get('description', v.get('rule', '未知违规'))
-                violation_messages.append(self._translate_violation(description))
+                description = v.get('description', v.get('message', v.get('rule', '未知违规')))
+                vtype = v.get('type', 'unknown')
             elif isinstance(v, str):
-                # String format: "Deflection exceeds limit: 0.58m > 0.048m"
-                violation_messages.append(self._translate_violation(v))
+                description = v
+                vtype = 'unknown'
             else:
-                violation_messages.append(str(v))
+                description = str(v)
+                vtype = 'unknown'
+            translated = self._translate_violation(description)
+            if vtype not in type_groups:
+                type_groups[vtype] = {'msg': translated, 'count': 0}
+            type_groups[vtype]['count'] += 1
+
+        violation_messages = []
+        for vtype, info in type_groups.items():
+            if info['count'] > 1:
+                violation_messages.append(f"{info['msg']}（共 {info['count']} 处）")
+            else:
+                violation_messages.append(info['msg'])
 
         # Build context for WebSocket (use 'warnings' key to match frontend)
         context = {
