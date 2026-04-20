@@ -318,7 +318,11 @@
           <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
               <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
+              <ARadio value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
             </ARadioGroup>
+            <div v-if="answer === '__other__'" style="margin-bottom:12px;">
+              <ATextarea v-model:value="otherInput" :rows="3" placeholder="请输入您的自定义内容..." style="margin-top:8px;" />
+            </div>
           </template>
 
           <!-- 自由文本模式 -->
@@ -328,7 +332,7 @@
 
           <AButton
             type="primary"
-            :disabled="askHumanRequest.context?.proposals?.length ? selectedSchemeIdx < 0 : !answer"
+            :disabled="askHumanRequest.context?.proposals?.length ? selectedSchemeIdx < 0 : (answer === '__other__' ? !otherInput.trim() : !answer)"
             @click="submitAnswer"
           >
             {{ askHumanRequest.context?.proposals?.length ? '✅ 确认选择' : '确认提交' }}
@@ -660,6 +664,7 @@ const steps = [
 ];
 
 const answer = ref('');
+const otherInput = ref('');
 const snapshots = reactive<Record<string, any>>({});
 const viewingStage = ref<string | null>(null);
 // 交互历史按阶段存储，key 为 stage name
@@ -1042,10 +1047,15 @@ const submitAnswer = () => {
   if (props.askHumanRequest?.context?.proposals?.length) {
     submitted = String(selectedSchemeIdx.value);
   } else {
-    if (!answer.value) return;
-    submitted = answer.value.split(' - ')[0].trim();
+    // "其他"模式：提交文本输入内容
+    if (answer.value === '__other__') {
+      if (!otherInput.value.trim()) return;
+      submitted = otherInput.value.trim();
+    } else {
+      if (!answer.value) return;
+      submitted = answer.value.split(' - ')[0].trim();
+    }
   }
-  // 用后端明确指定的 stage，而不是 activeStage（可能已变化）
   const stage = props.askHumanRequest?.stage || activeStage.value || 'unknown';
   if (!interactionHistoryByStage[stage]) interactionHistoryByStage[stage] = [];
   interactionHistoryByStage[stage].push({
@@ -1055,6 +1065,7 @@ const submitAnswer = () => {
   });
   emit('submit', submitted);
   answer.value = '';
+  otherInput.value = '';
 };
 </script>
 
