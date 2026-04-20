@@ -332,7 +332,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         <img
           :src="`/api/design/${route.params.id}/preview`"
           alt="模型预览图"
-          style="max-width: 100%; cursor: zoom-in;"
+          style="width: 100%; max-height: 600px; object-fit: contain; cursor: zoom-in;"
           @click="previewVisible = true"
         />
       </ACard>

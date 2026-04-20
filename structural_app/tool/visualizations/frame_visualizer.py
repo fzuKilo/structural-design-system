@@ -186,8 +186,10 @@ class FrameVisualizer(BaseVisualizer):
         max_disp = max(disp_mag) if disp_mag else 1e-9
         scale = 200
 
-        fig, ax = plt.subplots(figsize=(12, 9))
-        cmap = cm.jet
+        # Dynamic figsize: match frame aspect ratio (wider for more bays, taller for more stories)
+        fig_w = max(8, num_bays * 3)
+        fig_h = max(6, num_stories * 2.5)
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h))
         norm = Normalize(vmin=0, vmax=max_disp * 1000)
 
         def draw_elem_colored(ni, nj):
@@ -297,7 +299,9 @@ class FrameVisualizer(BaseVisualizer):
         moment_vals = [float(m) for m in moments]
         max_m = max(abs(v) for v in moment_vals) if moment_vals else 1
 
-        fig, ax = plt.subplots(figsize=(12, 9))
+        fig_w = max(8, num_bays * 3)
+        fig_h = max(6, num_stories * 2.5)
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h))
         cmap = cm.RdYlBu_r
         norm = Normalize(vmin=-max_m, vmax=max_m)
         num_col_elems = num_stories * (num_bays + 1)
