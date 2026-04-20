@@ -218,6 +218,20 @@ const connectWs = () => {
 };
 
 const handleAskHumanSubmit = async (answer: string) => {
+  // 立即在本地追加这次问答记录，不等后端下一条消息
+  if (askHumanRequest.value) {
+    savedHistory.value = [
+      ...savedHistory.value,
+      {
+        stage: askHumanRequest.value.stage,
+        question: askHumanRequest.value.question,
+        answer,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        options: askHumanRequest.value.options || [],
+        context: askHumanRequest.value.context || null,
+      },
+    ];
+  }
   askHumanRequest.value = null;
   const token = accessStore.accessToken;
   await fetch(`/api/design/${route.params.id}/respond`, {
