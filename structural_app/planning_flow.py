@@ -2513,6 +2513,9 @@ class PlanningFlow:
                 print(f"[自动优化 {loop_count}/{max_loops}] 正在生成改进方案...")
                 print("=" * 60)
 
+            await self._broadcast_progress("fe_analysis", 1, 4, "auto_optimizing",
+                f"[自动优化 {loop_count}/{max_loops}] 正在生成改进方案...")
+
             # Step 1: 使用LLM自动生成改进方案（不需要用户输入）
             improvement_plan = await self._generate_auto_improvement_plan(
                 current_design_proposal,
@@ -2522,6 +2525,11 @@ class PlanningFlow:
 
             if verbose:
                 print(f"[改进方案] {improvement_plan}")
+
+            # 提取改进说明文字（JSON之前的部分）推送给前端
+            plan_description = improvement_plan.split("```")[0].strip() if "```" in improvement_plan else improvement_plan[:800]
+            await self._broadcast_progress("fe_analysis", 2, 4, "auto_optimizing",
+                f"[自动优化 {loop_count}/{max_loops}] 改进方案：{plan_description[:300]}")
 
             # 检查是否生成失败
             if improvement_plan.startswith("错误："):
@@ -2560,6 +2568,9 @@ class PlanningFlow:
             if verbose:
                 print(f"[PlanningFlow] 使用更新后的设计重新分析...")
 
+            await self._broadcast_progress("fe_analysis", 3, 4, "auto_optimizing",
+                f"[自动优化 {loop_count}/{max_loops}] 正在重新分析...")
+
             analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
             analysis_result = await self.analysis_agent.run(
                 analysis_request,
@@ -2578,12 +2589,16 @@ class PlanningFlow:
                 if verbose:
                     print()
                     print(f"[OK] 自动优化成功！设计已满足规范要求（共 {loop_count} 轮）")
+                await self._broadcast_progress("fe_analysis", 4, 4, "auto_optimizing",
+                    f"[自动优化] 优化成功！共 {loop_count} 轮，设计已满足规范要求")
                 return (current_results, current_design_proposal)
             else:
                 violations_count = len(new_code_check.get('violations', []))
                 if verbose:
                     print()
                     print(f"[INFO] 仍有 {violations_count} 个违规项，继续优化...")
+                await self._broadcast_progress("fe_analysis", 2, 4, "auto_optimizing",
+                    f"[自动优化 {loop_count}/{max_loops}] 仍有 {violations_count} 个违规项，继续优化...")
 
         # 达到最大次数
         if verbose:
