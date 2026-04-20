@@ -40,18 +40,32 @@ def run_design_task(task_id: str, user_request: str):
         redis_client.publish(channel, json.dumps(message))
         print(f"[DEBUG] Published message to Redis: {message}")
 
-        # Persist interaction_history to DB immediately so it survives page navigation
-        if message.get("type") == "interaction_history" and message.get("interaction_history"):
-            try:
-                with get_db_context() as db:
-                    t = db.query(Task).filter(Task.id == task_id).first()
-                    if t:
-                        rj = t.result_json or {}
-                        rj["interaction_history"] = message["interaction_history"]
-                        t.result_json = rj
-                        db.commit()
-            except Exception as e:
-                print(f"[WARN] Failed to persist interaction_history: {e}")
+        # Persist key state to DB immediately so page navigation doesn't lose data
+        msg_type = message.get("type")
+        try:
+            with get_db_context() as db:
+                t = db.query(Task).filter(Task.id == task_id).first()
+                if not t:
+                    return
+                rj = dict(t.result_json) if t.result_json else {}
+
+                # Persist interaction_history on every answer
+                if msg_type == "interaction_history" and message.get("interaction_history"):
+                    rj["interaction_history"] = message["interaction_history"]
+                    t.result_json = rj
+                    db.commit()
+
+                # Persist completed stage data so rebuildStagesFromResult works on re-entry
+                elif msg_type == "stage" and message.get("status") in ("completed", "skipped"):
+                    stage = message.get("stage")
+                    stages_snapshot = rj.get("stages_snapshot", {})
+                    stages_snapshot[stage] = message.get("data", {})
+                    rj["stages_snapshot"] = stages_snapshot
+                    t.result_json = rj
+                    db.commit()
+
+        except Exception as e:
+            print(f"[WARN] Failed to persist state: {e}")
 
     # Run async workflow
     try:

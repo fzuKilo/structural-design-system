@@ -81,16 +81,16 @@ const rebuildStagesFromResult = (t: any) => {
   const rj = t?.result_json || {};
   const raw = rj.raw || {};
 
-  // evaluation 优先用顶层 rj.evaluation（完整结构），fallback 到 raw.evaluation_report
-  const evalData = rj.evaluation || raw.evaluation_report;
-  // fe_analysis 从 raw.analysis_results 取
-  const feData = raw.analysis_results;
-  // design_proposal 从 raw.design_proposal 取
-  const dpData = raw.design_proposal;
-  // cad_drawing 从 raw.drawing_results 取，或用顶层 files 构造
-  const cadData = raw.drawing_results || (rj.files ? { status: 'completed', files: rj.files } : null);
-  // report_generation
-  const reportData = raw.report_results || (rj.report_file ? { status: 'completed' } : null);
+  // For running tasks: use stages_snapshot (persisted incrementally during execution)
+  // For completed tasks: use raw (full result written at the end)
+  const snapshot = rj.stages_snapshot || {};
+  const useSnapshot = Object.keys(snapshot).length > 0;
+
+  const evalData = useSnapshot ? snapshot['evaluation'] : (rj.evaluation || raw.evaluation_report);
+  const feData = useSnapshot ? snapshot['fe_analysis'] : raw.analysis_results;
+  const dpData = useSnapshot ? snapshot['design_proposal'] : raw.design_proposal;
+  const cadData = useSnapshot ? snapshot['cad_drawing'] : (raw.drawing_results || (rj.files ? { status: 'completed', files: rj.files } : null));
+  const reportData = useSnapshot ? snapshot['report_generation'] : (raw.report_results || (rj.report_file ? { status: 'completed' } : null));
 
   const stageMap: Record<string, any> = {
     design_proposal: dpData,
@@ -103,7 +103,9 @@ const rebuildStagesFromResult = (t: any) => {
   const rebuilt: any[] = [];
   for (const [stageName, data] of Object.entries(stageMap)) {
     if (!data) continue;
-    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mapRawToSnapshotData(stageName, data) });
+    // stages_snapshot data is already in snapshot format; raw data needs mapping
+    const mappedData = useSnapshot ? data : mapRawToSnapshotData(stageName, data);
+    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mappedData });
   }
   if (rebuilt.length > 0) stages.value = rebuilt;
   // 恢复交互历史
