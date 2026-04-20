@@ -452,6 +452,15 @@
           <template v-else>
             <div style="color:#999; padding:20px 0;">等待任务开始...</div>
           </template>
+
+          <!-- 自动优化日志：独立卡片，不受进度条影响 -->
+          <div v-if="latestByStage['fe_analysis']?.data?.auto_improvement_plan"
+               style="margin-top:16px; padding:12px; background:#f6ffed; border-left:4px solid #52c41a; border-radius:4px;">
+            <div style="font-weight:500; color:#389e0d; margin-bottom:6px;">
+              🔄 自动优化 {{ latestByStage['fe_analysis'].data.loop }}/{{ latestByStage['fe_analysis'].data.max_loops }} — LLM 改进方案
+            </div>
+            <pre style="margin:0; font-size:12px; color:#333; white-space:pre-wrap; font-family:inherit; max-height:200px; overflow-y:auto;">{{ latestByStage['fe_analysis'].data.auto_improvement_plan }}</pre>
+          </div>
         </template>
       </div>
 

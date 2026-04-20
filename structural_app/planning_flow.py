@@ -2528,8 +2528,9 @@ class PlanningFlow:
 
             # 提取改进说明文字（JSON之前的部分）推送给前端
             plan_description = improvement_plan.split("```")[0].strip() if "```" in improvement_plan else improvement_plan[:800]
-            await self._broadcast_progress("fe_analysis", 2, 4, "auto_optimizing",
-                f"[自动优化 {loop_count}/{max_loops}] 改进方案：{plan_description[:300]}")
+            await self._broadcast_stage("fe_analysis", "running",
+                f"[自动优化 {loop_count}/{max_loops}] 改进方案已生成",
+                data={"auto_improvement_plan": plan_description, "loop": loop_count, "max_loops": max_loops})
 
             # 检查是否生成失败
             if improvement_plan.startswith("错误："):
