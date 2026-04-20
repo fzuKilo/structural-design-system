@@ -536,10 +536,9 @@
               <div class="param-grid">
                 <div class="param-item"><span class="param-label">最大应力</span><span class="param-value" :class="{ warning: (displayParams?.maxStress ?? 0) > 235 }">{{ displayParams?.maxStress != null ? displayParams.maxStress + ' MPa' : '—' }}</span></div>
                 <div class="param-item"><span class="param-label">最大挠度</span><span class="param-value">{{ displayParams?.maxDeflection != null ? displayParams.maxDeflection + ' mm' : '—' }}</span></div>
-                <div class="param-item"><span class="param-label">安全系数</span><span class="param-value">{{ displayParams?.safetyFactor ?? '—' }}</span></div>
-                <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="displayParams?.complianceStatus === 'compliant' ? 'success' : displayParams?.complianceStatus === 'non_compliant' ? 'warning' : ''">{{ displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="snapshots['fe_analysis'] ? (displayParams?.complianceStatus === 'compliant' ? 'success' : displayParams?.complianceStatus === 'non_compliant' ? 'warning' : '') : ''">{{ snapshots['fe_analysis'] ? (displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—') : '—' }}</span></div>
               </div>
-              <div v-if="mergedViolations.length" class="violations">
+              <div v-if="snapshots['fe_analysis'] && mergedViolations.length" class="violations">
                 <div v-for="(v, i) in mergedViolations" :key="i" class="violation-item">🔴 {{ v }}</div>
               </div>
             </div>
