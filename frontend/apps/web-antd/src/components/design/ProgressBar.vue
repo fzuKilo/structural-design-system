@@ -314,6 +314,11 @@
           <!-- 问题文字 -->
           <p class="question-text">{{ askHumanRequest.question }}</p>
 
+          <!-- context.description：推荐参数说明等补充信息 -->
+          <div v-if="askHumanRequest.context?.description" style="margin-bottom:14px; padding:10px 12px; background:#f0f5ff; border-left:4px solid #597ef7; border-radius:4px;">
+            <pre style="margin:0; font-size:13px; color:#333; white-space:pre-wrap; font-family:inherit;">{{ askHumanRequest.context.description }}</pre>
+          </div>
+
           <!-- 选项模式：只在没有 proposals 时显示单选按钮 -->
           <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
@@ -322,10 +327,10 @@
               <ARadio v-if="!(askHumanRequest.options || []).some((o: string) => /^(是|否|y|n|continue|optimize|report_only|terminate)\s*[-—]/.test(o))" value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
             </ARadioGroup>
             <ATextarea
-              v-if="answer === '__other__'"
+              v-if="answer === '__other__' || (askHumanRequest.stage === 'design_proposal' && /^否\s*[-—]/.test(answer))"
               v-model:value="otherInput"
               :rows="3"
-              placeholder="请输入自定义内容..."
+              :placeholder="answer === '__other__' ? '请输入自定义内容...' : '请说明需要如何修改...'"
               style="margin-top:8px; margin-bottom:12px;"
             />
           </template>
@@ -1055,6 +1060,9 @@ const submitAnswer = () => {
     if (answer.value === '__other__') {
       if (!otherInput.value.trim()) return;
       submitted = otherInput.value.trim();
+    } else if (props.askHumanRequest?.stage === 'design_proposal' && /^否\s*[-—]/.test(answer.value) && otherInput.value.trim()) {
+      // design_proposal 阶段选"否"且有补充说明，拼接提交
+      submitted = answer.value.split(' - ')[0].trim() + '：' + otherInput.value.trim();
     } else {
       if (!answer.value) return;
       submitted = answer.value.split(' - ')[0].trim();
