@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 import { Button as AButton, Card as ACard, Empty as AEmpty, Table as ATable, Tag as ATag } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
@@ -21,6 +21,7 @@ const columns = [
 const statusColorMap: Record<string, string> = {
   pending: 'orange',
   running: 'blue',
+  success: 'green',
   completed: 'green',
   failed: 'red',
 };
@@ -28,6 +29,7 @@ const statusColorMap: Record<string, string> = {
 const statusTextMap: Record<string, string> = {
   pending: '等待中',
   running: '执行中',
+  success: '已完成',
   completed: '已完成',
   failed: '失败',
 };
@@ -45,7 +47,18 @@ const fetchTasks = async () => {
   }
 };
 
-onMounted(fetchTasks);
+const onStorageChange = (e: StorageEvent) => {
+  if (e.key === 'task_list_refresh') fetchTasks();
+};
+
+onMounted(() => {
+  fetchTasks();
+  window.addEventListener('storage', onStorageChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('storage', onStorageChange);
+});
 </script>
 
 <template>

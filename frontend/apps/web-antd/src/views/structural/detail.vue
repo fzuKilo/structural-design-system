@@ -41,10 +41,10 @@ const taskParams = computed(() => {
     economyScore: r.evaluation_report?.dimensions?.economy?.score ?? null,
     overallScore: r.evaluation_report?.comprehensive_score ?? null,
     warnings: r.evaluation_report?.warnings || [],
-    drawingStatus: r.drawing_results?.status || 'pending',
-    speckleExported: r.bim_results?.status === 'success',
-    ifcExported: r.ifc_results?.status === 'success',
-    reportStatus: r.report_results?.status || 'pending',
+    drawingStatus: (r.files && Object.keys(r.files).length > 0) ? 'success' : (r.raw?.drawing_results?.status || 'pending'),
+    speckleExported: !!(r.bim_url),
+    ifcExported: !!(r.ifc_path),
+    reportStatus: r.report_file ? 'success' : (r.raw?.report_results?.status || 'pending'),
   };
 });
 
@@ -86,11 +86,33 @@ const rebuildStagesFromResult = (t: any) => {
   const snapshot = rj.stages_snapshot || {};
   const useSnapshot = Object.keys(snapshot).length > 0;
 
+  // 从 interaction_history 提取各阶段最后一次交互时间
+  const history: any[] = rj.interaction_history || raw.interaction_history || [];
+  const stageTimeMap: Record<string, string> = {};
+  for (const item of history) {
+    if (item.stage && item.time) stageTimeMap[item.stage] = item.time;
+  }
+  // drawing_results 有 metadata.generated_at，提取时间部分
+  const drawingTime = raw.drawing_results?.metadata?.generated_at
+    ? new Date(raw.drawing_results.metadata.generated_at).toLocaleTimeString()
+    : stageTimeMap['cad_drawing'];
+  // report_results 没有时间，用 completed_at 或 interaction_history 里 report_generation 的时间
+  const reportTime = stageTimeMap['report_generation']
+    || (t.completed_at ? new Date(t.completed_at).toLocaleTimeString() : undefined);
   const evalData = useSnapshot ? snapshot['evaluation'] : (rj.evaluation || raw.evaluation_report);
   const feData = useSnapshot ? snapshot['fe_analysis'] : raw.analysis_results;
   const dpData = useSnapshot ? snapshot['design_proposal'] : raw.design_proposal;
   const cadData = useSnapshot ? snapshot['cad_drawing'] : (raw.drawing_results || (rj.files ? { status: 'completed', files: rj.files } : null));
   const reportData = useSnapshot ? snapshot['report_generation'] : (raw.report_results || (rj.report_file ? { status: 'completed' } : null));
+
+  // 各阶段时间映射（用于 snapshot timestamp）
+  const stageTimestamps: Record<string, string | undefined> = {
+    design_proposal: stageTimeMap['design_proposal'],
+    fe_analysis: stageTimeMap['fe_analysis'],
+    evaluation: stageTimeMap['evaluation'],
+    cad_drawing: drawingTime,
+    report_generation: reportTime,
+  };
 
   const stageMap: Record<string, any> = {
     design_proposal: dpData,
@@ -105,12 +127,12 @@ const rebuildStagesFromResult = (t: any) => {
     if (!data) continue;
     // stages_snapshot data is already in snapshot format; raw data needs mapping
     const mappedData = useSnapshot ? data : mapRawToSnapshotData(stageName, data);
-    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mappedData });
+    rebuilt.push({ type: 'stage', stage: stageName, status: 'completed', data: mappedData, timestamp: stageTimestamps[stageName] });
   }
   if (rebuilt.length > 0) stages.value = rebuilt;
   // 恢复交互历史
-  const history = rj.interaction_history;
-  if (history?.length) savedHistory.value = history;
+  const interactionHistory = rj.interaction_history;
+  if (interactionHistory?.length) savedHistory.value = interactionHistory;
 };
 
 // 将 result_json.raw 各阶段数据映射为 snapshot 期望的字段
@@ -157,8 +179,11 @@ const mapRawToSnapshotData = (stage: string, raw: any): any => {
     };
   }
   if (stage === 'report_generation') {
+    const rj = task.value?.result_json || {};
     return {
       report_status: raw.status || 'completed',
+      speckle_exported: !!(rj.bim_url),
+      ifc_exported: !!(rj.ifc_path),
     };
   }
   return raw;
@@ -192,6 +217,7 @@ const connectWs = () => {
       schemeUpdates.value.push(msg);
     } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
       loadTask();
+      localStorage.setItem('task_list_refresh', Date.now().toString());
     }
   };
 

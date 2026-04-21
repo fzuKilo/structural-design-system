@@ -318,12 +318,16 @@
           <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
               <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
-              <!-- 只在设计方案阶段显示"其他"选项 -->
-              <ARadio v-if="askHumanRequest.stage === 'design_proposal'" value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
+              <!-- 非固定指令类询问（排除 是/否/continue 等）显示"其他"选项 -->
+              <ARadio v-if="!(askHumanRequest.options || []).some((o: string) => /^(是|否|y|n|continue|optimize|report_only|terminate)\s*[-—]/.test(o))" value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
             </ARadioGroup>
-            <div v-if="answer === '__other__'" style="margin-bottom:12px;">
-              <ATextarea v-model:value="otherInput" :rows="3" placeholder="请输入您的自定义内容..." style="margin-top:8px;" />
-            </div>
+            <ATextarea
+              v-if="answer === '__other__'"
+              v-model:value="otherInput"
+              :rows="3"
+              placeholder="请输入自定义内容..."
+              style="margin-top:8px; margin-bottom:12px;"
+            />
           </template>
 
           <!-- 自由文本模式 -->
@@ -596,8 +600,8 @@
               <div class="param-title">✏️ CAD图纸</div>
               <div class="param-item" style="margin-bottom:8px;">
                 <span class="param-label">状态</span>
-                <span class="param-value" :class="displayParams?.drawingStatus === 'completed' ? 'success' : ''">
-                  {{ displayParams?.drawingStatus === 'completed' ? '✅ DXF已生成' : displayParams?.drawingStatus === 'skipped' ? '⏭ 已跳过' : '⏳ 生成中...' }}
+                <span class="param-value" :class="['completed', 'success'].includes(displayParams?.drawingStatus) ? 'success' : ''">
+                  {{ ['completed', 'success'].includes(displayParams?.drawingStatus) ? '✅ DXF已生成' : displayParams?.drawingStatus === 'skipped' ? '⏭ 已跳过' : '⏳ 生成中...' }}
                 </span>
               </div>
               <div v-if="displayParams?.drawingFiles?.length">
@@ -618,7 +622,7 @@
             </div>
             <div class="param-card">
               <div class="param-title">📄 报告</div>
-              <div class="param-value" :class="displayParams?.reportStatus === 'completed' ? 'success' : ''">{{ displayParams?.reportStatus === 'completed' ? '✅ 已生成' : '⏳ 生成中' }}</div>
+              <div class="param-value" :class="['completed', 'success'].includes(displayParams?.reportStatus) ? 'success' : ''">{{ ['completed', 'success'].includes(displayParams?.reportStatus) ? '✅ 已生成' : '⏳ 生成中' }}</div>
             </div>
           </template>
 
@@ -835,12 +839,12 @@ watch(() => props.stages, (newStages) => {
   for (const s of newStages) {
     if ((s.status === 'completed' || s.status === 'skipped') && s.data) {
       snapshots[s.stage] = {
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: s.timestamp || new Date().toLocaleTimeString(),
         data: s.data,
       };
     } else if ((s.status === 'completed' || s.status === 'skipped') && !snapshots[s.stage]) {
       snapshots[s.stage] = {
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: s.timestamp || new Date().toLocaleTimeString(),
         data: null,
       };
     }

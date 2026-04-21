@@ -7,7 +7,7 @@
     :maskClosable="false"
     :width="900"
     :z-index="2000"
-    centered
+    :style="{ top: '20px' }"
   >
     <template v-if="request">
       <div style="padding: 16px 0;">
