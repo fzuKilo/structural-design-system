@@ -1268,8 +1268,10 @@ class PlanningFlow:
         if not design_proposal:
             return "No design proposal available for analysis."
         # 确保 type 字段存在，防止 fe_analysis 报 structure type is None
-        if not design_proposal.get("type") and hasattr(self, "structure_type"):
-            design_proposal = {**design_proposal, "type": self.structure_type}
+        if not design_proposal.get("type"):
+            fallback_type = (self.results.get("design_proposal") or {}).get("type")
+            if fallback_type:
+                design_proposal = {**design_proposal, "type": fallback_type}
         return json.dumps(design_proposal, ensure_ascii=False)
 
     async def _export_opensees_script(self):
@@ -1558,7 +1560,7 @@ class PlanningFlow:
         """构建方案 metrics，与 _display_optimization_comparison 里的格式完全一致。"""
         geo = design.get("geometry", {})
         mat = design.get("material", {})
-        structure_type = design.get("type", self.structure_type or "")
+        structure_type = design.get("type") or (self.results.get("design_proposal") or {}).get("type", "")
         is_frame = structure_type == "frame"
 
         def get_column_section(d: Dict) -> str:
