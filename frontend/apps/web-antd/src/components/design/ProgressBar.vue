@@ -465,7 +465,7 @@
             />
             <div class="sub-message">{{ progressData.message }}</div>
           </template>
-          <template v-else>
+          <template v-else-if="!props.stages?.length">
             <div style="color:#999; padding:20px 0;">等待任务开始...</div>
           </template>
 
@@ -643,7 +643,7 @@
             </div>
           </template>
 
-          <template v-else>
+          <template v-else-if="!props.stages?.length">
             <div class="param-card" style="text-align:center; color:#999; padding:20px;">等待任务开始...</div>
           </template>
         </div>
@@ -653,7 +653,7 @@
 
   <!-- 图片放大预览 -->
   <AModal v-model:open="previewImageVisible" :footer="null" width="90vw" style="top:20px">
-    <img :src="previewImageUrl" style="width:100%; object-fit:contain;" alt="预览图" />
+    <img v-if="previewImageUrl" :src="previewImageUrl" style="width:100%; object-fit:contain;" alt="预览图" />
   </AModal>
 </template>
 

@@ -355,15 +355,6 @@ onUnmounted(() => { wsManager?.disconnect(); });
 
       <ResultViewer v-if="task.status === 'success'" :result="task.result_json" :task-id="(route.params.id as string)" />
 
-      <!-- CAD 预览图 -->
-      <ACard v-if="task.status === 'success' && task.result_json?.preview_image" title="模型预览" size="small" class="mb-3">
-        <img
-          :src="`/api/design/${route.params.id}/preview`"
-          alt="模型预览图"
-          style="width: 100%; max-height: 600px; object-fit: contain; cursor: zoom-in;"
-          @click="previewVisible = true"
-        />
-      </ACard>
     </template>
   </div>
 </template>
