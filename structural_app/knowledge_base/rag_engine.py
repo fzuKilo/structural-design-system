@@ -192,7 +192,9 @@ class RAGEngine:
         n_results: int = 2
     ) -> List[Dict[str, Any]]:
         """
-        Query specific standard requirements
+        Query specific standard requirements, filtered to chunks relevant
+        to the given structure_type (uses the structure_types metadata tag
+        written at ingest time).
 
         Args:
             structure_type: Structure type (e.g., 'beam', 'truss')
@@ -202,15 +204,26 @@ class RAGEngine:
         Returns:
             List of relevant standard clauses
         """
-        # Use Chinese query for better semantic match with Chinese documents
+        # Build Chinese query text
         query_text = self._QUERY_MAP.get(check_type)
         if not query_text:
-            # Fallback: translate structure_type to Chinese and use check_type as-is
             type_cn = {'beam': '梁', 'frame': '框架', 'truss': '桁架',
                        'cantilever_beam': '悬臂梁', 'continuous_beam': '连续梁'}.get(structure_type, structure_type)
             query_text = f"{type_cn} {check_type} 构造要求"
 
-        return self.query(query_text, n_results=n_results)
+        # Filter to chunks tagged for this structure_type.
+        # Metadata uses per-type bool flags (e.g. {'frame': True, 'truss': False}).
+        # ChromaDB supports $eq on bool fields.
+        filter_metadata = {structure_type: {"$eq": True}}
+
+        results = self.query(query_text, n_results=n_results, filter_metadata=filter_metadata)
+
+        # Graceful fallback: if the filter yields nothing (e.g. old data without tags),
+        # retry without filter so citations still appear rather than silently disappearing.
+        if not results:
+            results = self.query(query_text, n_results=n_results)
+
+        return results
 
     def _split_text(self, text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]:
         """

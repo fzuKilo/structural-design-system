@@ -18,8 +18,48 @@ sys.path.insert(0, str(project_root))
 from structural_app.knowledge_base import RAGEngine
 
 
+ALL_TYPES = ["beam", "cantilever_beam", "continuous_beam", "frame", "truss"]
+
+# Chapter heading keywords → applicable structure types
+# Order matters: more specific rules first
+_CHAPTER_TYPE_RULES = [
+    # GB50017 specific chapters
+    (["第11章", "桁架"],                          ["truss"]),
+    (["第12章", "框架"],                          ["frame"]),
+    (["第7章", "轴心受压"],                        ["truss", "frame"]),
+    (["第8章", "轴心受拉"],                        ["truss", "frame"]),
+    # GB50010 specific chapters
+    (["第10章", "受压构件"],                       ["frame"]),
+    (["第11章", "受拉构件"],                       ["truss"]),
+    (["第9章", "受弯构件"],                        ["beam", "cantilever_beam", "continuous_beam"]),
+    (["附录B", "B.1", "梁的构造"],                 ["beam", "cantilever_beam", "continuous_beam"]),
+    (["附录B", "B.2", "柱的构造"],                 ["frame"]),
+    # Beam-related sections in GB50017 ch5
+    (["第5章", "受弯构件"],                        ["beam", "cantilever_beam", "continuous_beam", "frame"]),
+]
+
+
+def _infer_structure_type_flags(heading: str) -> dict:
+    """
+    Infer applicable structure types from a chapter/section heading.
+    Returns a dict of bool flags, one per type — e.g. {'frame': True, 'truss': False, ...}.
+    ChromaDB supports $eq on bool fields, so this enables precise filtered queries.
+    Falls back to all True for general/appendix sections.
+    """
+    for keywords, types in _CHAPTER_TYPE_RULES:
+        if any(kw in heading for kw in keywords):
+            return {t: (t in types) for t in ALL_TYPES}
+    # General section: applicable to all types
+    return {t: True for t in ALL_TYPES}
+
+
 def load_documents_from_directory(directory: Path):
-    """Load all markdown documents from a directory"""
+    """
+    Load markdown documents split by ## chapter sections.
+    Each chunk gets per-type bool flags in metadata for filtered retrieval.
+    e.g. {'frame': True, 'truss': False, 'beam': False, ...}
+    """
+    import re
     documents = []
 
     for file_path in directory.glob("*.md"):
@@ -28,14 +68,29 @@ def load_documents_from_directory(directory: Path):
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        documents.append({
-            'content': content,
-            'metadata': {
-                'filename': file_path.name,
-                'source': 'standard_document',
-                'type': 'regulation'
-            }
-        })
+        # Split on ## headings (keep the heading with its content)
+        sections = re.split(r'(?=\n## )', content)
+
+        for section in sections:
+            section = section.strip()
+            if not section:
+                continue
+
+            # Extract the heading line for type inference
+            first_line = section.splitlines()[0].strip()
+            type_flags = _infer_structure_type_flags(first_line)
+
+            documents.append({
+                'content': section,
+                'metadata': {
+                    'filename': file_path.name,
+                    'source': 'standard_document',
+                    'type': 'regulation',
+                    **type_flags,
+                }
+            })
+
+        print(f"  → {len([s for s in re.split(r'(?=\n## )', content) if s.strip()])} sections")
 
     return documents
 
