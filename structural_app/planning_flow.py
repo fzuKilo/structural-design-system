@@ -1267,6 +1267,9 @@ class PlanningFlow:
         """Build request for FE analysis agent."""
         if not design_proposal:
             return "No design proposal available for analysis."
+        # 确保 type 字段存在，防止 fe_analysis 报 structure type is None
+        if not design_proposal.get("type") and hasattr(self, "structure_type"):
+            design_proposal = {**design_proposal, "type": self.structure_type}
         return json.dumps(design_proposal, ensure_ascii=False)
 
     async def _export_opensees_script(self):
