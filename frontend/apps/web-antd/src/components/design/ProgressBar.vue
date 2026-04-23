@@ -221,9 +221,29 @@
                     </div>
                   </div>
                   <div class="scheme-metrics-grid">
-                    <div class="metric-row">
+                    <div v-if="proposal.metrics.col_section" class="metric-row">
+                      <span class="metric-label">柱截面</span>
+                      <span class="metric-value">{{ proposal.metrics.col_section }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.beam_section" class="metric-row">
+                      <span class="metric-label">梁截面</span>
+                      <span class="metric-value">{{ proposal.metrics.beam_section }}</span>
+                    </div>
+                    <div v-if="proposal.metrics.section" class="metric-row">
                       <span class="metric-label">截面</span>
                       <span class="metric-value">{{ proposal.metrics.section }}</span>
+                    </div>
+                    <div v-if="proposal.metrics['跨度']" class="metric-row">
+                      <span class="metric-label">跨度</span>
+                      <span class="metric-value">{{ proposal.metrics['跨度'] }}</span>
+                    </div>
+                    <div v-if="proposal.metrics['桁架高度']" class="metric-row">
+                      <span class="metric-label">桁架高度</span>
+                      <span class="metric-value">{{ proposal.metrics['桁架高度'] }}</span>
+                    </div>
+                    <div v-if="proposal.metrics['节间数']" class="metric-row">
+                      <span class="metric-label">节间数</span>
+                      <span class="metric-value">{{ proposal.metrics['节间数'] }}</span>
                     </div>
                     <div class="metric-row">
                       <span class="metric-label">材料</span>
@@ -238,8 +258,24 @@
                       <span class="metric-value">{{ proposal.metrics.displacement }}mm</span>
                     </div>
                     <div class="metric-row">
-                      <span class="metric-label">安全/经济/综合</span>
-                      <span class="metric-value">{{ proposal.metrics.safety }}/{{ proposal.metrics.economy }}/{{ proposal.metrics.total_score }}</span>
+                      <span class="metric-label">安全性</span>
+                      <span class="metric-value">{{ proposal.metrics.safety }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">经济性</span>
+                      <span class="metric-value">{{ proposal.metrics.economy }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">结构效率</span>
+                      <span class="metric-value">{{ proposal.metrics.efficiency }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">可持续性</span>
+                      <span class="metric-value">{{ proposal.metrics.sustainability }}</span>
+                    </div>
+                    <div class="metric-row">
+                      <span class="metric-label">综合得分</span>
+                      <span class="metric-value">{{ proposal.metrics.total_score }}</span>
                     </div>
                     <div class="metric-row">
                       <span class="metric-label">等级</span>

@@ -1743,7 +1743,23 @@ class PlanningFlow:
             metrics = {}
             # Section
             if is_frame:
-                metrics["section"] = get_column_section(design) + " / " + get_beam_section(design)
+                metrics["col_section"] = get_column_section(design) + "m"
+                metrics["beam_section"] = get_beam_section(design) + "m"
+            elif design.get("type") == "truss":
+                g = design.get("geometry", {})
+                m_d = design.get("material", {})
+                A = m_d.get("A", None)
+                A_str = f"{A*1e6:.0f}mm²" if A and isinstance(A, (int, float)) else "?"
+                metrics["section"] = A_str
+                span = g.get("span", g.get("length", None))
+                height = g.get("height", None)
+                n_panels = g.get("n_panels", g.get("num_panels", None))
+                if span is not None:
+                    metrics["跨度"] = f"{span}m"
+                if height is not None:
+                    metrics["桁架高度"] = f"{height}m"
+                if n_panels is not None:
+                    metrics["节间数"] = str(n_panels)
             else:
                 metrics["section"] = get_section(design)
 
