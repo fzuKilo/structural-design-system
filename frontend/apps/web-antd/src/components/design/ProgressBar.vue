@@ -315,8 +315,14 @@
           <p class="question-text">{{ askHumanRequest.question }}</p>
 
           <!-- context.description：推荐参数说明等补充信息 -->
-          <div v-if="askHumanRequest.context?.description" style="margin-bottom:14px; padding:10px 12px; background:#f0f5ff; border-left:4px solid #597ef7; border-radius:4px;">
-            <pre style="margin:0; font-size:13px; color:#333; white-space:pre-wrap; font-family:inherit;">{{ askHumanRequest.context.description }}</pre>
+          <div v-if="askHumanRequest.context?.description || askHumanRequest.context?.parameters" style="margin-bottom:14px; padding:10px 12px; background:#f0f5ff; border-left:4px solid #597ef7; border-radius:4px;">
+            <div v-if="askHumanRequest.context?.description" style="font-weight:500; color:#2f54eb; margin-bottom:8px; font-size:13px;">{{ askHumanRequest.context.description }}</div>
+            <table v-if="askHumanRequest.context?.parameters" style="width:100%; border-collapse:collapse; font-size:13px;">
+              <tr v-for="(val, key) in askHumanRequest.context.parameters" :key="key" style="border-bottom:1px solid #d6e4ff;">
+                <td style="padding:4px 8px; color:#555; white-space:nowrap; width:40%;">{{ key }}</td>
+                <td style="padding:4px 8px; color:#222; font-weight:500;">{{ val }}</td>
+              </tr>
+            </table>
           </div>
 
           <!-- 选项模式：只在没有 proposals 时显示单选按钮 -->
