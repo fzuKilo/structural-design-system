@@ -1520,35 +1520,15 @@ class PlanningFlow:
             if verbose:
                 print(f"[优化] 方案{i+1}得分：{score:.1f}")
             await self._broadcast_progress("evaluation", i + 1, total, f"scheme_{i+1}_done", f"方案 {i+1}/{total} 分析完成，得分：{score:.1f}")
-            # 实时推送该方案数据给前端
+            # 实时推送该方案数据给前端，metrics 与最终选择卡片保持一致
             if self.websocket_callback:
                 from datetime import datetime
-                results_data = new_analysis.get("results", {})
-                dims = new_evaluation.get("dimensions", {})
-                geo = new_design.get("geometry", {})
-                mat = new_design.get("material", {})
-                # 截面描述：钢结构用 section_name，混凝土梁用 width×height
-                section_str = (
-                    geo.get("section_name")
-                    or geo.get("section")
-                    or (f"H{geo.get('height_mm','')}×{geo.get('flange_width_mm','')}" if geo.get("height_mm") else None)
-                    or (f"{geo.get('width','')}×{geo.get('height','')}" if geo.get("width") and geo.get("height") else "—")
-                )
-                material_str = mat.get("material_name") or mat.get("grade") or "—"
+                metrics = self._build_scheme_metrics(new_design, new_analysis, new_evaluation)
                 await self.websocket_callback({
                     "type": "scheme_ready",
                     "index": i + 1,
                     "total": total,
-                    "metrics": {
-                        "section": section_str,
-                        "material": material_str,
-                        "stress": f"{results_data.get('max_stress_MPa', 0):.1f} MPa",
-                        "displacement": f"{results_data.get('max_displacement_mm', 0):.1f} mm",
-                        "safety": f"{dims.get('safety', {}).get('score', 0):.1f}",
-                        "economy": f"{dims.get('economy', {}).get('score', 0):.1f}",
-                        "total_score": f"{score:.1f}",
-                        "grade": new_evaluation.get("grade", "N/A"),
-                    },
+                    "metrics": metrics,
                     "timestamp": datetime.now().isoformat(),
                 })
             candidates.append((new_design, new_analysis, new_evaluation))
@@ -1573,6 +1553,77 @@ class PlanningFlow:
             selected_score = selected_evaluation.get("comprehensive_score", 0)
             print(f"[优化] 已选择方案 {choice}（得分 {selected_score:.1f}）")
             return selected_design, selected_analysis, selected_evaluation
+
+    def _build_scheme_metrics(self, design: Dict, analysis: Dict, evaluation: Dict) -> Dict:
+        """构建方案 metrics，与 _display_optimization_comparison 里的格式完全一致。"""
+        geo = design.get("geometry", {})
+        mat = design.get("material", {})
+        structure_type = design.get("type", self.structure_type or "")
+        is_frame = structure_type == "frame"
+
+        def get_column_section(d: Dict) -> str:
+            g = d.get("geometry", {})
+            cols = g.get("columns", {})
+            w = cols.get("width", g.get("column_width", "?"))
+            h = cols.get("depth", cols.get("height", g.get("column_depth", "?")))
+            return f"{w}×{h}"
+
+        def get_beam_section(d: Dict) -> str:
+            g = d.get("geometry", {})
+            beams = g.get("beams", {})
+            w = beams.get("width", g.get("beam_width", "?"))
+            h = beams.get("depth", beams.get("height", g.get("beam_depth", "?")))
+            return f"{w}×{h}"
+
+        def get_section(d: Dict) -> str:
+            g = d.get("geometry", {})
+            m = d.get("material", {})
+            if structure_type == "truss":
+                A = m.get("A", None)
+                return f"{A*1e6:.0f}mm²" if A and isinstance(A, (int, float)) else "?"
+            return (
+                g.get("section_name") or g.get("section")
+                or (f"H{g.get('height_mm','')}×{g.get('flange_width_mm','')}" if g.get("height_mm") else None)
+                or (f"{g.get('width','')}×{g.get('height','')}" if g.get("width") and g.get("height") else "—")
+            )
+
+        def get_dim_score(ev: Dict, dim: str) -> str:
+            dims = ev.get("dimensions", {}) or {}
+            score = dims.get(dim, {}).get("score", None)
+            return f"{score:.1f}" if score is not None else "N/A"
+
+        results = analysis.get("results", {})
+        stress = results.get("max_stress_MPa", 0)
+        disp = results.get("max_displacement_mm", 0)
+
+        metrics: Dict = {}
+        if is_frame:
+            metrics["col_section"] = get_column_section(design) + "m"
+            metrics["beam_section"] = get_beam_section(design) + "m"
+        elif structure_type == "truss":
+            metrics["section"] = get_section(design)
+            span = geo.get("span", geo.get("length", None))
+            height = geo.get("height", None)
+            n_panels = geo.get("n_panels", geo.get("num_panels", None))
+            if span is not None:
+                metrics["跨度"] = f"{span}m"
+            if height is not None:
+                metrics["桁架高度"] = f"{height}m"
+            if n_panels is not None:
+                metrics["节间数"] = str(n_panels)
+        else:
+            metrics["section"] = get_section(design)
+
+        metrics["material"] = mat.get("material_name") or mat.get("grade") or "—"
+        metrics["stress"] = f"{stress:.2f}"
+        metrics["displacement"] = f"{disp:.2f}"
+        metrics["economy"] = get_dim_score(evaluation, "economy")
+        metrics["efficiency"] = get_dim_score(evaluation, "structural_efficiency")
+        metrics["safety"] = get_dim_score(evaluation, "safety")
+        metrics["sustainability"] = get_dim_score(evaluation, "sustainability")
+        metrics["total_score"] = f"{evaluation.get('comprehensive_score', 0):.1f}"
+        metrics["grade"] = evaluation.get("grade", "N/A")
+        return metrics
 
     async def _display_optimization_comparison(
         self,
