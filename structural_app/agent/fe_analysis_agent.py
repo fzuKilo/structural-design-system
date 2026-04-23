@@ -739,7 +739,15 @@ Please update the design and re-analyze."""
             total_lateral = len(loads['lateral'])
             load_lines.append(f"   • 水平荷载：{total_lateral} 处")
 
-        load_text = "\n".join(load_lines) if load_lines else "   （无）"
+        if 'node_forces' in loads and loads['node_forces']:
+            total_nodes = len(loads['node_forces'])
+            load_lines.append(f"   • 节点荷载：{total_nodes} 处")
+
+        if 'member_loads' in loads and loads['member_loads']:
+            total_members = len(loads['member_loads'])
+            load_lines.append(f"   • 杆件荷载：{total_members} 处")
+
+        load_text = "\n".join(load_lines) if load_lines else "   如图所示"
 
         # 组装问题文本
         question = (
