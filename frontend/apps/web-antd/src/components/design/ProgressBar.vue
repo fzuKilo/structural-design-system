@@ -392,11 +392,6 @@
               <!-- 阶段标识 -->
               <div class="history-stage-label">📜 [{{ getStageLabel(item.stage) }}] {{ item.time }}</div>
 
-              <!-- 图片（如果有） -->
-              <div v-if="item.image_path" class="history-image">
-                <img :src="`/api/design/${item.image_path.split('/').pop().split('_')[0]}/visualization/${item.image_path.split('/').pop()}`" alt="可视化图" style="max-width: 100%; border-radius: 4px;" />
-              </div>
-
               <!-- 警告信息（如果有） -->
               <div v-if="item.context?.warnings?.length" class="history-warnings">
                 <div v-for="(w, wi) in item.context.warnings" :key="wi" class="warning-item">⚠️ {{ w }}</div>
