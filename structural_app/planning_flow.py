@@ -1376,14 +1376,21 @@ class PlanningFlow:
         if self.websocket_callback and self.task_id:
             import redis as redis_lib
             from datetime import datetime
+            def _strip_heavy_context(record: dict) -> dict:
+                """历史记录里去掉 proposals/image_path 等大字段，只保留摘要"""
+                ctx = record.get("context") or {}
+                stripped_ctx = {k: v for k, v in ctx.items() if k not in ("proposals", "image_path")}
+                if "proposals" in ctx:
+                    stripped_ctx["selected"] = record.get("answer", "")
+                return {**record, "context": stripped_ctx}
+
             message = {
                 "type": "ask_human",
                 "question": question,
                 "options": options,
                 "default": default,
                 "stage": self._current_stage or "unknown",
-                # 每次携带完整历史，前端可随时恢复
-                "interaction_history": self.results.get("interaction_history", []),
+                "interaction_history": [_strip_heavy_context(r) for r in self.results.get("interaction_history", [])],
             }
             if context:
                 message["context"] = context
