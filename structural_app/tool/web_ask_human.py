@@ -367,9 +367,8 @@ class WebAskHuman(AskHuman):
                         "question": question,
                         "answer": answer,
                         "time": datetime.now().strftime("%H:%M:%S"),
-                        "options": getattr(self, '_last_options', []),  # 保存选项列表
-                        "context": getattr(self, '_last_context', {}),  # 保存完整 context
-                        "image_path": getattr(self, '_last_image_path', None),  # 保存图片路径
+                        "options": getattr(self, '_last_options', []),
+                        "context": {k: v for k, v in (getattr(self, '_last_context', {}) or {}).items() if k != 'image_path'},
                     }, ensure_ascii=False)
                     await client.rpush(f"interaction_history:{self.task_id}", record)
                     await client.expire(f"interaction_history:{self.task_id}", 86400)

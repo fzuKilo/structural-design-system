@@ -1408,9 +1408,8 @@ class PlanningFlow:
                             "question": question,
                             "answer": final,
                             "time": datetime.now().strftime("%H:%M:%S"),
-                            "options": options,  # 保存选项列表
-                            "context": context or {},  # 保存完整 context
-                            "image_path": context.get("image_path") if context else None,  # 保存图片路径
+                            "options": options,
+                            "context": {k: v for k, v in (context or {}).items() if k != 'image_path'},
                         })
                         return final
                     await asyncio.sleep(1)

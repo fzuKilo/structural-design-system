@@ -660,6 +660,9 @@ Please update the design and re-analyze."""
             print(f"[警告] AskHuman 执行失败，默认继续分析：{e}")
             return True
         finally:
+            # 清除 image_path，防止后续 ask_human 复用预览图
+            if hasattr(ask_human_tool, '_last_image_path'):
+                ask_human_tool._last_image_path = None
             if delete_after:
                 try:
                     os.remove(img_path)
