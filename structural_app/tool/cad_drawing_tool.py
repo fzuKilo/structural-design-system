@@ -207,7 +207,8 @@ class CADDrawingTool(BaseTool):
                     'drawing_standard': results.drawing_standard,
                     'scale': results.scale,
                     'units': results.units,
-                    'generated_at': results.generated_at
+                    'generated_at': results.generated_at,
+                    **{k: v for k, v in results.metadata.items() if isinstance(v, str) and v.endswith('.png')}
                 },
                 'notes': results.notes
             }
