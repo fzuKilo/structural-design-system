@@ -14,13 +14,7 @@
         <template v-if="drawings.length">
           <ATabs type="card" size="small">
             <ATabPane v-for="d in drawings" :key="d.key" :tab="d.label">
-              <img
-                v-if="d.preview"
-                :src="`/api/file/view?path=${encodeURIComponent(d.preview)}`"
-                style="width: 100%; max-height: 600px; object-fit: contain; border-radius: 4px;"
-                :alt="d.label"
-              />
-              <DXFViewer v-else :src="d.path" :height="420" />
+              <DXFViewer :src="d.path" :preview="d.preview" :height="420" />
             </ATabPane>
           </ATabs>
         </template>
@@ -134,10 +128,10 @@ const drawings = computed(() => {
   const files = props.result?.files || {};
   const previews = props.result?.drawing_previews || {};
   const labelMap: Record<string, string> = {
-    plan_view: '平面图', elevation_view: '立面图', details: '详图',
+    plan_view: '平面图', elevation_view: '立面图', section_view: '截面图', details: '详图', detail_view: '详图',
   };
   const previewKeyMap: Record<string, string> = {
-    plan_view: 'plan_preview', elevation_view: 'elevation_preview', details: 'detail_preview',
+    plan_view: 'plan_preview', elevation_view: 'elevation_preview', details: 'detail_preview', detail_view: 'detail_preview', section_view: 'section_preview',
   };
   return Object.entries(files)
     .filter(([, path]) => typeof path === 'string' && (path as string).endsWith('.dxf'))

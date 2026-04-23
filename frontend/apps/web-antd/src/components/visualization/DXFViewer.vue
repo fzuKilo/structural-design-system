@@ -34,6 +34,12 @@
           <div v-if="loading" style="display: flex; justify-content: center; align-items: center; height: 100%; color: #fff;">
             <a-spin tip="加载图纸中..." />
           </div>
+          <img
+            v-else-if="props.preview"
+            :src="`/api/file/view?path=${encodeURIComponent(props.preview)}`"
+            style="width: 100%; height: 100%; object-fit: contain;"
+            alt="CAD预览图"
+          />
           <div v-else style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #999;">
             <div style="font-size: 48px; margin-bottom: 16px;">📐</div>
             <div style="font-size: 16px; margin-bottom: 8px;">CAD 图纸已生成</div>
