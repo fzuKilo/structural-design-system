@@ -32,9 +32,11 @@ class FEAnalysisTool(BaseTool):
             name="fe_analysis",
             description=(
                 "Perform finite element analysis on structural designs. "
-                "Supports various structure types (beam, cantilever_beam, continuous_beam, frame, truss, etc.). "
+                "Pass the ENTIRE DesignProposal JSON as the 'design_proposal' string parameter. "
+                "Supports: beam, cantilever_beam, continuous_beam, frame, truss. "
                 "Returns displacement, stress, moment, shear results and code compliance check."
-            )
+            ),
+            parameters=self._define_parameters(),
         )
 
     def _define_parameters(self) -> Dict[str, Any]:

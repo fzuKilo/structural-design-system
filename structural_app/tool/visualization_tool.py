@@ -42,7 +42,7 @@ class VisualizationTool(BaseTool):
                 "Returns file paths for static (PNG) and interactive (HTML) visualizations."
             )
         )
-        # Store custom output directory (None means use default)
+        object.__setattr__(self, 'parameters', self._define_parameters())
         self._custom_output_dir = None
 
     def _define_parameters(self) -> Dict[str, Any]:

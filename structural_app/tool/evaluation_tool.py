@@ -41,6 +41,7 @@ class EvaluationTool(BaseTool):
                 "and 4-dimensional evaluation results."
             )
         )
+        object.__setattr__(self, 'parameters', self._define_parameters())
 
     def _define_parameters(self) -> Dict[str, Any]:
         """
