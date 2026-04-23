@@ -138,7 +138,11 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
         avg_utilization = (stress_utilization + deflection_utilization) / 2
 
         # Calculate utilization uniformity using element stresses (u_i = σ_i / allowable)
-        stresses = analysis_results.get('stresses', [])
+        # stresses are nested under detailed_results
+        detailed = analysis_results.get('detailed_results', {})
+        stresses_raw = detailed.get('stresses', analysis_results.get('stresses', []))
+        # Exclude zero-force members (they are not load-carrying and skew the uniformity metric)
+        stresses = [s for s in stresses_raw if abs(s) > 1e-3]
         material = design.get('material', {})
         fy = material.get('fy', 235e6)
         fy_Pa = fy if fy > 1000 else fy * 1e6
@@ -165,7 +169,8 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             'score': round(efficiency_score, 1),
             'grade': self._calculate_grade(efficiency_score),
             'indicators': {
-                'avg_utilization': round(avg_utilization, 4),
+                'average_utilization': round(avg_utilization, 4),
+                'utilization_uniformity': round(1 - cv, 4),
                 'stress_utilization': round(stress_utilization, 4),
                 'deflection_utilization': round(deflection_utilization, 4),
                 'utilization_cv': round(cv, 4),
