@@ -273,6 +273,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             flattened_result = {
                 "report_file": (result.get("report_results") or {}).get("report_file", "").replace("\\", "/") if (result.get("report_results") or {}).get("report_file") else "",
                 "files": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in (result.get("drawing_results") or {}).get("files", {}).items()},
+                "drawing_previews": {k: v.replace("\\", "/") for k, v in (result.get("drawing_results") or {}).get("metadata", {}).items() if isinstance(v, str) and v.endswith(".png")},
                 "visualizations": {
                     "static": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("static", {}).items()},
                     "interactive": {k: v.replace("\\", "/") if isinstance(v, str) else v for k, v in actual_visualizations.get("interactive", {}).items()}
