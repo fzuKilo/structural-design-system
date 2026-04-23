@@ -538,6 +538,10 @@
                   <span class="param-label">材料</span>
                   <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
                 </div>
+                <div v-if="snapshots['design_proposal'].data.type === 'truss' && snapshots['design_proposal'].data.material?.A != null" class="param-item">
+                  <span class="param-label">杆件截面面积 (mm²)</span>
+                  <span class="param-value">{{ (snapshots['design_proposal'].data.material.A * 1e6).toFixed(0) }}</span>
+                </div>
               </div>
             </div>
             <div class="param-card">
@@ -569,6 +573,10 @@
                   <span class="param-label">材料</span>
                   <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
                 </div>
+                <div v-if="snapshots['design_proposal'].data.type === 'truss' && snapshots['design_proposal'].data.material?.A != null" class="param-item">
+                  <span class="param-label">杆件截面面积 (mm²)</span>
+                  <span class="param-value">{{ (snapshots['design_proposal'].data.material.A * 1e6).toFixed(0) }}</span>
+                </div>
               </div>
             </div>
             <div class="param-card">
@@ -598,6 +606,10 @@
                 <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
                   <span class="param-label">材料</span>
                   <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
+                </div>
+                <div v-if="snapshots['design_proposal'].data.type === 'truss' && snapshots['design_proposal'].data.material?.A != null" class="param-item">
+                  <span class="param-label">杆件截面面积 (mm²)</span>
+                  <span class="param-value">{{ (snapshots['design_proposal'].data.material.A * 1e6).toFixed(0) }}</span>
                 </div>
               </div>
             </div>

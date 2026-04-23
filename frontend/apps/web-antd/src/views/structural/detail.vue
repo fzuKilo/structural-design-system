@@ -143,6 +143,8 @@ const mapRawToSnapshotData = (stage: string, raw: any): any => {
       description: raw.description || '',
       geometry: raw.geometry || {},
       material: raw.material || {},
+      loads: raw.loads || {},
+      constraints: raw.constraints || {},
       standards: raw.standards || [],
     };
   }
