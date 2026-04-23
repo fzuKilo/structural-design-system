@@ -37,7 +37,7 @@
           <img
             v-else-if="props.preview"
             :src="`/api/file/view?path=${encodeURIComponent(props.preview)}`"
-            style="width: 100%; height: 100%; object-fit: contain;"
+            style="width: 100%; height: 100%; object-fit: contain; mix-blend-mode: lighten;"
             alt="CAD预览图"
           />
           <div v-else style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #999;">
