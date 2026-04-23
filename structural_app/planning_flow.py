@@ -952,6 +952,11 @@ class PlanningFlow:
                             print("[WARNING] 手动改进结束，但设计仍未满足规范要求")
                             print("[PlanningFlow] 继续执行后续步骤...")
 
+                    await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成（手动改进）", data={
+                        "compliant": final_code_check.get('compliant', False),
+                        "violations": final_code_check.get('violations', []),
+                    })
+
                 elif user_choice == "auto":
                     # Option 2: 自动迭代优化（模仿manual模式，但无需用户交互）
                     if verbose:
@@ -973,6 +978,11 @@ class PlanningFlow:
                             print()
                             print("[WARNING] 自动优化结束，但设计仍未满足规范要求")
                             print("[PlanningFlow] 继续执行后续步骤...")
+
+                    await self._broadcast_stage("fe_analysis", "completed", "有限元分析完成（自动优化）", data={
+                        "compliant": final_code_check.get('compliant', False),
+                        "violations": final_code_check.get('violations', []),
+                    })
 
                 elif user_choice == "terminate":
                     # Option 3: Terminate workflow
