@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useAccessStore } from '@vben/stores';
 
-import { cancelDesignApi, getDesignDetailApi } from '#/api/design';
+import { cancelDesignApi, getDesignDetailApi, getPendingAskApi } from '#/api/design';
 import ProgressBar from '#/components/design/ProgressBar.vue';
 import ResultViewer from '#/components/design/ResultViewer.vue';
 import { WebSocketManager } from '#/utils/websocket';
@@ -206,6 +206,11 @@ const connectWs = () => {
       progressData.value = msg;
     } else if (msg.type === 'ask_human') {
       askHumanRequest.value = msg;
+      // evaluation 阶段之后的交互不需要显示方案卡片，清空实时方案数据
+      if (msg.stage && msg.stage !== 'evaluation') {
+        schemeUpdates.value = [];
+        schemeTotalHint.value = 0;
+      }
       // 同步后端携带的历史记录到 savedHistory（用于 ProgressBar 恢复）
       if (msg.interaction_history?.length) {
         savedHistory.value = msg.interaction_history;
@@ -247,22 +252,44 @@ const connectWs = () => {
   wsManager.connect(route.params.id as string, token);
 };
 
+const restorePendingAsk = async () => {
+  try {
+    const data = await getPendingAskApi(route.params.id as string);
+    console.log('[restorePendingAsk] response:', data);
+    if (data?.pending && data?.ask_human) {
+      const msg = data.ask_human;
+      askHumanRequest.value = msg;
+      if (msg.stage && msg.stage !== 'evaluation') {
+        schemeUpdates.value = [];
+        schemeTotalHint.value = 0;
+      }
+      console.log('[restorePendingAsk] restored askHumanRequest:', msg);
+    } else {
+      console.log('[restorePendingAsk] no pending ask found');
+    }
+  } catch (e) {
+    console.error('[restorePendingAsk] error:', e);
+  }
+};
+
 const handleAskHumanSubmit = async (answer: string) => {
+  // 先清空 askHumanRequest，确保 ProgressBar 立即切换出 ask_human 分支（避免图片残留）
+  const prevRequest = askHumanRequest.value;
+  askHumanRequest.value = null;
   // 立即在本地追加这次问答记录，不等后端下一条消息
-  if (askHumanRequest.value) {
+  if (prevRequest) {
     savedHistory.value = [
       ...savedHistory.value,
       {
-        stage: askHumanRequest.value.stage,
-        question: askHumanRequest.value.question,
+        stage: prevRequest.stage,
+        question: prevRequest.question,
         answer,
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        options: askHumanRequest.value.options || [],
-        context: askHumanRequest.value.context || null,
+        options: prevRequest.options || [],
+        context: prevRequest.context || null,
       },
     ];
   }
-  askHumanRequest.value = null;
   const token = accessStore.accessToken;
   await fetch(`/api/design/${route.params.id}/respond`, {
     method: 'POST',
@@ -297,6 +324,8 @@ onMounted(async () => {
       if (stages.value.length === 0) {
         rebuildStagesFromResult(task.value);
       }
+      // 主动查询挂起的 ask_human，不完全依赖 WS 重连恢复
+      await restorePendingAsk();
       connectWs();
     }
   } finally {

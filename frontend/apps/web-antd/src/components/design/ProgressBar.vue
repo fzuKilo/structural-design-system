@@ -850,10 +850,10 @@ const realTimeSchemes = ref<any[]>([]);  // 实时接收的方案数据
 const selectedSchemeIdx = ref<number>(-1);
 
 const metricLabels: Record<string, string> = {
-  section: '截面', material: '材料',
-  stress: '最大应力', displacement: '最大挠度',
-  safety: '安全性', economy: '经济性',
-  total_score: '综合得分', grade: '等级',
+  section: '截面', col_section: '柱截面', beam_section: '梁截面',
+  material: '材料', stress: '最大应力', displacement: '最大挠度',
+  safety: '安全性', economy: '经济性', efficiency: '结构效率',
+  sustainability: '可持续性', total_score: '综合得分', grade: '等级',
 };
 
 // 监听实时方案推送 —— 直接 watch 数组长度，push 时可靠触发
@@ -1089,10 +1089,10 @@ const proposalColumns = computed(() => {
   if (!props.askHumanRequest?.context?.proposals?.length) return [];
   const metrics = props.askHumanRequest.context.proposals[0]?.metrics || {};
   const metricLabels: Record<string, string> = {
-    section: '截面', material: '材料',
-    stress: '最大应力', displacement: '最大挠度',
-    safety: '安全性', economy: '经济性',
-    total_score: '综合得分', grade: '等级',
+    section: '截面', col_section: '柱截面', beam_section: '梁截面',
+    material: '材料', stress: '最大应力', displacement: '最大挠度',
+    safety: '安全性', economy: '经济性', efficiency: '结构效率',
+    sustainability: '可持续性', total_score: '综合得分', grade: '等级',
   };
   return [
     { title: '方案', key: 'name', dataIndex: 'name', width: 100 },

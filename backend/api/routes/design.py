@@ -84,6 +84,26 @@ async def get_task_status(
     )
 
 
+@router.get("/{task_id}/pending-ask")
+async def get_pending_ask(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """查询当前挂起的 ask_human 请求（用于页面重新进入时恢复交互状态）"""
+    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status != "running":
+        return {"pending": False, "ask_human": None}
+
+    pending = _redis.get(f"ask_human_pending:{task_id}")
+    if pending:
+        import json
+        return {"pending": True, "ask_human": json.loads(pending)}
+    return {"pending": False, "ask_human": None}
+
+
 @router.post("/{task_id}/respond", response_model=MessageResponse)
 async def respond_ask_human(
     task_id: str,

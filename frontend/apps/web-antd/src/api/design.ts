@@ -34,3 +34,8 @@ export async function cancelDesignApi(taskId: string) {
   const res = await baseRequestClient.post<any>(`/design/${taskId}/cancel`);
   return (res as any)?.data ?? res;
 }
+
+export async function getPendingAskApi(taskId: string) {
+  const res = await baseRequestClient.get<any>(`/design/${taskId}/pending-ask`);
+  return (res as any)?.data ?? res;
+}

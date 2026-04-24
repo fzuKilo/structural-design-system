@@ -1344,6 +1344,8 @@ class PlanningFlow:
                 "score": score,
                 "grade": evaluation_report.get("grade", "")
             }
+            # 预警交互属于 evaluation 阶段
+            self._current_stage = "evaluation"
             return await self._ask_user_choice_web(context=context)
 
         # Fallback to CLI input
@@ -1379,11 +1381,15 @@ class PlanningFlow:
             import redis as redis_lib
             from datetime import datetime
             def _strip_heavy_context(record: dict) -> dict:
-                """历史记录里去掉 proposals/image_path 等大字段，只保留摘要"""
+                """历史记录里精简大字段：proposals 只保留展示所需的字段，去掉 image_path"""
                 ctx = record.get("context") or {}
                 stripped_ctx = {k: v for k, v in ctx.items() if k not in ("proposals", "image_path")}
                 if "proposals" in ctx:
-                    stripped_ctx["selected"] = record.get("answer", "")
+                    # 保留精简版 proposals（name/metrics/recommended），供历史卡片展示
+                    stripped_ctx["proposals"] = [
+                        {k: v for k, v in p.items() if k in ("name", "metrics", "recommended")}
+                        for p in ctx["proposals"]
+                    ]
                 return {**record, "context": stripped_ctx}
 
             message = {
@@ -1856,6 +1862,8 @@ class PlanningFlow:
             "recommendation": recommendation
         }
 
+        # 方案选择属于 evaluation 阶段，强制设置 stage，避免被优化过程中的广播覆盖
+        self._current_stage = "evaluation"
         raw = await self._ask_web_or_cli(
             question=f"请选择方案 (0=原方案, {'/'.join(str(i+1) for i in range(len(candidates)))}=候选方案)",
             options=options,
