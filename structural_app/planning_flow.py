@@ -1487,64 +1487,107 @@ class PlanningFlow:
             return original_design, original_analysis, original_evaluation
 
         candidates = []
-        total = len(candidate_designs)
+        target_count = 3
+        max_retry_rounds = 3  # 最多重试3轮
+        retry_round = 0
+        tried_designs = []  # 记录已尝试过的设计，避免重复
 
-        # 在开始循环前，先告知前端总方案数，让占位卡片立即渲染
-        if self.websocket_callback and total > 0:
+        # 先告知前端总方案数
+        if self.websocket_callback:
             from datetime import datetime
             await self.websocket_callback({
                 "type": "scheme_start",
-                "total": total,
+                "total": target_count,
                 "timestamp": datetime.now().isoformat(),
             })
 
-        for i, new_design in enumerate(candidate_designs):
-            if verbose:
-                print(f"\n[优化] 正在评估候选方案 {i+1}/{total}...")
-            if new_design == original_design:
-                if verbose:
-                    print(f"[优化] 方案{i+1}未产生变化，跳过")
-                continue
+        current_designs = candidate_designs
 
-            await self._broadcast_progress("evaluation", i, total, f"scheme_{i+1}_analyzing", f"正在分析候选方案 {i+1}/{total}...")
-            analysis_req = self._build_analysis_request(new_design)
-            analysis_resp = await self.analysis_agent.run(
-                analysis_req,
-                skip_visual_validation=True  # 预警优化3个方案不需要预览图
-            )
-            new_analysis = self._extract_analysis_results(analysis_resp)
-            if not new_analysis:
-                if verbose:
-                    print(f"[优化] 方案{i+1}分析失败，跳过")
-                continue
+        while len(candidates) < target_count and retry_round < max_retry_rounds:
+            retry_round += 1
+            need = target_count - len(candidates)
 
-            new_evaluation = await self._run_evaluation(new_design, new_analysis)
-            if not new_evaluation:
+            if retry_round > 1:
                 if verbose:
-                    print(f"[优化] 方案{i+1}评估失败，跳过")
-                continue
+                    print(f"\n[优化] 第{retry_round}轮重试，还需 {need} 个合规方案...")
+                await self._broadcast_progress("evaluation", len(candidates), target_count,
+                    "retrying", f"部分方案不合规，正在重新生成 {need} 个合规方案（第{retry_round}轮）...")
+                # 把已失败的设计传入，让 LLM 知道哪些截面不合规
+                current_designs = await self._generate_candidate_descriptions(
+                    original_design, original_analysis, original_evaluation,
+                    failed_designs=tried_designs
+                )
+                if not current_designs:
+                    break
 
-            score = new_evaluation.get("comprehensive_score", 0)
-            if verbose:
-                print(f"[优化] 方案{i+1}得分：{score:.1f}")
-            await self._broadcast_progress("evaluation", i + 1, total, f"scheme_{i+1}_done", f"方案 {i+1}/{total} 分析完成，得分：{score:.1f}")
-            # 实时推送该方案数据给前端，metrics 与最终选择卡片保持一致
-            if self.websocket_callback:
-                from datetime import datetime
-                metrics = self._build_scheme_metrics(new_design, new_analysis, new_evaluation)
-                await self.websocket_callback({
-                    "type": "scheme_ready",
-                    "index": i + 1,
-                    "total": total,
-                    "metrics": metrics,
-                    "timestamp": datetime.now().isoformat(),
-                })
-            candidates.append((new_design, new_analysis, new_evaluation))
+            for i, new_design in enumerate(current_designs):
+                if len(candidates) >= target_count:
+                    break
+
+                # 跳过已尝试过的设计
+                if new_design in tried_designs:
+                    continue
+                tried_designs.append(new_design)
+
+                if new_design == original_design:
+                    if verbose:
+                        print(f"[优化] 方案未产生变化，跳过")
+                    continue
+
+                slot = len(candidates) + 1
+                await self._broadcast_progress("evaluation", len(candidates), target_count,
+                    f"scheme_{slot}_analyzing", f"正在分析候选方案 {slot}/{target_count}...")
+
+                analysis_req = self._build_analysis_request(new_design)
+                analysis_resp = await self.analysis_agent.run(
+                    analysis_req,
+                    skip_visual_validation=True
+                )
+                new_analysis = self._extract_analysis_results(analysis_resp)
+                if not new_analysis:
+                    if verbose:
+                        print(f"[优化] 方案分析失败，跳过")
+                    continue
+
+                new_evaluation = await self._run_evaluation(new_design, new_analysis)
+                if not new_evaluation:
+                    if verbose:
+                        print(f"[优化] 方案评估失败，跳过")
+                    continue
+
+                # 过滤不合规方案
+                new_code_check = new_analysis.get('code_check', {})
+                if not new_code_check.get('compliant', True):
+                    violations = new_code_check.get('violations', [])
+                    if verbose:
+                        print(f"[优化] 方案未通过规范检查（{len(violations)}条违规），跳过")
+                    continue
+
+                score = new_evaluation.get("comprehensive_score", 0)
+                if verbose:
+                    print(f"[优化] 方案{slot}合规，得分：{score:.1f}")
+                await self._broadcast_progress("evaluation", slot, target_count,
+                    f"scheme_{slot}_done", f"方案 {slot}/{target_count} 分析完成，得分：{score:.1f}")
+
+                if self.websocket_callback:
+                    from datetime import datetime
+                    metrics = self._build_scheme_metrics(new_design, new_analysis, new_evaluation)
+                    await self.websocket_callback({
+                        "type": "scheme_ready",
+                        "index": slot,
+                        "total": target_count,
+                        "metrics": metrics,
+                        "timestamp": datetime.now().isoformat(),
+                    })
+                candidates.append((new_design, new_analysis, new_evaluation))
 
         if not candidates:
             if verbose:
-                print("[WARNING] 所有候选方案均失败，保留原设计")
+                print("[WARNING] 所有轮次均未能生成合规候选方案，保留原设计")
             return original_design, original_analysis, original_evaluation
+
+        if len(candidates) < target_count and verbose:
+            print(f"[WARNING] 仅生成了 {len(candidates)}/{target_count} 个合规方案")
 
         candidates.sort(key=lambda x: x[2].get("comprehensive_score", 0), reverse=True)
 
@@ -1891,6 +1934,7 @@ class PlanningFlow:
         design: Dict,
         analysis: Dict,
         evaluation: Dict,
+        failed_designs: List[Dict] = None,
     ) -> List[Dict]:
         """基于评估建议直接生成3个候选设计JSON（每个方案针对一个主要问题）"""
         if not self.api_key or self.api_key == "your-api-key-here":
@@ -1906,6 +1950,11 @@ class PlanningFlow:
         efficiency_score = dimensions.get('structural_efficiency', {}).get('score', 100)
         sustainability_score = dimensions.get('sustainability', {}).get('score', 100)
 
+        # 提取 code_check 违规信息，用于提示词约束
+        code_check = analysis.get('code_check', {})
+        violations = code_check.get('violations', [])
+        is_compliant = code_check.get('compliant', True)
+
         # 根据得分动态生成约束规则
         constraint_rules = []
         if economy_score < 70:
@@ -1918,7 +1967,59 @@ class PlanningFlow:
             constraint_rules.append("- 可持续性偏低：优先减小截面降低用料量，不建议换钢材（碳排放更高），混凝土等级之间可以调整")
         if safety_score < 75 and economy_score < 70:
             constraint_rules.append("- 安全性与经济性同时偏低时：优先保证安全性，经济性让步")
+
+        # 长细比违规时，强制要求候选方案截面不得减小
+        if not is_compliant and violations:
+            slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
+            if slenderness_violations:
+                # 计算当前截面对应的最小合规截面（λ=L/r≤150，r=sqrt(A/π)，A≥(L/150)²*π）
+                detailed = analysis.get('results', {}).get('detailed_results', {})
+                member_lengths = detailed.get('extra', {}).get('member_lengths', [])
+                max_len = max(member_lengths) if member_lengths else 0
+                if max_len > 0:
+                    import math
+                    min_r = max_len / 150.0
+                    min_A_m2 = min_r ** 2 * math.pi
+                    min_A_mm2 = int(min_A_m2 * 1e6) + 1
+                    constraint_rules.append(
+                        f"- 【严重违规】当前设计存在长细比超限（λ>{150}），所有候选方案截面积 A 必须 ≥ {min_A_mm2} mm²，"
+                        f"禁止减小截面，否则方案将被自动丢弃"
+                    )
+                else:
+                    constraint_rules.append("- 【严重违规】当前设计存在长细比超限，所有候选方案截面积必须大于当前值，禁止减小截面")
+
         constraint_text = "\n".join(constraint_rules) if constraint_rules else "- 无特殊约束，均衡优化各维度"
+
+        # 违规信息文本
+        violation_text = ""
+        if not is_compliant and violations:
+            violation_text = f"\n规范检查违规项（必须在候选方案中解决）：\n" + "\n".join(f"- {v.get('message', v)}" for v in violations)
+
+        # 方案C：计算合规下限 + 方案A：反馈已失败截面
+        compliance_hint = ""
+        if not is_compliant and violations:
+            slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
+            if slenderness_violations:
+                import math
+                detailed = analysis.get('results', {}).get('detailed_results', {})
+                member_lengths = detailed.get('extra', {}).get('member_lengths', [])
+                if member_lengths:
+                    max_len = max(member_lengths)
+                    # 圆形截面：r = sqrt(A/π)/2，λ = L/r ≤ 150 → A ≥ (2L*sqrt(π)/150)²
+                    import math
+                    min_A_m2 = (2 * max_len * math.sqrt(math.pi) / 150) ** 2
+                    min_A_mm2 = math.ceil(min_A_m2 * 1e6)
+                    compliance_hint += f"\n【长细比合规下限（精确计算）】\n最长杆件 L={max_len:.4f}m，圆形截面 r=sqrt(A/π)/2，λ≤150 要求 A≥{min_A_mm2} mm²（{min_A_m2:.6f} m²）\n所有候选方案的截面积 A 必须 ≥ {min_A_mm2} mm²，否则必然不合规。\n"
+
+        if failed_designs:
+            failed_summary = []
+            for fd in failed_designs:
+                mat = fd.get('material', {})
+                A = mat.get('A')
+                if A:
+                    failed_summary.append(f"A={A*1e6:.0f}mm²（{A:.4f}m²）")
+            if failed_summary:
+                compliance_hint += f"\n【已验证不合规的截面（禁止重复使用）】\n" + "、".join(failed_summary) + "\n请生成与上述截面不同且 ≥ 合规下限的方案。\n"
 
         prompt = f"""你是一位结构工程专家。请根据以下评估建议，直接生成3个优化后的完整设计方案JSON。
 
@@ -1928,7 +2029,7 @@ class PlanningFlow:
 分析结果：
 最大应力 {results.get('max_stress_MPa', 'N/A')} MPa
 最大位移 {results.get('max_displacement_mm', 'N/A')} mm
-
+{violation_text}{compliance_hint}
 各维度得分：
 经济性 {economy_score}
 结构效率 {efficiency_score}
@@ -1945,6 +2046,15 @@ class PlanningFlow:
 - 三个方案之间参数不能完全相同
 - 每个方案分别针对不同问题（经济性、结构效率、可持续性），不要重复
 - 跨度（length）和荷载（load/distributed_load/point_load等）为用户输入的固定条件，禁止修改
+- 【规范合规强制要求】所有候选方案必须通过规范检查（code_check），不合规方案会被自动丢弃
+
+【长细比合规截面计算方法（必须掌握）】
+本系统桁架截面为实心圆形截面，惯性半径公式为：
+  r = sqrt(A / π) / 2
+长细比 λ = L / r = 2 * L * sqrt(π) / sqrt(A) ≤ 150
+因此合规截面下限：A ≥ (2 * L_max * sqrt(π) / 150)²
+其中 L_max 为最长杆件长度（斜腹杆，通常是 sqrt(节间长² + 桁架高²)）。
+请用此公式自行计算合规下限，生成的所有方案截面积 A 必须 ≥ 该下限，并在此基础上做差异化优化（如 A_min、A_min×1.1、A_min×1.2 等不同截面，或调整桁架高度、节间数等几何参数）。
 
 要求：
 1. 生成3个方案，每个方案针对建议中的一个主要问题，优化方向必须与建议一致且符合上述约束规则。

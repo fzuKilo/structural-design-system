@@ -200,6 +200,11 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             construction_score * 0.125
         )
 
+        # 不合规时安全分上限 60
+        code_check = results.get('code_check', {})
+        if not code_check.get('compliant', True):
+            safety_score = min(safety_score, 60.0)
+
         # Get code check results
         code_check = results.get('code_check', {})
         safety_factors = code_check.get('safety_factors', {})

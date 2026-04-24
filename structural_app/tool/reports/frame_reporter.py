@@ -106,7 +106,8 @@ class FrameReporter(BaseReporter):
         report.append("")
         report.append("| 项目 | 值 |")
         report.append("|------|-----|")
-        report.append(f"| 截面类型 | {columns.get('type', 'N/A')} |")
+        _type_map = {'rectangular': '矩形', 'circular': '圆形', 'I': 'I形', 'T': 'T形'}
+        report.append(f"| 截面类型 | {_type_map.get(columns.get('type', ''), columns.get('type', 'N/A'))} |")
         report.append(f"| 宽度 | {columns.get('width', 0)} m |")
         report.append(f"| 深度 | {columns.get('depth', 0)} m |")
         report.append("")
@@ -117,7 +118,7 @@ class FrameReporter(BaseReporter):
         report.append("")
         report.append("| 项目 | 值 |")
         report.append("|------|-----|")
-        report.append(f"| 截面类型 | {beams.get('type', 'N/A')} |")
+        report.append(f"| 截面类型 | {_type_map.get(beams.get('type', ''), beams.get('type', 'N/A'))} |")
         report.append(f"| 宽度 | {beams.get('width', 0)} m |")
         report.append(f"| 深度 | {beams.get('depth', 0)} m |")
         report.append("")

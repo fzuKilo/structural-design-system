@@ -97,7 +97,7 @@ class TrussReporter(BaseReporter):
         report.append("| 项目 | 值 |")
         report.append("|------|-----|")
         report.append(f"| 弹性模量 E | {material.get('E', 0) / 1e9:.2f} GPa |")
-        report.append(f"| 截面积 A | {material.get('A', 0) * 1e4:.2f} cm² |")
+        report.append(f"| 截面积 A | {material.get('A', 0):.4f} m² |")
         report.append(f"| 屈服强度 fy | {material.get('fy', 0) / 1e6:.2f} MPa |")
         report.append(f"| 材料名称 | {material.get('material_name', 'N/A')} |")
         report.append("")

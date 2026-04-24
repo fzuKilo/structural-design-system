@@ -502,7 +502,7 @@
             />
             <div class="sub-message">{{ progressData.message }}</div>
           </template>
-          <template v-else-if="!props.stages?.length">
+          <template v-else-if="!props.stages?.length && !props.askHumanRequest">
             <div style="color:#999; padding:20px 0;">等待任务开始...</div>
           </template>
 
@@ -680,7 +680,7 @@
             </div>
           </template>
 
-          <template v-else-if="!props.stages?.length">
+          <template v-else-if="!props.stages?.length && !props.askHumanRequest">
             <div class="param-card" style="text-align:center; color:#999; padding:20px;">等待任务开始...</div>
           </template>
         </div>
@@ -859,7 +859,10 @@ const metricLabels: Record<string, string> = {
 // 监听实时方案推送 —— 直接 watch 数组长度，push 时可靠触发
 watch(() => props.schemeUpdates.length, () => {
   const updates = props.schemeUpdates;
-  if (!updates || updates.length === 0) return;
+  if (!updates || updates.length === 0) {
+    realTimeSchemes.value = [];  // schemeUpdates 被清空时同步清空
+    return;
+  }
 
   // 按 index 排序，逐个追加（不重复）
   const sorted = [...updates].sort((a, b) => a.index - b.index);

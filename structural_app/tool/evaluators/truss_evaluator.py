@@ -220,6 +220,11 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             construction_score * 0.125
         )
 
+        # 不合规（长细比等违规）时安全分上限 60
+        code_check = results.get('code_check', {})
+        if not code_check.get('compliant', True):
+            safety_score = min(safety_score, 60.0)
+
         return {
             'score': round(safety_score, 1),
             'indicators': {

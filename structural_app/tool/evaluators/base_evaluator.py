@@ -138,6 +138,11 @@ class DesignEvaluator(ABC):
                 sustainability['score'] * weights['sustainability']
             )
 
+            # 不合规方案综合分上限 60（不合规不可能得高分）
+            code_check = results.get('code_check', {})
+            if not code_check.get('compliant', True):
+                comprehensive_score = min(comprehensive_score, 60.0)
+
             # Convert to letter grade
             grade = self._calculate_grade(comprehensive_score)
 
