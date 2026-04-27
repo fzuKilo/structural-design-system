@@ -49,6 +49,10 @@ export async function registerApi(data: { username: string; email: string; passw
   return baseRequestClient.post<any>('/auth/register', data);
 }
 
+/**
+ * 退出登录
+ */
+export async function logoutApi() {
   return Promise.resolve();
 }
 
