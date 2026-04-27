@@ -3,7 +3,7 @@ Design Task Routes
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import redis
 from backend.database import get_db, User, Task
 from backend.api.models import (
@@ -57,16 +57,34 @@ async def list_tasks(
     db: Session = Depends(get_db)
 ):
     """列出用户的任务"""
-    tasks = db.query(Task).filter(Task.user_id == current_user.id).order_by(Task.created_at.desc()).all()
     import json as _json
-    for t in tasks:
-        if not t.structure_type and t.result_json:
-            rj = t.result_json if isinstance(t.result_json, dict) else _json.loads(t.result_json)
-            raw = rj.get('raw') or {}
-            t.structure_type = (raw.get('design_proposal') or {}).get('type') or \
-                               (rj.get('design_proposal') or {}).get('type') or \
-                               (rj.get('stages_snapshot', {}).get('design_proposal') or {}).get('type')
-    return tasks
+    tasks = db.query(Task).filter(Task.user_id == current_user.id).order_by(Task.created_at.desc()).all()
+
+    def _extract_structure_type(t: Task) -> Optional[str]:
+        if t.structure_type:
+            return t.structure_type
+        if not t.result_json:
+            return None
+        rj = t.result_json if isinstance(t.result_json, dict) else _json.loads(t.result_json)
+        raw = rj.get('raw') or {}
+        return (
+            (raw.get('design_proposal') or {}).get('type') or
+            (rj.get('design_proposal') or {}).get('type') or
+            (rj.get('stages_snapshot', {}).get('design_proposal') or {}).get('type')
+        )
+
+    return [
+        TaskResponse(
+            id=t.id,
+            status=t.status,
+            request_text=t.request_text,
+            structure_type=_extract_structure_type(t),
+            created_at=t.created_at,
+            completed_at=t.completed_at,
+            error=t.error,
+        )
+        for t in tasks
+    ]
 
 
 @router.get("/{task_id}/status", response_model=TaskDetailResponse)
