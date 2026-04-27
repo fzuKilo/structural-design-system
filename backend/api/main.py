@@ -36,7 +36,7 @@ app.include_router(websocket.router)
 @app.get("/api/menu/all")
 async def get_menu_list(current_user: User = Depends(get_current_user)):
     """返回前端菜单列表"""
-    return [
+    menus = [
         {
             "id": 1,
             "component": "/dashboard/workspace/index",
@@ -65,6 +65,7 @@ async def get_menu_list(current_user: User = Depends(get_current_user)):
             "path": "/about",
         },
     ]
+    return {"code": 0, "data": menus}
 
 
 @app.get("/")
