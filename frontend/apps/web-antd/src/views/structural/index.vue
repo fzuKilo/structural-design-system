@@ -36,10 +36,9 @@ const formatTime = (iso: string) => {
 
 const columns = [
   { title: '序号',     key: 'index',          width: 70,  align: 'center' },
-  { title: '设计需求', dataIndex: 'request_text', key: 'request_text', ellipsis: true },
-  { title: '结构类型', key: 'structure_type',  width: 110 },
+  { title: '结构类型', key: 'structure_type',  width: 130 },
   { title: '状态',     key: 'status',          width: 90  },
-  { title: '创建时间', key: 'created_at',      width: 110 },
+  { title: '创建时间', key: 'created_at',      width: 120 },
   { title: '操作',     key: 'action',          width: 80,  align: 'center' },
 ];
 

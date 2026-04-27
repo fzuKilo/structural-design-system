@@ -58,6 +58,13 @@ async def list_tasks(
 ):
     """列出用户的任务"""
     tasks = db.query(Task).filter(Task.user_id == current_user.id).order_by(Task.created_at.desc()).all()
+    # 若 structure_type 未写入顶层字段，从 result_json 兜底提取
+    import json as _json
+    for t in tasks:
+        if not t.structure_type and t.result_json:
+            rj = t.result_json if isinstance(t.result_json, dict) else _json.loads(t.result_json)
+            t.structure_type = (rj.get('design_proposal') or {}).get('type') or \
+                               (rj.get('stages_snapshot', {}).get('design_proposal') or {}).get('type')
     return tasks
 
 
