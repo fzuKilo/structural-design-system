@@ -5,11 +5,17 @@ import type { Recordable } from '@vben/types';
 import { computed, h, ref } from 'vue';
 
 import { AuthenticationRegister, z } from '@vben/common-ui';
+import { message } from 'ant-design-vue';
+import { useRouter } from 'vue-router';
+
 import { $t } from '@vben/locales';
+
+import { registerApi } from '#/api/core/auth';
 
 defineOptions({ name: 'Register' });
 
 const loading = ref(false);
+const router = useRouter();
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
@@ -20,7 +26,17 @@ const formSchema = computed((): VbenFormSchema[] => {
       },
       fieldName: 'username',
       label: $t('authentication.username'),
-      rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
+      rules: z.string().min(3, { message: '用户名至少3个字符' }),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: $t('authentication.emailTip'),
+        type: 'email',
+      },
+      fieldName: 'email',
+      label: $t('authentication.email'),
+      rules: z.string().email({ message: $t('authentication.emailValidErrorTip') }),
     },
     {
       component: 'VbenInputPassword',
@@ -35,7 +51,7 @@ const formSchema = computed((): VbenFormSchema[] => {
           strengthText: () => $t('authentication.passwordStrength'),
         };
       },
-      rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
+      rules: z.string().min(6, { message: '密码至少6个字符' }),
     },
     {
       component: 'VbenInputPassword',
@@ -66,10 +82,7 @@ const formSchema = computed((): VbenFormSchema[] => {
             $t('authentication.agree'),
             h(
               'a',
-              {
-                class: 'vben-link ml-1 ',
-                href: '',
-              },
+              { class: 'vben-link ml-1', href: '' },
               `${$t('authentication.privacyPolicy')} & ${$t('authentication.terms')}`,
             ),
           ]),
@@ -81,8 +94,18 @@ const formSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
-function handleSubmit(value: Recordable<any>) {
-  void value;
+async function handleSubmit(value: Recordable<any>) {
+  loading.value = true;
+  try {
+    await registerApi({ username: value.username, email: value.email, password: value.password });
+    message.success('注册成功，请登录');
+    router.push('/auth/login');
+  } catch (e: any) {
+    const detail = e?.response?.data?.detail || '注册失败，请重试';
+    message.error(detail);
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 

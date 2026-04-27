@@ -43,9 +43,12 @@ export async function refreshTokenApi() {
 }
 
 /**
- * 退出登录
+ * 注册
  */
-export async function logoutApi() {
+export async function registerApi(data: { username: string; email: string; password: string }) {
+  return baseRequestClient.post<any>('/auth/register', data);
+}
+
   return Promise.resolve();
 }
 
