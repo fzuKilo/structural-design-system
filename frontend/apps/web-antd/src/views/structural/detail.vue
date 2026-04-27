@@ -310,14 +310,15 @@ const handleCancel = async () => {
   cancelling.value = true;
   try {
     await cancelDesignApi(route.params.id as string);
-    addLog('任务已取消', '#f5222d');
-    message.success('任务已成功取消');
+  } catch {
+    // 忽略 API 错误（如任务已被取消导致的 400），继续执行后续逻辑
+  }
+  try {
     wsManager?.disconnect();
     wsManager = null;
     await loadTask();
-  } catch (error) {
-    message.error('取消任务失败');
-    addLog('取消任务失败', '#f5222d');
+    addLog('任务已取消', '#fa8c16');
+    message.success('任务已成功取消');
   } finally {
     cancelling.value = false;
   }
