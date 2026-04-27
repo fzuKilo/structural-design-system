@@ -62,14 +62,8 @@ const handleDelete = async (id: string) => {
     message.error('删除失败');
   }
 };
-  loading.value = true;
-  try {
-    const res = await getDesignListApi();
-    tasks.value = res as any;
-  } finally {
-    loading.value = false;
-  }
-};
+
+const fetchTasks = async () => {
 
 const onStorageChange = (e: StorageEvent) => {
   if (e.key === 'task_list_refresh') fetchTasks();
