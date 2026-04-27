@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 
-import { Button as AButton, Card as ACard, Empty as AEmpty, Table as ATable, Tag as ATag, Tooltip as ATooltip } from 'ant-design-vue';
+import { Button as AButton, Card as ACard, Empty as AEmpty, Popconfirm as APopconfirm, Table as ATable, Tag as ATag, Tooltip as ATooltip, message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 
-import { getDesignListApi } from '#/api/design';
+import { deleteDesignApi, getDesignListApi } from '#/api/design';
 
 const router = useRouter();
 const tasks = ref([]);
@@ -39,7 +39,7 @@ const columns = [
   { title: '结构类型', key: 'structure_type',  width: 130 },
   { title: '状态',     key: 'status',          width: 90  },
   { title: '创建时间', key: 'created_at',      width: 120 },
-  { title: '操作',     key: 'action',          width: 80,  align: 'center' },
+  { title: '操作',     key: 'action',          width: 120, align: 'center' },
 ];
 
 const statusColorMap: Record<string, string> = {
@@ -53,7 +53,15 @@ const getStatusColor = (status: string) => statusColorMap[status] || 'default';
 const getStatusText  = (status: string) => statusTextMap[status]  || status;
 const getActionText  = (status: string) => status === 'running' || status === 'pending' ? '进入' : '查看';
 
-const fetchTasks = async () => {
+const handleDelete = async (id: string) => {
+  try {
+    await deleteDesignApi(id);
+    message.success('删除成功');
+    await fetchTasks();
+  } catch {
+    message.error('删除失败');
+  }
+};
   loading.value = true;
   try {
     const res = await getDesignListApi();
@@ -111,6 +119,20 @@ onUnmounted(() => {
             <AButton type="link" @click="router.push(`/structural/detail/${record.id}`)">
               {{ getActionText(record.status) }}
             </AButton>
+            <APopconfirm
+              title="确认删除该任务吗？"
+              ok-text="删除"
+              cancel-text="取消"
+              ok-type="danger"
+              :disabled="record.status === 'running' || record.status === 'pending'"
+              @confirm="handleDelete(record.id)"
+            >
+              <AButton
+                type="link"
+                danger
+                :disabled="record.status === 'running' || record.status === 'pending'"
+              >删除</AButton>
+            </APopconfirm>
           </template>
         </template>
       </ATable>
