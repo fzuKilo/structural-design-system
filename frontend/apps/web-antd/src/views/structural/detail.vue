@@ -242,7 +242,13 @@ const connectWs = () => {
     wsMaxRetriesReached.value = false;
   };
 
-  const handleWsClose = () => { wsConnected.value = false; };
+  const handleWsClose = () => {
+    wsConnected.value = false;
+    // WS 断开时若任务仍在运行，主动刷新一次状态（防止 cancelled 消息未收到）
+    if (task.value?.status === 'running' || task.value?.status === 'pending') {
+      loadTask();
+    }
+  };
 
   const handleWsReconnecting = (attempt: number, delay: number) => {
     wsReconnectInfo.value = { attempt, delay };
@@ -307,6 +313,7 @@ const handleAskHumanSubmit = async (answer: string) => {
 };
 
 const handleCancel = async () => {
+  if (cancelling.value) return;
   cancelling.value = true;
   try {
     await cancelDesignApi(route.params.id as string);
