@@ -1,11 +1,12 @@
 """
 FastAPI Main Application
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.config import settings
 from backend.api.routes import auth, design, file, websocket, admin
-from backend.database import Base, engine
+from backend.api.middleware import get_current_user
+from backend.database import Base, engine, User
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -30,6 +31,40 @@ app.include_router(design.router, prefix=settings.API_PREFIX)
 app.include_router(file.router, prefix=settings.API_PREFIX)
 app.include_router(admin.router, prefix=settings.API_PREFIX)
 app.include_router(websocket.router)
+
+
+@app.get("/api/menu/all")
+async def get_menu_list(current_user: User = Depends(get_current_user)):
+    """返回前端菜单列表"""
+    return [
+        {
+            "id": 1,
+            "component": "/dashboard/workspace/index",
+            "type": "menu",
+            "status": 1,
+            "meta": {"icon": "carbon:workspace", "order": 0, "title": "page.dashboard.workspace", "affixTab": True},
+            "name": "Workspace",
+            "path": "/workspace",
+        },
+        {
+            "id": 2,
+            "component": "structural/index",
+            "type": "menu",
+            "status": 1,
+            "meta": {"icon": "carbon:construction", "order": 1, "title": "我的设计"},
+            "name": "StructuralDesign",
+            "path": "/structural",
+        },
+        {
+            "id": 3,
+            "component": "_core/about/index",
+            "type": "menu",
+            "status": 1,
+            "meta": {"icon": "lucide:copyright", "order": 9999, "title": "关于系统"},
+            "name": "About",
+            "path": "/about",
+        },
+    ]
 
 
 @app.get("/")
