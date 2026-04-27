@@ -386,6 +386,7 @@ onUnmounted(() => { wsManager?.disconnect(); });
         :scheme-updates="schemeUpdates"
         :scheme-total-hint="schemeTotalHint"
         :saved-interaction-history="savedHistory"
+        :request-text="task.request_text"
         class="mb-3"
         @submit="handleAskHumanSubmit"
       />

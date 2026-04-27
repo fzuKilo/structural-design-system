@@ -121,7 +121,7 @@
                 </div>
                 <div class="summary-item">
                   <span class="summary-label">设计描述：</span>
-                  <span class="summary-value">{{ snapshots[viewingStage].data.description || '—' }}</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.description || props.requestText || '—' }}</span>
                 </div>
               </template>
 
@@ -709,6 +709,7 @@ const props = defineProps<{
   schemeUpdates: any[];
   schemeTotalHint: number;
   savedInteractionHistory: { stage: string; question: string; answer: string; time: string }[];
+  requestText?: string;
 }>();
 
 const emit = defineEmits<{ submit: [answer: string] }>();
@@ -926,7 +927,7 @@ const displayStage = computed(() => viewingStage.value || activeStage.value);
 function mapSnapshotData(d: any) {
   if (!d) return null;
   return {
-    designDescription: d.description,
+    designDescription: d.description || props.requestText,
     designType: d.type,
     geometry: d.geometry,
     material: d.material,
