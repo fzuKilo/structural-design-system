@@ -78,6 +78,8 @@ class WebSocketManager:
                     if message and message['type'] == 'message':
                         data = json.loads(message['data'])
                         print(f"[WebSocket] Parsed data: {data}")
+                        if task_id not in self.active_connections:
+                            break
                         print(f"[WebSocket] Broadcasting to {len(self.active_connections[task_id])} clients")
                         await self.broadcast(task_id, data)
                 except Exception as e:

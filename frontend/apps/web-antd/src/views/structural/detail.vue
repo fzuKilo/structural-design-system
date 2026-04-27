@@ -313,12 +313,15 @@ const handleCancel = async () => {
   } catch {
     // 忽略 API 错误（如任务已被取消导致的 400），继续执行后续逻辑
   }
-  wsManager?.disconnect();
-  wsManager = null;
-  addLog('任务已取消', '#fa8c16');
-  message.success('任务已成功取消');
-  await loadTask();
-  cancelling.value = false;
+  try {
+    wsManager?.disconnect();
+    wsManager = null;
+    addLog('任务已取消', '#fa8c16');
+    message.success('任务已成功取消');
+    await loadTask();
+  } finally {
+    cancelling.value = false;
+  }
 };
 
 onMounted(async () => {
