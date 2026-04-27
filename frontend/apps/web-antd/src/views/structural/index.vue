@@ -35,11 +35,11 @@ const formatTime = (iso: string) => {
 };
 
 const columns = [
-  { title: '序号',     key: 'index',          width: 70,  align: 'center' },
-  { title: '结构类型', key: 'structure_type',  width: 130 },
-  { title: '状态',     key: 'status',          width: 90  },
-  { title: '创建时间', key: 'created_at',      width: 120 },
-  { title: '操作',     key: 'action',          width: 120, align: 'center' },
+  { title: '序号',     key: 'index',         width: 70,  align: 'center' },
+  { title: '结构类型', key: 'structure_type', width: 130 },
+  { title: '状态',     key: 'status',         width: 90  },
+  { title: '创建时间', key: 'created_at',     width: 120 },
+  { title: '操作',     key: 'action',         width: 130, align: 'center' },
 ];
 
 const statusColorMap: Record<string, string> = {
@@ -52,6 +52,17 @@ const statusTextMap: Record<string, string> = {
 const getStatusColor = (status: string) => statusColorMap[status] || 'default';
 const getStatusText  = (status: string) => statusTextMap[status]  || status;
 const getActionText  = (status: string) => status === 'running' || status === 'pending' ? '进入' : '查看';
+const isActive       = (status: string) => status === 'running' || status === 'pending';
+
+const fetchTasks = async () => {
+  loading.value = true;
+  try {
+    const res = await getDesignListApi();
+    tasks.value = res as any;
+  } finally {
+    loading.value = false;
+  }
+};
 
 const handleDelete = async (id: string) => {
   try {
@@ -62,8 +73,6 @@ const handleDelete = async (id: string) => {
     message.error('删除失败');
   }
 };
-
-const fetchTasks = async () => {
 
 const onStorageChange = (e: StorageEvent) => {
   if (e.key === 'task_list_refresh') fetchTasks();
@@ -118,14 +127,10 @@ onUnmounted(() => {
               ok-text="删除"
               cancel-text="取消"
               ok-type="danger"
-              :disabled="record.status === 'running' || record.status === 'pending'"
+              :disabled="isActive(record.status)"
               @confirm="handleDelete(record.id)"
             >
-              <AButton
-                type="link"
-                danger
-                :disabled="record.status === 'running' || record.status === 'pending'"
-              >删除</AButton>
+              <AButton type="link" danger :disabled="isActive(record.status)">删除</AButton>
             </APopconfirm>
           </template>
         </template>
