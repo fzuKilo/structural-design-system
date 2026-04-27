@@ -68,9 +68,17 @@ const loadTask = async () => {
       }
     }
     // 任务完成后从 result_json 重建 stages，保留所有阶段数据
-    if ((task.value?.status === 'success' || task.value?.status === 'failed') && stages.value.length === 0) {
-      rebuildStagesFromResult(task.value);
-    }  } catch (error) {
+    if (task.value?.status === 'success' || task.value?.status === 'failed') {
+      if (stages.value.length === 0) {
+        rebuildStagesFromResult(task.value);
+      } else {
+        // stages 已存在时，仍需同步最新的 interaction_history，确保历史记录完整
+        const rj = task.value?.result_json || {};
+        const interactionHistory = rj.interaction_history;
+        if (interactionHistory?.length) savedHistory.value = interactionHistory;
+      }
+    }
+  } catch (error) {
     message.error('加载任务详情失败');
     errorMessage.value = '加载任务详情失败，请刷新页面重试';
   }
