@@ -10,18 +10,18 @@ const router = useRouter();
 const tasks = ref([]);
 const loading = ref(false);
 
-const structureTypeMap: Record<string, { label: string; icon: string }> = {
-  truss:         { label: '桁架',   icon: '🔩' },
-  frame:         { label: '框架',   icon: '🏗️' },
-  simply_supported_beam: { label: '简支梁', icon: '〰️' },
-  cantilever_beam:       { label: '悬臂梁', icon: '📐' },
-  continuous_beam:       { label: '连续梁', icon: '〰️' },
+const structureTypeMap: Record<string, string> = {
+  truss:                 '桁架',
+  frame:                 '框架',
+  beam:                  '简支梁',
+  simply_supported_beam: '简支梁',
+  cantilever_beam:       '悬臂梁',
+  continuous_beam:       '连续梁',
 };
 
 const getStructureLabel = (type: string) => {
   if (!type) return '无';
-  const entry = structureTypeMap[type];
-  return entry ? `${entry.icon} ${entry.label}` : type;
+  return structureTypeMap[type] ?? type;
 };
 
 const formatTime = (iso: string) => {
