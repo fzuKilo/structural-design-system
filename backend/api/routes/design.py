@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import redis
-from backend.database import get_db, User, Task
+from backend.database import get_db, User, Task, QuotaUsageHistory
 from backend.api.models import (
     DesignCreateRequest, AskHumanResponse, TaskResponse, TaskDetailResponse, MessageResponse
 )
@@ -190,6 +190,7 @@ async def delete_task(
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
 
+    db.query(QuotaUsageHistory).filter(QuotaUsageHistory.task_id == task_id).update({"task_id": None})
     db.delete(task)
     db.commit()
     return MessageResponse(message="任务已删除")
