@@ -69,6 +69,7 @@ const loadTask = async () => {
     }
     // 任务完成后从 result_json 重建 stages，保留所有阶段数据
     if (task.value?.status === 'success' || task.value?.status === 'failed') {
+      askHumanRequest.value = null;
       if (stages.value.length === 0) {
         rebuildStagesFromResult(task.value);
       } else {
@@ -231,6 +232,7 @@ const connectWs = () => {
       // 实时方案数据推送
       schemeUpdates.value.push(msg);
     } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
+      askHumanRequest.value = null;
       loadTask();
       localStorage.setItem('task_list_refresh', Date.now().toString());
     }

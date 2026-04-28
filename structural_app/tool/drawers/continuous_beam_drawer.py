@@ -401,6 +401,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
         except Exception as e:
             print(f"Warning: Could not add plan dimensions: {e}")
 
@@ -518,6 +519,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
 
             # Individual span dimensions
             for i in range(n_spans):
@@ -530,6 +532,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                     dimstyle='MM_UNITS',
                     override={'dimtxt': 120, 'dimclrt': colors.GREEN}
                 )
+                dim.render()
 
             # Height dimension
             dim = msp.add_linear_dim(
@@ -540,6 +543,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
         except Exception as e:
             print(f"Warning: Could not add dimensions: {e}")
 
@@ -558,6 +562,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
 
             # Height dimension
             dim = msp.add_linear_dim(
@@ -568,6 +573,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
         except Exception as e:
             print(f"Warning: Could not add section dimensions: {e}")
 

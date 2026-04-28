@@ -1076,9 +1076,35 @@ class PlanningFlow:
                 self.results["analysis_results"]
             )
             await self._broadcast_progress("cad_drawing", 1, 3, "drawing", "正在绘制CAD图纸...")
-            drawing_result = await self.drawing_agent.run(drawing_request)
+            # 直接调用 CADDrawingTool，绕过 LLM 避免 metadata（PNG路径）被丢弃
+            cad_tool = None
+            if hasattr(self.drawing_agent, 'available_tools'):
+                for tool in self.drawing_agent.available_tools:
+                    if hasattr(tool, 'execute') and 'cad' in type(tool).__name__.lower():
+                        cad_tool = tool
+                        break
+            if cad_tool is not None:
+                try:
+                    dp = self.results["design_proposal"] or {}
+                    tool_result = await cad_tool.execute(
+                        structure_type=dp.get('type') or dp.get('structure_type'),
+                        geometry=dp.get('geometry'),
+                        material=dp.get('material'),
+                        loads=dp.get('loads'),
+                        constraints=dp.get('constraints'),
+                        units=dp.get('units'),
+                    )
+                    raw = tool_result.output if hasattr(tool_result, 'output') else str(tool_result)
+                    self.results["drawing_results"] = json.loads(raw)
+                except Exception as e:
+                    if verbose:
+                        print(f"[WARNING] Direct CADDrawingTool call failed: {e}, falling back to agent")
+                    drawing_result = await self.drawing_agent.run(drawing_request)
+                    self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
+            else:
+                drawing_result = await self.drawing_agent.run(drawing_request)
+                self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
             await self._broadcast_progress("cad_drawing", 2, 3, "generating", "正在生成DXF文件...")
-            self.results["drawing_results"] = self._extract_drawing_results(drawing_result)
 
             if verbose:
                 if self.results["drawing_results"]:

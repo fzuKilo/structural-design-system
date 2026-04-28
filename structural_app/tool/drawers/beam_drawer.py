@@ -447,6 +447,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
             # Set explicit text (overwrite the dynamic <>)
             for entity in msp:
                 if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
@@ -601,6 +602,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
 
             # Height dimension
             dim = msp.add_linear_dim(
@@ -611,6 +613,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
         except Exception as e:
             print(f"Warning: Could not add dimensions: {e}")
 
@@ -637,6 +640,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
             # Set explicit text (overwrite the dynamic <>)
             for entity in msp:
                 if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':
@@ -651,6 +655,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle='MM_UNITS',
                 override={'dimtxt': 150, 'dimclrt': colors.RED}
             )
+            dim.render()
             # Set explicit text (overwrite the dynamic <>)
             for entity in msp:
                 if entity.dxftype() == 'DIMENSION' and entity.dxf.text == '<>':

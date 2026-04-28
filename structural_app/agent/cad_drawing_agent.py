@@ -196,7 +196,10 @@ The cad_drawing tool will return DrawingResults in this format:
     "drawing_standard": "GB/T 50001-2017",
     "scale": "1:50",
     "units": "mm",
-    "generated_at": "<timestamp>"
+    "generated_at": "<timestamp>",
+    "plan_preview": "<path_to_png_or_null>",
+    "elevation_preview": "<path_to_png_or_null>",
+    "detail_preview": "<path_to_png_or_null>"
   },
   "notes": [...]
 }
