@@ -268,9 +268,11 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
         W_beam = beam_width * beam_depth ** 2 / 6
         M_u = max(fy_MPa * 1e3 * W_beam, 1.0)  # kN·m
 
-        # Carbon intensity score (k=20 for frame, per DES v2.0)
+        # Carbon intensity score: k=20 for steel, k=1.5 for concrete (per DES v2.0)
+        # Concrete has low fy → small M_u → high carbon_intensity, needs smaller k
+        k = 20 if is_steel else 1.5
         carbon_intensity = total_carbon / M_u
-        carbon_score = max(0.0, 100 - carbon_intensity * 20)
+        carbon_score = max(0.0, 100 - carbon_intensity * k)
 
         recyclability_score = recyclability * 100
         sustainability_score = (carbon_score + recyclability_score) / 2
