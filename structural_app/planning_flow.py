@@ -682,10 +682,14 @@ class PlanningFlow:
 
         return True, ""
 
-    def _extract_json_from_text(self, text: str) -> dict:
+    def _extract_json_from_text(self, text: str, return_list: bool = False):
         """
-        从文本中提取JSON，优先返回对象（dict），支持多种格式。
-        如果提取到数组，取第一个元素（若为 dict）。
+        从文本中提取JSON，支持多种格式。
+
+        Args:
+            text: 包含JSON的文本
+            return_list: True时返回原始list（用于候选方案生成）；
+                         False时优先返回dict，list则取第一个dict元素（默认）。
         """
         import re
 
@@ -698,34 +702,50 @@ class PlanningFlow:
                 return None
             return parsed
 
+        def _maybe_unwrap(parsed):
+            return parsed if return_list else _unwrap(parsed)
+
         # 1. 尝试提取代码块中的JSON（优先）
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text, re.DOTALL)
         if json_match:
             json_str = re.sub(r'//.*?\n', '\n', json_match.group(1).strip())
             try:
-                return _unwrap(json.loads(json_str))
+                return _maybe_unwrap(json.loads(json_str))
             except json.JSONDecodeError:
                 pass
 
-        # 2. 优先查找 JSON 对象 {...}
-        json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
-        if json_match:
-            json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
-            try:
-                result = json.loads(json_str)
-                if isinstance(result, dict):
-                    return result
-            except json.JSONDecodeError:
-                pass
+        # 2. 优先查找 JSON 对象 {...}（return_list=False 时）
+        if not return_list:
+            json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
+            if json_match:
+                json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
+                try:
+                    result = json.loads(json_str)
+                    if isinstance(result, dict):
+                        return result
+                except json.JSONDecodeError:
+                    pass
 
-        # 3. 退而求其次查找 JSON 数组 [...]，取第一个 dict 元素
+        # 3. 查找 JSON 数组 [...]
         json_match = re.search(r'(\[[\s\S]*\])', text, re.DOTALL)
         if json_match:
             json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
             try:
-                return _unwrap(json.loads(json_str))
+                return _maybe_unwrap(json.loads(json_str))
             except json.JSONDecodeError:
                 pass
+
+        # 4. return_list=False 时兜底查找对象
+        if return_list:
+            json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
+            if json_match:
+                json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
+                try:
+                    result = json.loads(json_str)
+                    if isinstance(result, dict):
+                        return result
+                except json.JSONDecodeError:
+                    pass
 
         return None
 
@@ -987,6 +1007,14 @@ class PlanningFlow:
                     )
                     self.results["analysis_results"] = improved_results
                     self.results["design_proposal"] = updated_design_proposal
+
+                    # 广播更新后的设计方案（与 manual 分支对齐）
+                    await self._broadcast_stage("design_proposal", "completed", "设计方案已更新（自动优化）", data={
+                        "type": updated_design_proposal.get("type"),
+                        "description": updated_design_proposal.get("description", ""),
+                        "geometry": updated_design_proposal.get("geometry", {}),
+                        "material": updated_design_proposal.get("material", {}),
+                    })
 
                     # 检查最终状态
                     final_code_check = improved_results.get('code_check', {})
@@ -2040,19 +2068,38 @@ class PlanningFlow:
 
         # 方案C：计算合规下限 + 方案A：反馈已失败截面
         compliance_hint = ""
-        if not is_compliant and violations:
-            slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
-            if slenderness_violations:
-                import math
-                detailed = analysis.get('results', {}).get('detailed_results', {})
-                member_lengths = detailed.get('extra', {}).get('member_lengths', [])
-                if member_lengths:
-                    max_len = max(member_lengths)
-                    # 圆形截面：r = sqrt(A/π)/2，λ = L/r ≤ 150 → A ≥ (2L*sqrt(π)/150)²
-                    import math
-                    min_A_m2 = (2 * max_len * math.sqrt(math.pi) / 150) ** 2
-                    min_A_mm2 = math.ceil(min_A_m2 * 1e6)
-                    compliance_hint += f"\n【长细比合规下限（精确计算）】\n最长杆件 L={max_len:.4f}m，圆形截面 r=sqrt(A/π)/2，λ≤150 要求 A≥{min_A_mm2} mm²（{min_A_m2:.6f} m²）\n所有候选方案的截面积 A 必须 ≥ {min_A_mm2} mm²，否则必然不合规。\n"
+        import math as _math
+        # 无论当前设计是否合规，只要是桁架且长细比安全系数偏低（<1.5），就告知 LLM 合规下限
+        # 这样可以防止 LLM 在"经济性差"的提示下盲目减小截面导致长细比超限
+        _detailed = analysis.get('results', {}).get('detailed_results', {})
+        _member_lengths = _detailed.get('extra', {}).get('member_lengths', [])
+        _slenderness_sf = analysis.get('code_check', {}).get('safety_factors', {}).get('slenderness', float('inf'))
+        _design_type = design.get('type', '')
+        if _design_type == 'truss' and _member_lengths:
+            _max_len = max(_member_lengths)
+            # 圆形截面：r = sqrt(A/π)/2，λ = L/r ≤ 150 → A ≥ (2L*sqrt(π)/150)²
+            _min_A_m2 = (2 * _max_len * _math.sqrt(_math.pi) / 150) ** 2
+            _min_A_mm2 = _math.ceil(_min_A_m2 * 1e6)
+            _cur_A = design.get('material', {}).get('A', 0)
+            _cur_A_mm2 = int(_cur_A * 1e6)
+            if _slenderness_sf < 1.5:
+                # 当前截面接近或处于合规下限，禁止减小
+                compliance_hint += (
+                    f"\n【长细比合规下限（精确计算）】\n"
+                    f"最长杆件 L={_max_len:.4f}m，圆形截面 r=sqrt(A/π)/2，λ≤150 要求 A≥{_min_A_mm2} mm²（{_min_A_m2:.6f} m²）\n"
+                    f"当前截面 A={_cur_A_mm2} mm² 已接近合规下限（长细比安全系数={_slenderness_sf:.2f}），"
+                    f"【严禁减小截面积】，否则必然长细比超限。\n"
+                    f"优化方向：在保持 A≥{_min_A_mm2} mm² 的前提下，通过调整几何参数（增加节间数、调整桁架高度）来改善经济性。\n"
+                )
+            elif not is_compliant and violations:
+                # 当前不合规，给出下限提示
+                slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
+                if slenderness_violations:
+                    compliance_hint += (
+                        f"\n【长细比合规下限（精确计算）】\n"
+                        f"最长杆件 L={_max_len:.4f}m，圆形截面 r=sqrt(A/π)/2，λ≤150 要求 A≥{_min_A_mm2} mm²（{_min_A_m2:.6f} m²）\n"
+                        f"所有候选方案的截面积 A 必须 ≥ {_min_A_mm2} mm²，否则必然不合规。\n"
+                    )
 
         if failed_designs:
             failed_summary = []
@@ -2126,7 +2173,7 @@ class PlanningFlow:
                 temperature=0.5,
             )
             content = response.choices[0].message.content.strip()
-            candidates = self._extract_json_from_text(content)
+            candidates = self._extract_json_from_text(content, return_list=True)
             if isinstance(candidates, list) and len(candidates) > 0:
                 # validate each candidate
                 valid = []
