@@ -94,10 +94,10 @@ class TrussEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
         utilization_score = curve.calculate_score(avg_utilization, max_score=100)
 
         # Material usage score (slope=30 per DES v2.0)
-        material_score = max(0, 100 - (material_usage_index - 1) * 30)
+        material_score = min(100, max(0, 100 - (material_usage_index - 1) * 30))
 
         # Weighted economy score
-        economy_score = utilization_score * 0.6 + material_score * 0.4
+        economy_score = min(100, utilization_score * 0.6 + material_score * 0.4)
 
         return {
             'score': round(economy_score, 1),

@@ -684,37 +684,46 @@ class PlanningFlow:
 
     def _extract_json_from_text(self, text: str) -> dict:
         """
-        从文本中提取JSON，支持对象和数组，支持多种格式
+        从文本中提取JSON，优先返回对象（dict），支持多种格式。
+        如果提取到数组，取第一个元素（若为 dict）。
         """
         import re
 
-        # 1. 尝试提取代码块中的JSON
+        def _unwrap(parsed):
+            """如果解析结果是列表，取第一个 dict 元素；否则直接返回。"""
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict):
+                        return item
+                return None
+            return parsed
+
+        # 1. 尝试提取代码块中的JSON（优先）
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text, re.DOTALL)
         if json_match:
-            json_str = json_match.group(1).strip()
-            json_str = re.sub(r'//.*?\n', '\n', json_str)
+            json_str = re.sub(r'//.*?\n', '\n', json_match.group(1).strip())
             try:
-                return json.loads(json_str)
+                return _unwrap(json.loads(json_str))
             except json.JSONDecodeError:
                 pass
 
-        # 2. 尝试查找JSON数组
-        json_match = re.search(r'(\[[\s\S]*\])', text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
-            json_str = re.sub(r'//.*?\n', '\n', json_str)
-            try:
-                return json.loads(json_str)
-            except json.JSONDecodeError:
-                pass
-
-        # 3. 尝试查找JSON对象
+        # 2. 优先查找 JSON 对象 {...}
         json_match = re.search(r'(\{[\s\S]*\})', text, re.DOTALL)
         if json_match:
-            json_str = json_match.group(1)
-            json_str = re.sub(r'//.*?\n', '\n', json_str)
+            json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
             try:
-                return json.loads(json_str)
+                result = json.loads(json_str)
+                if isinstance(result, dict):
+                    return result
+            except json.JSONDecodeError:
+                pass
+
+        # 3. 退而求其次查找 JSON 数组 [...]，取第一个 dict 元素
+        json_match = re.search(r'(\[[\s\S]*\])', text, re.DOTALL)
+        if json_match:
+            json_str = re.sub(r'//.*?\n', '\n', json_match.group(1))
+            try:
+                return _unwrap(json.loads(json_str))
             except json.JSONDecodeError:
                 pass
 
@@ -943,6 +952,14 @@ class PlanningFlow:
                     )
                     self.results["analysis_results"] = improved_results
                     self.results["design_proposal"] = updated_design_proposal
+
+                    # 广播更新后的设计方案，前端右侧状态栏同步
+                    await self._broadcast_stage("design_proposal", "completed", "设计方案已更新（手动改进）", data={
+                        "type": updated_design_proposal.get("type"),
+                        "description": updated_design_proposal.get("description", ""),
+                        "geometry": updated_design_proposal.get("geometry", {}),
+                        "material": updated_design_proposal.get("material", {}),
+                    })
 
                     # Check final status
                     final_code_check = improved_results.get('code_check', {})
@@ -2658,7 +2675,7 @@ class PlanningFlow:
             # 提取JSON
             new_design = self._extract_json_from_text(content)
 
-            if new_design:
+            if new_design and isinstance(new_design, dict):
                 # 验证参数合理性并自动转换单位
                 is_valid, error_msg = self._validate_design_params(new_design)
                 if not is_valid:
@@ -2760,7 +2777,14 @@ class PlanningFlow:
             if verbose:
                 print(f"[PlanningFlow] 使用更新后的设计重新分析...")
 
-            analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
+            # 清空 agent memory，防止 LLM 复述上一轮结果而不重新调用 fe_analysis 工具
+            self.analysis_agent.memory.messages = []
+
+            analysis_request = (
+                json.dumps(current_design_proposal, ensure_ascii=False)
+                + "\n\n[IMPORTANT] You MUST call the fe_analysis tool with the above design proposal. "
+                "Do NOT reuse or repeat results from previous interactions."
+            )
             analysis_result = await self.analysis_agent.run(
                 analysis_request,
                 skip_visual_validation=True  # 手动优化循环不需要预览图
@@ -2851,7 +2875,7 @@ class PlanningFlow:
             # Step 2: 从改进方案中提取JSON
             new_design = self._extract_json_from_text(improvement_plan)
 
-            if new_design:
+            if new_design and isinstance(new_design, dict):
                 # 验证参数合理性并自动转换单位
                 is_valid, error_msg = self._validate_design_params(new_design)
                 if not is_valid:
@@ -2882,7 +2906,14 @@ class PlanningFlow:
             await self._broadcast_progress("fe_analysis", 3, 4, "auto_optimizing",
                 f"[自动优化 {loop_count}/{max_loops}] 正在重新分析...")
 
-            analysis_request = json.dumps(current_design_proposal, ensure_ascii=False)
+            # 清空 agent memory，防止 LLM 复述上一轮结果而不重新调用 fe_analysis 工具
+            self.analysis_agent.memory.messages = []
+
+            analysis_request = (
+                json.dumps(current_design_proposal, ensure_ascii=False)
+                + "\n\n[IMPORTANT] You MUST call the fe_analysis tool with the above design proposal. "
+                "Do NOT reuse or repeat results from previous interactions."
+            )
             analysis_result = await self.analysis_agent.run(
                 analysis_request,
                 skip_visual_validation=True  # 自动优化循环不需要预览图
