@@ -2101,6 +2101,21 @@ class PlanningFlow:
                         f"所有候选方案的截面积 A 必须 ≥ {_min_A_mm2} mm²，否则必然不合规。\n"
                     )
 
+        # 框架：应力安全系数偏低时，禁止减小柱截面
+        if _design_type == 'frame':
+            _stress_sf = analysis.get('code_check', {}).get('safety_factors', {}).get('stress', float('inf'))
+            if _stress_sf < 1.5:
+                _geo = design.get('geometry', {})
+                _cols = _geo.get('columns', {})
+                _cur_col_w = _cols.get('width', 0)
+                _cur_col_d = _cols.get('depth', 0)
+                compliance_hint += (
+                    f"\n【框架应力合规下限】\n"
+                    f"当前柱截面 {_cur_col_w}m × {_cur_col_d}m 已接近应力合规下限（应力安全系数={_stress_sf:.2f} < 1.5），"
+                    f"【严禁减小柱截面尺寸（columns.width / columns.depth）】，否则必然应力超限。\n"
+                    f"优化方向：可减小梁截面（梁对整体应力贡献较小）以改善经济性，或调整材料强度等级。\n"
+                )
+
         if failed_designs:
             failed_summary = []
             for fd in failed_designs:

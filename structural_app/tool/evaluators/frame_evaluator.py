@@ -258,14 +258,19 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
 
         total_carbon = total_volume * density * carbon_factor
 
-        # Bearing capacity: use max_shear as base shear (N → kN)
-        analysis_results = results.get('results', {})
-        max_shear_N = analysis_results.get('max_shear', 0.0)
-        base_shear_kN = max(abs(max_shear_N) / 1000.0, 1.0)
+        # Bearing capacity: use beam section moment capacity M_u = fy * W (kN·m)
+        geometry = design.get('geometry', {})
+        beams = geometry.get('beams', {})
+        beam_width = beams.get('width', 0.3)
+        beam_depth = beams.get('depth', 0.6)
+        fy = material.get('fy', 235e6)
+        fy_MPa = fy / 1e6 if fy > 1000 else fy
+        W_beam = beam_width * beam_depth ** 2 / 6
+        M_u = max(fy_MPa * 1e3 * W_beam, 1.0)  # kN·m
 
-        # Carbon intensity score (k=25 for frame, per DES v2.0)
-        carbon_intensity = total_carbon / base_shear_kN
-        carbon_score = max(0.0, 100 - carbon_intensity * 25)
+        # Carbon intensity score (k=20 for frame, per DES v2.0)
+        carbon_intensity = total_carbon / M_u
+        carbon_score = max(0.0, 100 - carbon_intensity * 20)
 
         recyclability_score = recyclability * 100
         sustainability_score = (carbon_score + recyclability_score) / 2
@@ -275,7 +280,7 @@ class FrameEvaluator(DesignEvaluator, RAGEnhancedEvaluatorMixin):
             'indicators': {
                 'carbon_emission_kg': round(total_carbon, 1),
                 'carbon_intensity': round(carbon_intensity, 4),
-                'base_shear_kN': round(base_shear_kN, 1),
+                'M_u_kNm': round(M_u, 1),
                 'recyclability_ratio': round(recyclability, 2)
             }
         }
