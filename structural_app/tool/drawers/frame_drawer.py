@@ -278,27 +278,27 @@ class FrameDrawer(StructureDrawer):
 
             # Left tick
             msp.add_line((x, dim_line_y + 100), (x, dim_line_y - 100),
-                         dxfattribs={'color': colors.BLUE})
+                         dxfattribs={'color': colors.WHITE})
             # Horizontal dimension line
             msp.add_line((x, dim_line_y), (x + width, dim_line_y),
-                         dxfattribs={'color': colors.BLUE})
+                         dxfattribs={'color': colors.WHITE})
             # Bay width text
             t = msp.add_text(f'L{i+1}={width/1000:.1f}m',
-                             dxfattribs={'height': text_height, 'color': colors.BLUE,
+                             dxfattribs={'height': text_height, 'color': colors.WHITE,
                                          'style': 'CHINESE'})
             t.set_placement((x_mid, dim_text_y), align=ezdxf.enums.TextEntityAlignment.CENTER)
             x += width
 
         # Right tick for last bay
         msp.add_line((x, dim_line_y + 100), (x, dim_line_y - 100),
-                     dxfattribs={'color': colors.BLUE})
+                     dxfattribs={'color': colors.WHITE})
 
         # Dimension story heights (right side)
         y = 0.0
         total_width = sum(bay_widths_mm)
         for i, height in enumerate(story_heights_mm):
             t = msp.add_text(f'H{i+1}={height/1000:.1f}m',
-                             dxfattribs={'height': text_height, 'color': colors.BLUE,
+                             dxfattribs={'height': text_height, 'color': colors.WHITE,
                                          'style': 'CHINESE'})
             t.set_placement((total_width + 500, y + height / 2),
                             align=ezdxf.enums.TextEntityAlignment.LEFT)
@@ -335,7 +335,7 @@ class FrameDrawer(StructureDrawer):
                         align=ezdxf.enums.TextEntityAlignment.CENTER)
 
         t2 = msp.add_text(f'{num_bays}x{num_stories} Frame',
-                          dxfattribs={'height': text_height, 'color': colors.BLUE,
+                          dxfattribs={'height': text_height, 'color': colors.WHITE,
                                       'style': 'CHINESE'})
         t2.set_placement((total_width / 2, y_pos - 500),
                          align=ezdxf.enums.TextEntityAlignment.CENTER)
@@ -443,21 +443,21 @@ class FrameDrawer(StructureDrawer):
 
         # Width dimension line (below)
         dim_y = y0 - depth * 0.5
-        msp.add_line((x0, dim_y), (x1, dim_y), dxfattribs={'color': colors.BLUE})
-        msp.add_line((x0, y0), (x0, dim_y), dxfattribs={'color': colors.BLUE})
-        msp.add_line((x1, y0), (x1, dim_y), dxfattribs={'color': colors.BLUE})
+        msp.add_line((x0, dim_y), (x1, dim_y), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x0, y0), (x0, dim_y), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x1, y0), (x1, dim_y), dxfattribs={'color': colors.WHITE})
         t_w = msp.add_text(f'宽={width/1000:.3f}m',
-                           dxfattribs={'height': text_h, 'color': colors.BLUE, 'style': 'CHINESE'})
+                           dxfattribs={'height': text_h, 'color': colors.WHITE, 'style': 'CHINESE'})
         t_w.set_placement((cx, dim_y - text_h * 2.5),
                           align=ezdxf.enums.TextEntityAlignment.CENTER)
 
         # Depth dimension line (right side)
         dim_x = x1 + width * 0.5
-        msp.add_line((dim_x, y0), (dim_x, y1), dxfattribs={'color': colors.BLUE})
-        msp.add_line((x1, y0), (dim_x, y0), dxfattribs={'color': colors.BLUE})
-        msp.add_line((x1, y1), (dim_x, y1), dxfattribs={'color': colors.BLUE})
+        msp.add_line((dim_x, y0), (dim_x, y1), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x1, y0), (dim_x, y0), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x1, y1), (dim_x, y1), dxfattribs={'color': colors.WHITE})
         t_d = msp.add_text(f'高={depth/1000:.3f}m',
-                           dxfattribs={'height': text_h, 'color': colors.BLUE, 'style': 'CHINESE'})
+                           dxfattribs={'height': text_h, 'color': colors.WHITE, 'style': 'CHINESE'})
         t_d.set_placement((dim_x + text_h * 1.5, cy),
                           align=ezdxf.enums.TextEntityAlignment.LEFT)
 

@@ -99,7 +99,7 @@ class CantileverBeamDrawer(StructureDrawer):
                 (beam_end_x, beam_end_y),
                 (beam_start_x, beam_end_y),
                 (beam_start_x, beam_start_y)
-            ], dxfattribs={'color': colors.BLUE, 'lineweight': 50})
+            ], dxfattribs={'color': colors.WHITE, 'lineweight': 50})
 
             # Draw fixed support at left end (cantilever)
             support_height = height_mm * scale * 1.5
@@ -109,7 +109,7 @@ class CantileverBeamDrawer(StructureDrawer):
             msp.add_line(
                 (beam_start_x, beam_start_y - support_height * 0.2),
                 (beam_start_x, beam_end_y + support_height * 0.2),
-                dxfattribs={'color': colors.RED, 'lineweight': 70}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 70}
             )
 
             # Hatching lines for fixed support
@@ -119,7 +119,7 @@ class CantileverBeamDrawer(StructureDrawer):
                 msp.add_line(
                     (beam_start_x, y_pos),
                     (beam_start_x - support_width, y_pos - support_width * 0.5),
-                    dxfattribs={'color': colors.RED, 'lineweight': 25}
+                    dxfattribs={'color': colors.WHITE, 'lineweight': 25}
                 )
 
             # Add dimensions
@@ -163,7 +163,7 @@ class CantileverBeamDrawer(StructureDrawer):
             # Add support type annotation
             msp.add_text(
                 'FIXED SUPPORT',
-                dxfattribs={'height': height_mm * scale * 0.12, 'color': colors.RED}
+                dxfattribs={'height': height_mm * scale * 0.12, 'color': colors.WHITE}
             ).set_placement((beam_start_x - support_width * 2, beam_start_y - height_mm * scale * 0.6))
 
             msp.add_text(
@@ -215,7 +215,7 @@ class CantileverBeamDrawer(StructureDrawer):
                 (length_mm * scale, width_mm * scale),
                 (0, width_mm * scale),
                 (0, 0)
-            ], dxfattribs={'color': colors.BLUE, 'lineweight': 50})
+            ], dxfattribs={'color': colors.WHITE, 'lineweight': 50})
 
             # Add title
             msp.add_text(
@@ -263,7 +263,7 @@ class CantileverBeamDrawer(StructureDrawer):
                 (width_mm, height_mm),
                 (0, height_mm),
                 (0, 0)
-            ], dxfattribs={'color': colors.BLUE, 'lineweight': 50})
+            ], dxfattribs={'color': colors.WHITE, 'lineweight': 50})
 
             # Add dimensions
             msp.add_text(

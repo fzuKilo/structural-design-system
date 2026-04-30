@@ -141,7 +141,7 @@ class TrussDrawer(StructureDrawer):
             for i in range(n_panels + 1):
                 start = bottom_nodes[i]
                 end = top_nodes[i]
-                msp.add_line(start, end, dxfattribs={'color': colors.BLUE, 'lineweight': 25})
+                msp.add_line(start, end, dxfattribs={'color': colors.WHITE, 'lineweight': 25})
 
             # Draw diagonal web members (交替方向的V字形斜杆)
             if truss_type == 'pratt':
@@ -154,7 +154,7 @@ class TrussDrawer(StructureDrawer):
                         # 奇数：从上左到下右
                         start = top_nodes[i]
                         end = bottom_nodes[i + 1]
-                    msp.add_line(start, end, dxfattribs={'color': colors.RED, 'lineweight': 25})
+                    msp.add_line(start, end, dxfattribs={'color': colors.WHITE, 'lineweight': 25})
 
             # Draw support symbols
             self._draw_pinned_support(msp, bottom_nodes[0][0], bottom_nodes[0][1])
@@ -190,14 +190,14 @@ class TrussDrawer(StructureDrawer):
                 msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.BLACK})
                 msp.add_text(
                     f'N{i+1}',
-                    dxfattribs={'height': 0.12, 'color': colors.BLUE}
+                    dxfattribs={'height': 0.12, 'color': colors.WHITE}
                 ).set_placement((node[0], node[1] - 0.3), align=TextEntityAlignment.CENTER)
 
             for i, node in enumerate(top_nodes):
                 msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.BLACK})
                 msp.add_text(
                     f'N{n_panels+2+i}',
-                    dxfattribs={'height': 0.12, 'color': colors.BLUE}
+                    dxfattribs={'height': 0.12, 'color': colors.WHITE}
                 ).set_placement((node[0], node[1] + 0.3), align=TextEntityAlignment.CENTER)
 
             # Save file

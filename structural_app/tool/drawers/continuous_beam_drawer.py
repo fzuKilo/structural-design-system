@@ -116,7 +116,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'
 
             # Draw continuous beam elevation
@@ -196,7 +196,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'
 
             # Draw beam plan
@@ -274,7 +274,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'
 
             # Draw beam detail (cross-section)
@@ -399,7 +399,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
         except Exception as e:
@@ -458,7 +458,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             points,
-            dxfattribs={'color': colors.BLUE, 'const_width': 0.3}
+            dxfattribs={'color': colors.WHITE, 'const_width': 0.3}
         )
 
         # Ground line
@@ -467,7 +467,7 @@ class ContinuousBeamDrawer(StructureDrawer):
             msp.add_line(
                 (x + i * 80, y - size),
                 (x + i * 80 - 100, ground_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
     def _draw_roller_support(self, msp, x: float, y: float, size: float):
@@ -481,7 +481,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             points,
-            dxfattribs={'color': colors.BLUE, 'const_width': 0.3}
+            dxfattribs={'color': colors.WHITE, 'const_width': 0.3}
         )
 
         # Circle for roller
@@ -489,7 +489,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         msp.add_circle(
             (x, y - size - roller_radius),
             radius=roller_radius,
-            dxfattribs={'color': colors.BLUE}
+            dxfattribs={'color': colors.WHITE}
         )
 
         # Ground line
@@ -498,7 +498,7 @@ class ContinuousBeamDrawer(StructureDrawer):
             msp.add_line(
                 (x + i * 80, y - size - 2 * roller_radius),
                 (x + i * 80 - 100, ground_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
     def _add_continuous_beam_dimensions(
@@ -517,7 +517,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
 
@@ -541,7 +541,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 p2=(0, height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
         except Exception as e:
@@ -560,7 +560,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 p1=(start_x, start_y),
                 p2=(start_x + width_mm, start_y),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
 
@@ -571,7 +571,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                 p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
         except Exception as e:
@@ -599,7 +599,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         # Support annotations
         msp.add_text(
             "铰支座",
-            dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.BLUE}
+            dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.WHITE}
         ).set_placement(
             (0, -500),
             align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
@@ -610,7 +610,7 @@ class ContinuousBeamDrawer(StructureDrawer):
             support_x = i * span_length
             msp.add_text(
                 "滚动支座",
-                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.BLUE}
+                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.WHITE}
             ).set_placement(
                 (support_x, -500),
                 align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER

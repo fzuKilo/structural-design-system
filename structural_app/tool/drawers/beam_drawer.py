@@ -153,7 +153,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam elevation
@@ -234,7 +234,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam plan
@@ -313,7 +313,7 @@ class BeamDrawer(StructureDrawer):
                 dimstyle.dxf.dimtm = 0
                 dimstyle.dxf.dimtol = 0
                 dimstyle.dxf.dimlim = 0
-                dimstyle.dxf.dimclrt = colors.RED
+                dimstyle.dxf.dimclrt = colors.WHITE
                 dimstyle.dxf.dimtxsty = 'STANDARD'  # Set text style for dimension text
 
             # Draw beam detail (cross-section)
@@ -392,7 +392,7 @@ class BeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             beam_corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # 2. Draw supports based on type
@@ -435,7 +435,7 @@ class BeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             beam_corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # Add dimensions using MM_UNITS dimstyle
@@ -445,7 +445,7 @@ class BeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
             # Set explicit text (overwrite the dynamic <>)
@@ -492,7 +492,7 @@ class BeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # Add section dimensions
@@ -517,7 +517,7 @@ class BeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             points,
-            dxfattribs={'color': colors.BLUE, 'const_width': 0.3}
+            dxfattribs={'color': colors.WHITE, 'const_width': 0.3}
         )
 
         # Ground line
@@ -526,7 +526,7 @@ class BeamDrawer(StructureDrawer):
             msp.add_line(
                 (x + i * 80, y - size),
                 (x + i * 80 - 100, ground_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
     def _draw_roller_support(self, msp, x: float, y: float, size: float):
@@ -540,7 +540,7 @@ class BeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             points,
-            dxfattribs={'color': colors.BLUE, 'const_width': 0.3}
+            dxfattribs={'color': colors.WHITE, 'const_width': 0.3}
         )
 
         # Circle for roller
@@ -548,7 +548,7 @@ class BeamDrawer(StructureDrawer):
         msp.add_circle(
             (x, y - size - roller_radius),
             radius=roller_radius,
-            dxfattribs={'color': colors.BLUE}
+            dxfattribs={'color': colors.WHITE}
         )
 
         # Ground line
@@ -557,7 +557,7 @@ class BeamDrawer(StructureDrawer):
             msp.add_line(
                 (x + i * 80, y - size - 2 * roller_radius),
                 (x + i * 80 - 100, ground_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
     def _draw_fixed_support(self, msp, x: float, y: float, size: float):
@@ -570,7 +570,7 @@ class BeamDrawer(StructureDrawer):
             msp.add_line(
                 (x - 50 + offset, y - i * step_y),
                 (x + 50 + offset, y - (i + 1) * step_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
         # Ground line
@@ -579,7 +579,7 @@ class BeamDrawer(StructureDrawer):
             msp.add_line(
                 (x + i * 80, y - size),
                 (x + i * 80 - 100, ground_y),
-                dxfattribs={'color': colors.BLUE, 'lineweight': 13}
+                dxfattribs={'color': colors.WHITE, 'lineweight': 13}
             )
 
     def _add_dimensions(self, msp, length_mm: float, height_mm: float):
@@ -600,7 +600,7 @@ class BeamDrawer(StructureDrawer):
                 p1=(0, 0),
                 p2=(length_mm, 0),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
 
@@ -611,7 +611,7 @@ class BeamDrawer(StructureDrawer):
                 p2=(0, height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
         except Exception as e:
@@ -638,7 +638,7 @@ class BeamDrawer(StructureDrawer):
                 p1=(start_x, start_y),
                 p2=(start_x + width_mm, start_y),
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
             # Set explicit text (overwrite the dynamic <>)
@@ -653,7 +653,7 @@ class BeamDrawer(StructureDrawer):
                 p2=(start_x + width_mm, start_y + height_mm),
                 angle=90,
                 dimstyle='MM_UNITS',
-                override={'dimtxt': 150, 'dimclrt': colors.RED}
+                override={'dimtxt': 150, 'dimclrt': colors.WHITE}
             )
             dim.render()
             # Set explicit text (overwrite the dynamic <>)
@@ -678,14 +678,14 @@ class BeamDrawer(StructureDrawer):
         if support_type == 'simply_supported':
             msp.add_text(
                 "铰支座",
-                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.BLUE}
+                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.WHITE}
             ).set_placement(
                 (0, -500),
                 align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
             )
             msp.add_text(
                 "滚动支座",
-                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.BLUE}
+                dxfattribs={'style': 'CHINESE', 'height': 150, 'color': colors.WHITE}
             ).set_placement(
                 (length_mm, -500),
                 align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
