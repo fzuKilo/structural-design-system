@@ -59,3 +59,10 @@ const getStepDescription = (key: string) => {
   return statusText[s.status] || s.status;
 };
 </script>
+
+<style scoped>
+:deep(.ant-steps-item-icon) {
+  position: relative;
+  z-index: 1;
+}
+</style>

@@ -1168,6 +1168,7 @@ const submitAnswer = () => {
   display: flex; align-items: center; justify-content: center;
   font-size: 20px;
   transition: all 0.3s;
+  position: relative; z-index: 1;
 }
 .step-item.completed .step-icon { border-color: #52c41a; background: #f6ffed; }
 .step-item.active .step-icon { border-color: #1890ff; animation: pulse 2s infinite; }
