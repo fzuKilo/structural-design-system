@@ -354,7 +354,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             beam_corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # 2. Draw supports
@@ -389,7 +389,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             beam_corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # Add dimensions
@@ -408,7 +408,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         # Add annotations
         msp.add_text(
             "连续梁平面图",
-            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.BLACK}
+            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.WHITE}
         ).set_placement(
             (length_mm / 2, width_mm + 500),
             align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
@@ -433,7 +433,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         ]
         msp.add_lwpolyline(
             corners,
-            dxfattribs={'color': colors.BLACK, 'const_width': 0.5}
+            dxfattribs={'color': colors.WHITE, 'const_width': 15}
         )
 
         # Add section dimensions
@@ -442,7 +442,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         # Add title
         msp.add_text(
             "连续梁截面详图",
-            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.BLACK}
+            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.WHITE}
         ).set_placement(
             (0, start_y + section_height + 500),
             align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
@@ -530,7 +530,7 @@ class ContinuousBeamDrawer(StructureDrawer):
                     p1=(span_start_x, 0),
                     p2=(span_end_x, 0),
                     dimstyle='MM_UNITS',
-                    override={'dimtxt': 120, 'dimclrt': colors.GREEN}
+                    override={'dimtxt': 120, 'dimclrt': colors.WHITE}
                 )
                 dim.render()
 
@@ -590,7 +590,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         # Title
         msp.add_text(
             "连续梁立面图",
-            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.BLACK}
+            dxfattribs={'style': 'CHINESE', 'height': 300, 'color': colors.WHITE}
         ).set_placement(
             (length_mm / 2, height_mm + 800),
             align=ezdxf.enums.TextEntityAlignment.MIDDLE_CENTER
@@ -637,7 +637,7 @@ class ContinuousBeamDrawer(StructureDrawer):
         for i, text in enumerate(params):
             msp.add_text(
                 text,
-                dxfattribs={'style': 'CHINESE', 'height': 120, 'color': colors.BLACK}
+                dxfattribs={'style': 'CHINESE', 'height': 120, 'color': colors.WHITE}
             ).set_placement(
                 (param_x, param_y - i * line_spacing),
                 align=ezdxf.enums.TextEntityAlignment.LEFT
