@@ -2101,6 +2101,55 @@ class PlanningFlow:
                         f"所有候选方案的截面积 A 必须 ≥ {_min_A_mm2} mm²，否则必然不合规。\n"
                     )
 
+        # 梁类（beam/cantilever_beam/continuous_beam）：挠度不合规时，计算合规所需最小截面高度
+        if _design_type in ('beam', 'cantilever_beam', 'continuous_beam') and not is_compliant:
+            deflection_violations = [v for v in violations if 'deflect' in str(v).lower() or '挠度' in str(v)]
+            if deflection_violations:
+                _geo = design.get('geometry', {})
+                _mat = design.get('material', {})
+                _L = _geo.get('length', 0)
+                _b = _geo.get('width', 0.3)
+                _E = _mat.get('E', 30e9)
+                _loads = design.get('loads', {})
+                _q = 0.0
+                for dl in _loads.get('distributed', []):
+                    _q += abs(dl.get('q', 0))
+                _P = 0.0
+                for pl in _loads.get('point', []):
+                    _P += abs(pl.get('P', 0))
+
+                # 挠度限值：L/200（悬臂梁）或 L/250（简支/连续梁）
+                if _design_type == 'cantilever_beam':
+                    _ratio = 200
+                else:
+                    _ratio = 250
+                _delta_limit = _L / _ratio
+
+                # 反推最小截面高度 h_min（I = b*h³/12，δ = C/(E*I)）
+                # 悬臂梁：δ = qL⁴/(8EI) + PL³/(3EI)
+                # 简支梁：δ = 5qL⁴/(384EI) + PL³/(48EI)
+                if _L > 0 and _b > 0 and _E > 0 and _delta_limit > 0:
+                    if _design_type == 'cantilever_beam':
+                        _C = _q * _L**4 / 8.0 + _P * _L**3 / 3.0
+                    else:
+                        _C = 5 * _q * _L**4 / 384.0 + _P * _L**3 / 48.0
+                    # δ = C / (E * b * h³ / 12) ≤ δ_limit → h³ ≥ 12C / (E * b * δ_limit)
+                    _h3_min = 12 * _C / (_E * _b * _delta_limit) if (_E * _b * _delta_limit) > 0 else 0
+                    _h_min = _h3_min ** (1.0 / 3.0) if _h3_min > 0 else 0
+                    _h_cur = _geo.get('height', 0)
+                    _deflection_sf = analysis.get('code_check', {}).get('safety_factors', {}).get('deflection', 0)
+                    if _h_min > 0:
+                        compliance_hint += (
+                            f"\n【梁挠度合规下限（精确计算）】\n"
+                            f"挠度限值 L/{_ratio} = {_delta_limit*1000:.1f} mm，当前最大挠度 {results.get('max_displacement_mm', 'N/A')} mm（挠度安全系数={_deflection_sf:.2f}）\n"
+                            f"基于当前截面宽 b={_b}m、弹性模量 E={_E:.2e} Pa，合规所需最小截面高度：\n"
+                            f"  h_min = (12C / (E × b × δ_limit))^(1/3) ≈ {_h_min:.3f} m（{_h_min*1000:.0f} mm）\n"
+                            f"当前截面高 h={_h_cur}m，{'已满足' if _h_cur >= _h_min else '不满足'}合规要求。\n"
+                            f"【所有候选方案的截面高度 geometry.height 必须 ≥ {_h_min:.3f} m】，否则必然挠度超限被丢弃。\n"
+                            f"优化方向：在 h ≥ {_h_min:.3f}m 的前提下，通过调整截面宽度（±10%~20%）或材料强度等级来改善经济性/可持续性，"
+                            f"不要减小截面高度。\n"
+                        )
+
         # 框架：应力安全系数偏低时，禁止减小柱截面
         if _design_type == 'frame':
             _stress_sf = analysis.get('code_check', {}).get('safety_factors', {}).get('stress', float('inf'))
@@ -2120,11 +2169,14 @@ class PlanningFlow:
             failed_summary = []
             for fd in failed_designs:
                 mat = fd.get('material', {})
+                geo = fd.get('geometry', {})
                 A = mat.get('A')
                 if A:
                     failed_summary.append(f"A={A*1e6:.0f}mm²（{A:.4f}m²）")
+                elif 'height' in geo and 'width' in geo:
+                    failed_summary.append(f"b={geo['width']}m × h={geo['height']}m")
             if failed_summary:
-                compliance_hint += f"\n【已验证不合规的截面（禁止重复使用）】\n" + "、".join(failed_summary) + "\n请生成与上述截面不同且 ≥ 合规下限的方案。\n"
+                compliance_hint += f"\n【已验证不合规的截面（禁止重复使用）】\n" + "、".join(failed_summary) + "\n请生成与上述截面不同且满足合规下限的方案。\n"
 
         prompt = f"""你是一位结构工程专家。请根据以下评估建议，直接生成3个优化后的完整设计方案JSON。
 
