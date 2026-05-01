@@ -3,8 +3,8 @@ import { Page } from '@vben/common-ui';
 
 defineOptions({ name: 'About' });
 
-const backendTechs = ['Python 3.12', 'OpenManus', 'OpenSeesPy', 'ezdxf', 'FastAPI', 'Celery', 'Redis', 'SQLite'];
-const frontendTechs = ['Vue 3', 'TypeScript', 'Ant Design Vue', 'Vite', 'TailwindCSS'];
+const backendTechs = ['Python 3.12', 'OpenManus', 'OpenSeesPy', 'ezdxf', 'FastAPI', 'Celery', 'Redis', 'PostgreSQL'];
+const frontendTechs = ['Vue 3', 'TypeScript', 'Ant Design Vue', 'Vite', 'TailwindCSS', 'Pinia', 'Vue Router', 'marked', 'ECharts', 'VueUse', 'Day.js'];
 </script>
 
 <template>
