@@ -35,18 +35,13 @@
 
 本系统采用**方案B：循序渐进 + 友好错误提示**策略：
 
-#### 时机选择
-- **阶段 0-7**：只实现 `beam` 类型，快速打通核心流程
-- **阶段 8-10**：完成 Agent 层闭环，确保核心流程稳定
-- **阶段 10+**：根据实际需求，逐步添加新结构类型（truss、frame、cantilever等）
-
 #### 友好错误提示
 当 LLM 生成未支持的结构类型时，系统不会直接报错，而是返回友好的提示：
 
 ```json
 {
   "status": "error",
-  "error": "当前未支持的结构类型: truss。可用类型: beam"
+  "error": "当前未支持的结构类型: arch。可用类型: ['beam', 'cantilever_beam', 'continuous_beam', 'truss', 'frame']"
 }
 ```
 
@@ -58,7 +53,6 @@
 #### 何时需要实现新类型
 | 场景 | 是否需要实现 | 说明 |
 |------|-------------|------|
-| LLM 生成 `type: "truss"` 报错 | ✅ 需要 | 桁架是常见结构类型 |
 | LLM 生成 `type: "plate"` 报错 | ⚠️ 可选 | 板结构较复杂，视需求 |
 | LLM 生成 `type: "arch"` 报错 | ⚠️ 可选 | 拱结构特殊，视需求 |
 
@@ -82,7 +76,6 @@
 
 在开始实现前，请先确认：
 
-- [ ] **确定添加时机**（建议阶段10+，核心流程稳定后）
 - [ ] **确认LLM确实会生成该类型**（查看LLM输出日志）
 - [ ] **评估实现成本**（参考下方时间估算）
 - [ ] **确定是否需要Drawer**（如果只要分析功能，可暂不实现）
@@ -114,7 +107,7 @@
 **注意**：根据系统策略，如果遇到未支持的结构类型，系统会返回友好提示：
 
 ```
-"Unknown structure type: 'truss'. Available types: ['beam']"
+"Unknown structure type: 'arch'. Available types: ['beam', 'cantilever_beam', 'continuous_beam', 'truss', 'frame']"
 ```
 
 这个提示会被 LLM 读取，在下一轮生成中 LLM 会知道哪些类型可用，从而避免持续错误。
@@ -125,16 +118,16 @@
 
 ```bash
 # 创建新文件
-touch app/tool/analyzers/cantilever_beam_analyzer.py
+touch structural_app/tool/analyzers/cantilever_beam_analyzer.py
 ```
 
 ### 2.2.2 实现代码
 
 ```python
-# app/tool/analyzers/cantilever_beam_analyzer.py
+# structural_app/tool/analyzers/cantilever_beam_analyzer.py
 from typing import Dict
 import openseespy.opensees as ops
-from app.tool.analyzers.base_analyzer import StructureAnalyzer, AnalysisResults
+from structural_app.tool.analyzers.base_analyzer import StructureAnalyzer, AnalysisResults
 
 class CantileverBeamAnalyzer(StructureAnalyzer):
     """悬臂梁分析器"""
@@ -144,7 +137,7 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
         self.nodes = []
         self.elements = []
     
-    def build_model(self, design: Dict) -> None:
+    def build_model(self, design: Dict) -> bool:
         """构建悬臂梁有限元模型"""
         # 提取参数
         length = design["geometry"]["length"]
@@ -198,7 +191,7 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
 ```
 
     
-    def analyze(self) -> Dict:
+    def analyze(self) -> AnalysisResults:
         """运行有限元分析"""
         # 配置求解器
         ops.system('BandGeneral')
@@ -244,7 +237,7 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
             "shears": shears
         }
     
-    def check_code(self, results: Dict) -> Dict:
+    def check_code(self, results: AnalysisResults) -> Dict:
         """规范校核（悬臂梁特定）"""
         # 提取最大值
         max_disp = max([abs(d["uy"]) for d in results["displacements"]])
@@ -283,17 +276,17 @@ class CantileverBeamAnalyzer(StructureAnalyzer):
 ### 2.3.1 创建文件
 
 ```bash
-touch app/tool/drawers/cantilever_beam_drawer.py
+touch structural_app/tool/drawers/cantilever_beam_drawer.py
 ```
 
 ### 2.3.2 实现代码
 
 ```python
-# app/tool/drawers/cantilever_beam_drawer.py
+# structural_app/tool/drawers/cantilever_beam_drawer.py
 from typing import Dict
 import ezdxf
 from datetime import datetime
-from app.tool.drawers.base_drawer import StructureDrawer
+from structural_app.tool.drawers.base_drawer import StructureDrawer
 
 class CantileverBeamDrawer(StructureDrawer):
     """悬臂梁绘图器"""
@@ -348,15 +341,15 @@ class CantileverBeamDrawer(StructureDrawer):
 ### 2.4.1 创建文件
 
 ```bash
-touch app/tool/evaluators/cantilever_beam_evaluator.py
+touch structural_app/tool/evaluators/cantilever_beam_evaluator.py
 ```
 
 ### 2.4.2 实现代码
 
 ```python
-# app/tool/evaluators/cantilever_beam_evaluator.py
+# structural_app/tool/evaluators/cantilever_beam_evaluator.py
 from typing import Dict
-from app.tool.evaluators.base_evaluator import DesignEvaluator
+from structural_app.tool.evaluators.base_evaluator import DesignEvaluator
 
 class CantileverBeamEvaluator(DesignEvaluator):
     """悬臂梁评估器"""
@@ -449,8 +442,8 @@ class CantileverBeamEvaluator(DesignEvaluator):
 ### 2.5.1 注册 Analyzer
 
 ```python
-# app/tool/analyzers/analyzer_factory.py
-from app.tool.analyzers.cantilever_beam_analyzer import CantileverBeamAnalyzer
+# structural_app/tool/analyzers/analyzer_factory.py
+from structural_app.tool.analyzers.cantilever_beam_analyzer import CantileverBeamAnalyzer
 
 # 在文件末尾添加注册
 AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
@@ -459,8 +452,8 @@ AnalyzerFactory.register("cantilever_beam", CantileverBeamAnalyzer)
 ### 2.5.2 注册 Drawer
 
 ```python
-# app/tool/drawers/drawer_factory.py
-from app.tool.drawers.cantilever_beam_drawer import CantileverBeamDrawer
+# structural_app/tool/drawers/drawer_factory.py
+from structural_app.tool.drawers.cantilever_beam_drawer import CantileverBeamDrawer
 
 # 在文件末尾添加注册
 DrawerFactory.register("cantilever_beam", CantileverBeamDrawer)
@@ -469,8 +462,8 @@ DrawerFactory.register("cantilever_beam", CantileverBeamDrawer)
 ### 2.5.3 注册 Evaluator
 
 ```python
-# app/tool/evaluators/evaluator_factory.py
-from app.tool.evaluators.cantilever_beam_evaluator import CantileverBeamEvaluator
+# structural_app/tool/evaluators/evaluator_factory.py
+from structural_app.tool.evaluators.cantilever_beam_evaluator import CantileverBeamEvaluator
 
 # 在文件末尾添加注册
 EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
@@ -479,26 +472,26 @@ EvaluatorFactory.register("cantilever_beam", CantileverBeamEvaluator)
 ### 2.5.4 注册 Visualizer ⚠️ **容易遗漏**
 
 ```python
-# app/tool/visualizations/visualizer_factory.py
+# structural_app/tool/visualizations/visualizer_factory.py
 
 # 方案A：复用 BeamVisualizer（推荐，适用于梁类结构）
 VisualizerFactory.register("cantilever_beam", BeamVisualizer)
 
 # 方案B：创建独立 Visualizer（如果需要定制可视化样式）
-# from app.tool.visualizations.cantilever_beam_visualizer import CantileverBeamVisualizer
+# from structural_app.tool.visualizations.cantilever_beam_visualizer import CantileverBeamVisualizer
 # VisualizerFactory.register("cantilever_beam", CantileverBeamVisualizer)
 ```
 
 ### 2.5.5 注册 Reporter ⚠️ **容易遗漏**
 
 ```python
-# app/tool/reports/reporter_factory.py
+# structural_app/tool/reports/reporter_factory.py
 
 # 方案A：复用 BeamReporter（推荐，适用于梁类结构）
 ReporterFactory.register("cantilever_beam", BeamReporter)
 
 # 方案B：创建独立 Reporter（如果需要定制报告格式）
-# from app.tool.reports.cantilever_beam_reporter import CantileverBeamReporter
+# from structural_app.tool.reports.cantilever_beam_reporter import CantileverBeamReporter
 # ReporterFactory.register("cantilever_beam", CantileverBeamReporter)
 ```
 
@@ -523,7 +516,7 @@ touch tests/test_cantilever_beam_analyzer.py
 ```python
 # tests/test_cantilever_beam_analyzer.py
 import pytest
-from app.tool.analyzers.cantilever_beam_analyzer import CantileverBeamAnalyzer
+from structural_app.tool.analyzers.cantilever_beam_analyzer import CantileverBeamAnalyzer
 
 def test_cantilever_beam_analysis():
     """测试悬臂梁分析"""
@@ -736,22 +729,43 @@ assert "drawings" in result
 ### 5.1 代码组织
 
 ```
-app/tool/
+structural_app/tool/
 ├── analyzers/
-│   ├── base_analyzer.py          # 抽象基类
-│   ├── beam_analyzer.py          # 简支梁
-│   ├── cantilever_beam_analyzer.py  # 悬臂梁
-│   └── analyzer_factory.py       # 工厂类
+│   ├── base_analyzer.py              # 抽象基类
+│   ├── beam_analyzer.py              # 简支梁
+│   ├── cantilever_beam_analyzer.py   # 悬臂梁
+│   ├── continuous_beam_analyzer.py   # 连续梁
+│   ├── truss_analyzer.py             # 桁架
+│   ├── frame_analyzer.py             # 框架
+│   └── analyzer_factory.py           # 工厂类
 ├── drawers/
 │   ├── base_drawer.py
 │   ├── beam_drawer.py
 │   ├── cantilever_beam_drawer.py
+│   ├── continuous_beam_drawer.py
+│   ├── truss_drawer.py
+│   ├── frame_drawer.py
 │   └── drawer_factory.py
-└── evaluators/
-    ├── base_evaluator.py
-    ├── beam_evaluator.py
-    ├── cantilever_beam_evaluator.py
-    └── evaluator_factory.py
+├── evaluators/
+│   ├── base_evaluator.py
+│   ├── beam_evaluator.py
+│   ├── cantilever_beam_evaluator.py
+│   ├── continuous_beam_evaluator.py
+│   ├── truss_evaluator.py
+│   ├── frame_evaluator.py
+│   └── evaluator_factory.py
+├── visualizations/
+│   ├── base_visualizer.py
+│   ├── beam_visualizer.py            # 复用于 beam/cantilever_beam/continuous_beam
+│   ├── truss_visualizer.py
+│   ├── frame_visualizer.py
+│   └── visualizer_factory.py
+└── reports/
+    ├── base_reporter.py
+    ├── beam_reporter.py              # 复用于 beam/cantilever_beam/continuous_beam
+    ├── truss_reporter.py
+    ├── frame_reporter.py
+    └── reporter_factory.py
 ```
 
 
@@ -789,9 +803,9 @@ app/tool/
 
 ### 6.2 代码参考
 
-- **BeamAnalyzer**：`app/tool/analyzers/beam_analyzer.py`
-- **BeamDrawer**：`app/tool/drawers/beam_drawer.py`
-- **BeamEvaluator**：`app/tool/evaluators/beam_evaluator.py`
+- **BeamAnalyzer**：`structural_app/tool/analyzers/beam_analyzer.py`
+- **BeamDrawer**：`structural_app/tool/drawers/beam_drawer.py`
+- **BeamEvaluator**：`structural_app/tool/evaluators/beam_evaluator.py`
 
 ### 6.3 技术文档
 
@@ -814,9 +828,11 @@ app/tool/
 
 ### 7.2 开发时间估算
 
-- **简单结构类型**（如悬臂梁）：1-2 天
-- **中等复杂度**（如框架）：3-5 天
-- **复杂结构类型**（如桁架）：5-7 天
+以下为新增结构类型的参考时间（已有 5 种类型可参考实现）：
+
+- **梁类扩展**（边界条件、荷载形式与已有梁类相近）：1-2 天
+- **中等复杂度**（如壳体、板结构）：3-5 天
+- **复杂结构类型**（如拱、索结构）：5-7 天
 
 ### 7.3 成功标准
 
@@ -836,9 +852,9 @@ app/tool/
 
 ---
 
-**文档版本**：v2.0
+**文档版本**：v2.1
 **创建日期**：2026-02-07
-**最后更新**：2026-02-21
+**最后更新**：2026-05-01
 **维护者**：开发团队
 
 ---
@@ -851,7 +867,7 @@ app/tool/
 
 | 场景 | 错误提示 | LLM 行为 | 用户体验 |
 |------|---------|---------|---------|
-| 未知结构类型 | "Unknown structure type: 'truss'. Available types: ['beam']" | 下轮避免该类型 | 知道当前限制 |
+| 未知结构类型 | "Unknown structure type: 'arch'. Available types: ['beam', 'cantilever_beam', 'continuous_beam', 'truss', 'frame']" | 下轮避免该类型 | 知道当前限制 |
 | 分析失败 | "Analysis failed: convergence error" | 可能尝试调整参数 | 清晰的失败原因 |
 | 参数缺失 | "Missing geometry parameter: length" | 补充缺失参数 | 明确需要什么 |
 
@@ -862,30 +878,26 @@ app/tool/
 ```python
 # AnalyzerFactory
 >>> AnalyzerFactory.get_available_types()
-['beam']
+['beam', 'cantilever_beam', 'continuous_beam', 'truss', 'frame']
 
 # DrawerFactory
 >>> DrawerFactory.get_available_types()
-['beam']
+['beam', 'cantilever_beam', 'continuous_beam', 'truss', 'frame']
 ```
 
 ### 8.3 LLM 引导策略
 
 当 LLM 生成未支持的类型时，系统通过错误提示引导：
 
-1. **第一轮**：LLM 生成 `type: "truss"` → 错误提示可用类型
-2. **第二轮**：LLM 看到提示 → 改为 `type: "beam"` 或询问用户
-3. **第三轮**：用户确认使用 `beam` → 正常执行
+1. **第一轮**：LLM 生成 `type: "arch"` → 错误提示可用类型
+2. **第二轮**：LLM 看到提示 → 改为已支持的类型或询问用户
+3. **第三轮**：用户确认使用合适类型 → 正常执行
 
-### 8.4 扩展时机建议
+### 8.4 扩展建议
 
-**推荐的扩展时机**（对应开发阶段）：
+目前已支持 5 种结构类型：`beam`、`cantilever_beam`、`continuous_beam`、`truss`、`frame`。
 
-| 开发阶段 | 扩展目标 | 说明 |
-|---------|---------|------|
-| 阶段 0-7 | 无扩展 | 专注核心流程打通 |
-| 阶段 8-10 | 无扩展 | 完成 Agent 闭环 |
-| 阶段 10+ | 按需扩展 | 根据实际需求添加 |
+如需添加新类型（如 `plate`、`arch`），按照本文档步骤实现并在 5 个工厂中注册即可，无需修改任何 Agent 代码。
 
 ### 8.5 测试友好错误提示
 
@@ -897,18 +909,18 @@ def test_unknown_structure_type_error():
     from structural_app.tool.analyzers.analyzer_factory import AnalyzerFactory
 
     # 验证未注册类型
-    assert not AnalyzerFactory.is_registered("truss")
+    assert not AnalyzerFactory.is_registered("arch")
 
     # 验证可用类型提示
     available = AnalyzerFactory.get_available_types()
-    assert available == ["beam"]
+    assert set(available) == {"beam", "cantilever_beam", "continuous_beam", "truss", "frame"}
 
     # 验证错误信息格式
     try:
-        AnalyzerFactory.create("truss")
+        AnalyzerFactory.create("arch")
     except ValueError as e:
         error_msg = str(e)
-        assert "truss" in error_msg
+        assert "arch" in error_msg
         assert "beam" in error_msg  # 提示可用类型
 ```
 
