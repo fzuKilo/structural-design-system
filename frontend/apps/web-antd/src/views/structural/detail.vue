@@ -25,6 +25,7 @@ const askHumanRequest = ref<any>(null);
 const schemeUpdates = ref<any[]>([]);  // 实时方案数据
 const schemeTotalHint = ref<number>(0); // scheme_start 提前告知的总数
 const savedHistory = ref<any[]>([]);   // 持久化交互历史
+const bimStatus = ref<{ speckleExported: boolean; ifcExported: boolean } | null>(null);
 let wsManager: WebSocketManager | null = null;
 
 const taskParams = computed(() => {
@@ -42,8 +43,8 @@ const taskParams = computed(() => {
     overallScore: r.evaluation_report?.comprehensive_score ?? null,
     warnings: r.evaluation_report?.warnings || [],
     drawingStatus: (r.files && Object.keys(r.files).length > 0) ? 'success' : (r.raw?.drawing_results?.status || 'pending'),
-    speckleExported: !!(r.bim_url),
-    ifcExported: !!(r.ifc_path),
+    speckleExported: bimStatus.value?.speckleExported ?? !!(r.bim_url),
+    ifcExported: bimStatus.value?.ifcExported ?? !!(r.ifc_path),
     reportStatus: r.report_file ? 'success' : (r.raw?.report_results?.status || 'pending'),
   };
 });
@@ -231,6 +232,11 @@ const connectWs = () => {
     } else if (msg.type === 'scheme_ready') {
       // 实时方案数据推送
       schemeUpdates.value.push(msg);
+    } else if (msg.type === 'bim_status') {
+      bimStatus.value = {
+        speckleExported: !!msg.speckle_exported,
+        ifcExported: !!msg.ifc_exported,
+      };
     } else if (msg.type === 'result' || msg.type === 'cancelled' || msg.type === 'error') {
       askHumanRequest.value = null;
       loadTask();

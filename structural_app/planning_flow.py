@@ -1185,6 +1185,16 @@ class PlanningFlow:
             bim_result, ifc_result = await self._run_bim_and_ifc_export(verbose)
             self.results["bim_results"] = bim_result
             self.results["ifc_results"] = ifc_result
+            # 立即推送BIM/IFC导出结果，前端实时更新状态
+            if self.websocket_callback:
+                from datetime import datetime
+                await self.websocket_callback({
+                    "type": "bim_status",
+                    "speckle_exported": bim_result.get("status") == "success" if bim_result else False,
+                    "speckle_error": bim_result.get("error") if bim_result and bim_result.get("status") != "success" else None,
+                    "ifc_exported": ifc_result.get("status") == "success" if ifc_result else False,
+                    "timestamp": datetime.now().isoformat(),
+                })
         else:
             if verbose:
                 print("Step 5.1: 跳过BIM/IFC导出（report_only 模式）")
