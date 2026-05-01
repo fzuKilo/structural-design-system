@@ -113,8 +113,9 @@ class BeamReporter(BaseReporter):
         report.append("")
         distributed_loads = loads.get('distributed', [])
         point_loads = loads.get('point', [])
-        report.append(f"| 分布荷载 | {len(distributed_loads)} 个 |")
-        report.append(f"| 集中荷载 | {len(point_loads)} 个 |")
+        report.append(f"**分布荷载**: {len(distributed_loads)} 个")
+        report.append("")
+        report.append(f"**集中荷载**: {len(point_loads)} 个")
         report.append("")
 
         # Add load details
@@ -132,7 +133,7 @@ class BeamReporter(BaseReporter):
         report.append("")
         report.append("### 1.4 支座信息")
         report.append("")
-        report.append(f"| 支座类型 | {constraints.get('support_type', 'N/A')} |")
+        report.append(f"**支座类型**: {constraints.get('support_type', 'N/A')}")
         report.append("")
 
         # Analysis results
@@ -155,7 +156,8 @@ class BeamReporter(BaseReporter):
         violations = code_check.get('violations', [])
         safety_factors = code_check.get('safety_factors', {})
 
-        report.append(f"| 校核状态 | **{'符合规范' if compliant else '不符合规范'}** |")
+        status_text = "✅ 符合规范" if compliant else "❌ 不符合规范"
+        report.append(f"**校核状态**: {status_text}")
         report.append("")
 
         if safety_factors:

@@ -105,7 +105,7 @@ class TrussReporter(BaseReporter):
         report.append("### 1.3 荷载信息")
         report.append("")
         nodal_loads = loads.get('nodal', [])
-        report.append(f"| 节点荷载 | {len(nodal_loads)} 个 |")
+        report.append(f"**节点荷载**: {len(nodal_loads)} 个")
         report.append("")
 
         # Add nodal load details
@@ -126,7 +126,7 @@ class TrussReporter(BaseReporter):
 
         report.append("### 1.4 支座信息")
         report.append("")
-        report.append(f"| 支座类型 | {constraints.get('support_type', 'N/A')} |")
+        report.append(f"**支座类型**: {constraints.get('support_type', 'N/A')}")
         report.append("")
 
         # Analysis results
@@ -147,7 +147,8 @@ class TrussReporter(BaseReporter):
         violations = code_check.get('violations', [])
         safety_factors = code_check.get('safety_factors', {})
 
-        report.append(f"| 校核状态 | **{'符合规范' if compliant else '不符合规范'}** |")
+        status_text = "✅ 符合规范" if compliant else "❌ 不符合规范"
+        report.append(f"**校核状态**: {status_text}")
         report.append("")
 
         if safety_factors:

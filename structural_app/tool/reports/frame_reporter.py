@@ -198,7 +198,8 @@ class FrameReporter(BaseReporter):
         violations = code_check.get('violations', [])
         safety_factors = code_check.get('safety_factors', {})
 
-        report.append(f"| 校核状态 | **{'符合规范' if compliant else '不符合规范'}** |")
+        status_text = "✅ 符合规范" if compliant else "❌ 不符合规范"
+        report.append(f"**校核状态**: {status_text}")
         report.append("")
 
         if safety_factors:
