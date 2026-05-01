@@ -9,6 +9,7 @@ import { deleteDesignApi, getDesignListApi } from '#/api/design';
 const router = useRouter();
 const tasks = ref([]);
 const loading = ref(false);
+const pagination = ref({ current: 1, pageSize: 10 });
 
 const structureTypeMap: Record<string, string> = {
   truss:                 '桁架',
@@ -97,7 +98,8 @@ onUnmounted(() => {
           <AButton type="primary" @click="router.push('/structural/create')">新建设计</AButton>
         </div>
       </template>
-      <ATable :columns="columns" :data-source="tasks" :loading="loading" row-key="id">
+      <ATable :columns="columns" :data-source="tasks" :loading="loading" row-key="id"
+        :pagination="pagination" @change="(p: any) => { pagination.current = p.current; pagination.pageSize = p.pageSize; }">
         <template #emptyText>
           <AEmpty description="暂无设计任务">
             <AButton type="primary" @click="router.push('/structural/create')">创建第一个设计</AButton>
@@ -105,7 +107,7 @@ onUnmounted(() => {
         </template>
         <template #bodyCell="{ column, record, index }">
           <template v-if="column.key === 'index'">
-            <span style="color:#999;">#{{ index + 1 }}</span>
+            <span style="color:#999;">#{{ (pagination.current - 1) * pagination.pageSize + index + 1 }}</span>
           </template>
           <template v-else-if="column.key === 'structure_type'">
             {{ getStructureLabel(record.structure_type) }}
