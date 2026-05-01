@@ -364,7 +364,7 @@
           <!-- 选项模式：只在没有 proposals 时显示单选按钮 -->
           <template v-if="askHumanRequest.options?.length && !askHumanRequest.context?.proposals?.length">
             <ARadioGroup v-model:value="answer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
-              <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ opt }}</ARadio>
+              <ARadio v-for="opt in askHumanRequest.options" :key="opt" :value="opt" style="font-size:14px;">{{ fmtOptionLabel(opt) }}</ARadio>
               <!-- 非固定指令类询问（排除 是/否/continue 等）显示"其他"选项 -->
               <ARadio v-if="!(askHumanRequest.options || []).some((o: string) => /^(是|否|y|n|continue|optimize|report_only|terminate)\s*[-—]/.test(o))" value="__other__" style="font-size:14px;">其他（自定义输入）</ARadio>
             </ARadioGroup>
