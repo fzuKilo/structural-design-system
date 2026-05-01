@@ -39,7 +39,7 @@ const frontendTechs = ['Vue 3', 'TypeScript', 'Ant Design Vue', 'Vite', 'Tailwin
             <span class="text-blue-500">②</span> 有限元分析
           </dt>
           <dd class="mt-2 text-sm text-foreground/70">
-            OpenSeesPy 自动建模计算，可视化模型预览，规范合规性校核，不合规时自动迭代优化，最多10轮直至合规。
+            OpenSeesPy 自动建模计算，输出应力、位移等关键指标，规范合规性校核，不合规时自动迭代优化，最多10轮直至合规。
           </dd>
         </div>
         <div class="border border-border rounded-lg p-4">

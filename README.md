@@ -8,7 +8,7 @@
 
 - **自然语言交互**：用自然语言描述设计需求，系统自动收集参数并生成结构方案
 - **支持结构类型**：简支梁、悬臂梁、连续梁、桁架、框架
-- **有限元分析**：调用 Ansys MAPDL 进行结构验算，输出应力、位移等关键指标
+- **有限元分析**：调用 OpenSeesPy 进行结构建模与计算，输出应力、位移等关键指标
 - **多方案优化**：生成多个备选方案并实时对比，用户选择最优方案
 - **设计评估**：基于经济性、效率、安全性、可持续性四维度量化评分
 - **CAD 自动出图**：生成 DXF 格式工程图纸
@@ -31,12 +31,12 @@ FastAPI 后端（backend/）
     ▼
 PlanningFlow 多 Agent 编排（structural_app/）
     ├── StructuralDesignAgent   → 参数收集 & 方案生成（调用 LLM）
-    ├── FEAnalysisAgent         → 有限元分析（调用 Ansys MAPDL）
+    ├── FEAnalysisAgent         → 有限元分析（OpenSeesPy）
     ├── EvaluationAgent         → 设计质量评估
     ├── CADDrawingAgent         → CAD 图纸生成（ezdxf）
     └── ReportGenerationAgent   → 设计报告生成
     ▼
-Ansys MAPDL（本地安装，结构仿真）
+OpenSeesPy（有限元建模与计算）
 ```
 
 ---
@@ -53,7 +53,7 @@ Ansys MAPDL（本地安装，结构仿真）
 | Redis | 5.0.1（任务队列） |
 | PostgreSQL | — （生产数据库） |
 | ezdxf | 1.1.3（CAD 出图） |
-| PyMAPDL | — （Ansys 接口） |
+| OpenSeesPy | — （有限元分析） |
 
 ### 前端
 | 组件 | 版本 |
@@ -131,7 +131,7 @@ structural-design-system/
 - pnpm
 - PostgreSQL
 - Redis
-- Ansys（含 PyMAPDL，需本地授权）
+- OpenSeesPy（`pip install openseespy`）
 
 ---
 
@@ -169,23 +169,19 @@ REDIS_URL=redis://localhost:6379/0
 OUTPUT_DIR=./output
 ```
 
-**4. 配置 LLM 与 Ansys**
+**4. 配置 LLM**
 
 ```bash
 cp config.toml.example config.toml
 ```
 
-编辑 `config.toml`，填入 LLM API Key 和 Ansys 安装路径：
+编辑 `config.toml`，填入 LLM API Key：
 
 ```toml
 [llm]
 provider = "openai"   # 或 "anthropic"、"deepseek"
 api_key = "your-api-key"
 model = "gpt-4o"
-
-[ansys]
-use_local = true
-ansys_path = "C:/Program Files/ANSYS Inc/v242/ansys/bin/winx64/ANSYS242.exe"
 ```
 
 **5. 初始化数据库**
