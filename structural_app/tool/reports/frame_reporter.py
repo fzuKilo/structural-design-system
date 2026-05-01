@@ -384,7 +384,7 @@ class FrameReporter(BaseReporter):
                 report.append("| 图纸类型 | 文件路径 |")
                 report.append("|----------|----------|")
                 for drawing_type, file_path in files.items():
-                    report.append(f"| {drawing_type} | `{file_path}` |")
+                    report.append(f"| {drawing_type} | cad/{os.path.basename(file_path)} |")
                 report.append("")
 
         # BIM/IFC Export Results
@@ -400,7 +400,7 @@ class FrameReporter(BaseReporter):
 
             if ifc and ifc.get('status') == 'success':
                 report.append("### IFC文件")
-                report.append(f"- 文件路径: `{ifc.get('path')}`")
+                report.append(f"- 文件路径: `bim/{os.path.basename(ifc.get('path', ''))}`")
                 report.append("")
 
         # Footer
