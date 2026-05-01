@@ -345,7 +345,7 @@ IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_resul
 CRITICAL STEPS:
 Step 1: SKIP visualization tool (report_only mode)
 Step 2: Call report tool EXACTLY like this:
-  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  report(report_data='{{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}}')
   Serialize the entire dict to a JSON string and pass as report_data.
 Step 3: Return the ReportResults (without visualization files)
 
@@ -362,7 +362,7 @@ Extract each object from the JSON and pass them to the report tool.
 
 Step 1: Visualizations have been generated successfully (see above). DO NOT call visualization tool again.
 Step 2: Call report tool EXACTLY like this:
-  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  report(report_data='{{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}}')
   Serialize all data to a single JSON string and pass as report_data.
 Step 3: Return the complete ReportResults with both visualization and report file paths.
 """
@@ -376,7 +376,7 @@ IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_resul
 CRITICAL RECOVERY STEPS:
 Step 1: Call visualization tool with design_proposal and analysis_results to generate NEW visualizations.
 Step 2: Call report tool EXACTLY like this:
-  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  report(report_data='{{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}}')
   Serialize all data to a single JSON string and pass as report_data.
 Step 3: Return the complete ReportResults with both visualization and report file paths.
 
