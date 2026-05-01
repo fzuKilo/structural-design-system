@@ -206,8 +206,10 @@ Step 1: ALWAYS call visualization tool first to generate NEW visualizations
         - ALWAYS generate fresh visualizations for each report
         - Pass design_proposal and analysis_results to the tool
 Step 2: Call report tool to generate the comprehensive Markdown report
-        - Pass all objects: design_proposal, analysis_results, evaluation_report, drawing_results, bim_results (if available), ifc_results (if available)
-        - The report tool will include BIM links and IFC file paths in the report if provided
+        - Serialize ALL data into a single JSON string and pass as report_data:
+          report(report_data=<json_string>)
+        - The json_string must contain: design_proposal, analysis_results, evaluation_report,
+          drawing_results, and optionally bim_results, ifc_results
 Step 3: Return ReportResults in this format:
 {
   "status": "success",
@@ -256,7 +258,7 @@ If the input is:
 
 Then call:
 visualization(design_proposal=..., analysis_results=...)
-report(design_proposal=..., analysis_results=..., evaluation_report=..., drawing_results=...)
+report(report_data='{"design_proposal":..., "analysis_results":..., "evaluation_report":..., "drawing_results":...}')
 
 REPORT GENERATION WORKFLOW:
 1. Read the input request - it is a JSON object with design_proposal, analysis_results, evaluation_report, drawing_results
@@ -343,7 +345,8 @@ IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_resul
 CRITICAL STEPS:
 Step 1: SKIP visualization tool (report_only mode)
 Step 2: Call report tool EXACTLY like this:
-  report(design_proposal=<design_proposal_json_string>, analysis_results=<analysis_results_json_string>, evaluation_report=<evaluation_report_json_string>, drawing_results=<drawing_results_json_string>)
+  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  Serialize the entire dict to a JSON string and pass as report_data.
 Step 3: Return the ReportResults (without visualization files)
 
 DO NOT call the visualization tool in report_only mode.
@@ -359,8 +362,8 @@ Extract each object from the JSON and pass them to the report tool.
 
 Step 1: Visualizations have been generated successfully (see above). DO NOT call visualization tool again.
 Step 2: Call report tool EXACTLY like this:
-  report(design_proposal=<design_proposal_json_string>, analysis_results=<analysis_results_json_string>, evaluation_report=<evaluation_report_json_string>, drawing_results=<drawing_results_json_string>)
-  Each argument must be a JSON string (use json.dumps or pass the raw JSON string from the input).
+  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  Serialize all data to a single JSON string and pass as report_data.
 Step 3: Return the complete ReportResults with both visualization and report file paths.
 """
         elif visualization_error:
@@ -373,7 +376,8 @@ IMPORTANT: The input is a JSON object with keys: design_proposal, analysis_resul
 CRITICAL RECOVERY STEPS:
 Step 1: Call visualization tool with design_proposal and analysis_results to generate NEW visualizations.
 Step 2: Call report tool EXACTLY like this:
-  report(design_proposal=<design_proposal_json_string>, analysis_results=<analysis_results_json_string>, evaluation_report=<evaluation_report_json_string>, drawing_results=<drawing_results_json_string>)
+  report(report_data='{"design_proposal":<obj>, "analysis_results":<obj>, "evaluation_report":<obj>, "drawing_results":<obj>, "bim_results":<obj_or_null>, "ifc_results":<obj_or_null>}')
+  Serialize all data to a single JSON string and pass as report_data.
 Step 3: Return the complete ReportResults with both visualization and report file paths.
 
 CRITICAL: You MUST call both the visualization tool and the report tool. Do not skip either step.

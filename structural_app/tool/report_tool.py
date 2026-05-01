@@ -53,38 +53,15 @@ class ReportTool(BaseTool):
             "properties": {
                 "report_data": {
                     "type": "string",
-                    "description": "Complete report data in JSON format containing 'design_proposal', 'analysis_results', 'evaluation_report', 'drawing_results', 'bim_results', and 'ifc_results'."
-                },
-                "structure_type": {
-                    "type": "string",
-                    "description": f"Type of structure to report. Available: {ReporterFactory.get_available_types()}."
-                },
-                "design_proposal": {
-                    "type": "object",
-                    "description": "The design proposal."
-                },
-                "analysis_results": {
-                    "type": "object",
-                    "description": "Analysis results from FE analysis."
-                },
-                "evaluation_report": {
-                    "type": "object",
-                    "description": "Evaluation report (optional)."
-                },
-                "drawing_results": {
-                    "type": "object",
-                    "description": "Drawing results (optional)."
-                },
-                "bim_results": {
-                    "type": "object",
-                    "description": "BIM export results with Speckle URL (optional)."
-                },
-                "ifc_results": {
-                    "type": "object",
-                    "description": "IFC export results with file path (optional)."
+                    "description": (
+                        "All report data serialized as a JSON string. "
+                        "Must contain keys: 'design_proposal', 'analysis_results', "
+                        "and optionally 'evaluation_report', 'drawing_results', "
+                        "'bim_results', 'ifc_results'."
+                    )
                 }
             },
-            "required": []
+            "required": ["report_data"]
         }
 
     async def execute(self, **kwargs) -> ToolResult:

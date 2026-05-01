@@ -190,6 +190,7 @@ class FrameVisualizer(BaseVisualizer):
         fig_w = max(8, num_bays * 3)
         fig_h = max(6, num_stories * 2.5)
         fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+        cmap = cm.RdYlBu_r
         norm = Normalize(vmin=0, vmax=max_disp * 1000)
 
         def draw_elem_colored(ni, nj):
