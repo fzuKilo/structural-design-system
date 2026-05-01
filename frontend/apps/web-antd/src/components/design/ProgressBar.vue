@@ -93,13 +93,13 @@
               <!-- 选项列表（如果有） -->
               <div v-if="item.options?.length" class="history-options">
                 <div v-for="(opt, oi) in item.options" :key="oi" class="history-option-item" :class="{ selected: opt === item.answer || opt.startsWith(item.answer) }">
-                  {{ opt }}
+                  {{ fmtOptionLabel(opt) }}
                 </div>
               </div>
 
               <!-- 用户的回答 -->
               <div class="history-a">
-                ✅ 您的回答：<strong>{{ item.answer }}</strong>
+                ✅ 您的回答：<strong>{{ fmtAnswerLabel(item.answer, item.options) }}</strong>
                 <span class="history-time">{{ item.time }}</span>
               </div>
 
@@ -486,7 +486,7 @@
 
               <!-- 答案（非方案选择的情况） -->
               <div v-if="!item.context?.proposals?.length" class="history-a">
-                ✅ 您的回答：{{ item.answer }}
+                ✅ 您的回答：{{ fmtAnswerLabel(item.answer, item.options) }}
               </div>
             </div>
           </div>
@@ -862,6 +862,17 @@ const structureTypeMap: Record<string, string> = {
 };
 const fmtStructureType = (type: string | null | undefined) =>
   (type && structureTypeMap[type]) ? structureTypeMap[type] : (type || '—');
+
+// 去掉选项的 key 前缀，如 "y - 是，导出BIM/IFC" → "是，导出BIM/IFC"
+const fmtOptionLabel = (opt: string) =>
+  opt.includes(' - ') ? opt.split(' - ').slice(1).join(' - ') : opt;
+
+// 根据 answer key 在 options 中查找对应的中文标签
+const fmtAnswerLabel = (answer: string, options?: string[]) => {
+  if (!options?.length) return answer;
+  const found = options.find((o: string) => o === answer || o.startsWith(answer + ' - ') || o.startsWith(answer + ' -'));
+  return found ? fmtOptionLabel(found) : answer;
+};
 
 const metricLabels: Record<string, string> = {
   section: '截面', col_section: '柱截面', beam_section: '梁截面',
