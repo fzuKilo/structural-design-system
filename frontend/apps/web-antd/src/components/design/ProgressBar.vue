@@ -129,11 +129,11 @@
               <template v-else-if="viewingStage === 'fe_analysis'">
                 <div class="summary-item">
                   <span class="summary-label">最大应力：</span>
-                  <span class="summary-value">{{ snapshots[viewingStage].data.max_stress_MPa || '—' }} MPa</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.max_stress_MPa != null ? fmtSci(snapshots[viewingStage].data.max_stress_MPa) + ' MPa' : '—' }}</span>
                 </div>
                 <div class="summary-item">
                   <span class="summary-label">最大位移：</span>
-                  <span class="summary-value">{{ snapshots[viewingStage].data.max_displacement_mm || '—' }} mm</span>
+                  <span class="summary-value">{{ snapshots[viewingStage].data.max_displacement_mm != null ? fmtSci(snapshots[viewingStage].data.max_displacement_mm) + ' mm' : '—' }}</span>
                 </div>
                 <div class="summary-item">
                   <span class="summary-label">合规状态：</span>
@@ -584,8 +584,8 @@
             <div class="param-card">
               <div class="param-title">🔬 有限元分析结果</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">最大应力</span><span class="param-value" :class="{ warning: (displayParams?.maxStress ?? 0) > 235 }">{{ displayParams?.maxStress != null ? displayParams.maxStress + ' MPa' : '—' }}</span></div>
-                <div class="param-item"><span class="param-label">最大挠度</span><span class="param-value">{{ displayParams?.maxDeflection != null ? displayParams.maxDeflection + ' mm' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">最大应力</span><span class="param-value" :class="{ warning: (displayParams?.maxStress ?? 0) > 235 }">{{ displayParams?.maxStress != null ? fmtSci(displayParams.maxStress) + ' MPa' : '—' }}</span></div>
+                <div class="param-item"><span class="param-label">最大挠度</span><span class="param-value">{{ displayParams?.maxDeflection != null ? fmtSci(displayParams.maxDeflection) + ' mm' : '—' }}</span></div>
                 <div class="param-item"><span class="param-label">合规状态</span><span class="param-value" :class="snapshots['fe_analysis'] ? (displayParams?.complianceStatus === 'compliant' ? 'success' : displayParams?.complianceStatus === 'non_compliant' ? 'warning' : '') : ''">{{ snapshots['fe_analysis'] ? (displayParams?.complianceStatus === 'compliant' ? '✅ 合规' : displayParams?.complianceStatus === 'non_compliant' ? '⚠️ 不合规' : '—') : '—' }}</span></div>
               </div>
               <div v-if="snapshots['fe_analysis'] && mergedViolations.length" class="violations">
@@ -849,6 +849,9 @@ const currentInteractionHistory = computed(() => {
 // 多方案实时数据
 const realTimeSchemes = ref<any[]>([]);  // 实时接收的方案数据
 const selectedSchemeIdx = ref<number>(-1);
+
+const fmtSci = (val: number | null | undefined) =>
+  val != null ? Number(val).toExponential(2) : '—';
 
 const metricLabels: Record<string, string> = {
   section: '截面', col_section: '柱截面', beam_section: '梁截面',
