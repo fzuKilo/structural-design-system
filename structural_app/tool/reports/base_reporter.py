@@ -93,3 +93,21 @@ class BaseReporter(ABC):
             "truss": "桁架 (Truss)",
         }
         return type_display_map.get(structure_type, structure_type.replace('_', ' ').title())
+    @staticmethod
+    def translate_support_type(support_type: str) -> str:
+        """将支座类型英文标识翻译为中文"""
+        support_map = {
+            "cantilever":       "悬臂（一端固定，一端自由）",
+            "simply_supported": "简支（两端铰支）",
+            "fixed":            "固定端",
+            "continuous":       "连续梁支座",
+            "hinged":           "铰支座",
+            "roller":           "滚动支座",
+            "pin":              "销铰支座",
+            "fixed_fixed":      "两端固定",
+            "fixed_hinged":     "一端固定一端铰支",
+        }
+        if not support_type or support_type == "N/A":
+            return "N/A"
+        return support_map.get(support_type.lower(), support_type)
+

@@ -133,7 +133,7 @@ class BeamReporter(BaseReporter):
         report.append("")
         report.append("### 1.4 支座信息")
         report.append("")
-        report.append(f"**支座类型**: {constraints.get('support_type', 'N/A')}")
+        report.append(f"**支座类型**: {self.translate_support_type(constraints.get('support_type', 'N/A'))}")
         report.append("")
 
         # Analysis results
