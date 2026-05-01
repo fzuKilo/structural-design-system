@@ -117,7 +117,7 @@
               <template v-if="viewingStage === 'design_proposal'">
                 <div class="summary-item">
                   <span class="summary-label">结构类型：</span>
-                  <span class="summary-value">{{ snapshots[viewingStage].data.type || '—' }}</span>
+                  <span class="summary-value">{{ fmtStructureType(snapshots[viewingStage].data.type) }}</span>
                 </div>
                 <div class="summary-item">
                   <span class="summary-label">设计描述：</span>
@@ -538,7 +538,7 @@
             <div v-if="displayParams?.geometry || displayParams?.material" class="param-card">
               <div class="param-title">📐 设计参数</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">结构类型</span><span class="param-value">{{ displayParams?.designType || '—' }}</span></div>
+                <div class="param-item"><span class="param-label">结构类型</span><span class="param-value">{{ fmtStructureType(displayParams?.designType) }}</span></div>
                 <template v-if="displayParams?.geometry">
                   <div v-for="(val, key) in displayParams.geometry" :key="key" class="param-item">
                     <span class="param-label">{{ getFieldLabel(key) }}</span>
@@ -564,7 +564,7 @@
             <div v-if="snapshots['design_proposal']?.data" class="param-card">
               <div class="param-title">📋 当前设计方案</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ fmtStructureType(snapshots['design_proposal'].data.type) }}</span></div>
                 <template v-if="snapshots['design_proposal'].data.geometry">
                   <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
                     <span class="param-label">{{ getFieldLabel(key) }}</span>
@@ -599,7 +599,7 @@
             <div v-if="snapshots['design_proposal']?.data" class="param-card">
               <div class="param-title">📋 设计方案</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ fmtStructureType(snapshots['design_proposal'].data.type) }}</span></div>
                 <template v-if="snapshots['design_proposal'].data.geometry">
                   <div v-for="(val, key) in snapshots['design_proposal'].data.geometry" :key="key" class="param-item">
                     <span class="param-label">{{ getFieldLabel(key) }}</span>
@@ -639,7 +639,7 @@
             <div v-if="snapshots['design_proposal']?.data" class="param-card">
               <div class="param-title">📋 设计方案</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ snapshots['design_proposal'].data.type || '—' }}</span></div>
+                <div class="param-item"><span class="param-label">类型</span><span class="param-value">{{ fmtStructureType(snapshots['design_proposal'].data.type) }}</span></div>
                 <div v-if="snapshots['design_proposal'].data.material?.material_name" class="param-item">
                   <span class="param-label">材料</span>
                   <span class="param-value">{{ snapshots['design_proposal'].data.material.material_name }}</span>
@@ -852,6 +852,16 @@ const selectedSchemeIdx = ref<number>(-1);
 
 const fmtSci = (val: number | null | undefined) =>
   val != null ? Number(val).toExponential(2) : '—';
+
+const structureTypeMap: Record<string, string> = {
+  frame:           '框架结构',
+  beam:            '简支梁',
+  cantilever_beam: '悬臂梁',
+  continuous_beam: '连续梁',
+  truss:           '桁架',
+};
+const fmtStructureType = (type: string | null | undefined) =>
+  (type && structureTypeMap[type]) ? structureTypeMap[type] : (type || '—');
 
 const metricLabels: Record<string, string> = {
   section: '截面', col_section: '柱截面', beam_section: '梁截面',
