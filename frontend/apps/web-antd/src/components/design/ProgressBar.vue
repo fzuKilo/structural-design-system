@@ -194,92 +194,27 @@
           <!-- 多方案卡片（实时显示） -->
           <div v-if="(realTimeSchemes.length > 0 || schemeTotal > 0) || askHumanRequest.context?.proposals?.length" style="margin-bottom:16px;">
             <h3 style="font-size:16px;font-weight:600;margin-bottom:16px;">🔄 多方案并行优化</h3>
-            <div class="schemes-container-new">
+            <div class="schemes-container">
               <!-- 使用 context.proposals（包含原方案）或 realTimeSchemes -->
               <template v-if="askHumanRequest.context?.proposals?.length">
                 <div
                   v-for="(proposal, pi) in askHumanRequest.context.proposals"
                   :key="pi"
-                  class="scheme-card-new"
+                  class="scheme-card"
                   :class="{
                     selected: isProposalSelected(pi),
-                    recommended: proposal.recommended,
-                    original: proposal.name === '原方案',
-                    'history-mode': isReadonlyMode()
+                    recommended: proposal.recommended
                   }"
                 >
-                  <div class="scheme-header-new">
-                    <div class="scheme-title">
-                      <span class="scheme-name-new">{{ proposal.name }}</span>
-                      <span v-if="proposal.name === '原方案'" class="scheme-badge original-badge">原案</span>
-                      <span v-else-if="proposal.recommended" class="scheme-badge recommended-badge">推荐</span>
-                      <span v-if="isReadonlyMode() && isProposalSelected(pi)" class="badge-selected">✓ 用户选择</span>
-                    </div>
-                    <div v-if="!isReadonlyMode()" class="scheme-status">
-                      <span v-if="selectedSchemeIdx === pi" class="status-icon selected-icon">✓已选</span>
-                      <span v-else class="status-icon">✅</span>
-                    </div>
+                  <div class="scheme-header-card">
+                    <span class="scheme-name">{{ proposal.name }}</span>
+                    <span v-if="proposal.recommended">⭐</span>
+                    <span v-else-if="isProposalSelected(pi)">✅</span>
                   </div>
-                  <div class="scheme-metrics-grid">
-                    <div v-if="proposal.metrics.col_section" class="metric-row">
-                      <span class="metric-label">柱截面</span>
-                      <span class="metric-value">{{ proposal.metrics.col_section }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.beam_section" class="metric-row">
-                      <span class="metric-label">梁截面</span>
-                      <span class="metric-value">{{ proposal.metrics.beam_section }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.section" class="metric-row">
-                      <span class="metric-label">截面</span>
-                      <span class="metric-value">{{ proposal.metrics.section }}</span>
-                    </div>
-                    <div v-if="proposal.metrics['跨度']" class="metric-row">
-                      <span class="metric-label">跨度</span>
-                      <span class="metric-value">{{ proposal.metrics['跨度'] }}</span>
-                    </div>
-                    <div v-if="proposal.metrics['桁架高度']" class="metric-row">
-                      <span class="metric-label">桁架高度</span>
-                      <span class="metric-value">{{ proposal.metrics['桁架高度'] }}</span>
-                    </div>
-                    <div v-if="proposal.metrics['节间数']" class="metric-row">
-                      <span class="metric-label">节间数</span>
-                      <span class="metric-value">{{ proposal.metrics['节间数'] }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">材料</span>
-                      <span class="metric-value">{{ proposal.metrics.material }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">应力</span>
-                      <span class="metric-value">{{ proposal.metrics.stress }}MPa</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">位移</span>
-                      <span class="metric-value">{{ proposal.metrics.displacement }}mm</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">安全性</span>
-                      <span class="metric-value">{{ proposal.metrics.safety }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">经济性</span>
-                      <span class="metric-value">{{ proposal.metrics.economy }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">结构效率</span>
-                      <span class="metric-value">{{ proposal.metrics.efficiency }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">可持续性</span>
-                      <span class="metric-value">{{ proposal.metrics.sustainability }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">综合得分</span>
-                      <span class="metric-value">{{ proposal.metrics.total_score }}</span>
-                    </div>
-                    <div class="metric-row">
-                      <span class="metric-label">等级</span>
-                      <span class="metric-value">{{ proposal.metrics.grade }}</span>
+                  <div class="scheme-body">
+                    <div v-for="(val, key) in proposal.metrics" :key="key" class="scheme-metric">
+                      <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                      <div class="scheme-metric-value">{{ val }}</div>
                     </div>
                   </div>
                   <!-- 只在非只读模式下显示选择按钮 -->
@@ -434,47 +369,25 @@
               </div>
 
               <!-- 方案卡片（如果有） - 历史记录模式：只读，无选择按钮 -->
-              <div v-if="item.context?.proposals?.length" class="schemes-container-new" style="margin-bottom: 12px;">
+              <div v-if="item.context?.proposals?.length" class="schemes-container" style="margin-bottom: 12px;">
                 <div
                   v-for="(proposal, pi) in item.context.proposals"
                   :key="pi"
-                  class="scheme-card-new history-mode"
+                  class="scheme-card"
                   :class="{
                     selected: isSelectedProposal(item.answer, proposal, pi),
-                    recommended: proposal.recommended,
-                    original: proposal.name === '原方案'
+                    recommended: proposal.recommended
                   }"
                 >
-                  <div class="scheme-header-new">
-                    <span class="scheme-name-new">{{ proposal.name }}</span>
-                    <span v-if="proposal.recommended" class="badge-recommended">⭐ 推荐</span>
-                    <span v-if="proposal.name === '原方案'" class="badge-original">原案</span>
-                    <span v-if="isSelectedProposal(item.answer, proposal, pi)" class="badge-selected">✓ 用户选择</span>
+                  <div class="scheme-header-card">
+                    <span class="scheme-name">{{ proposal.name }}</span>
+                    <span v-if="proposal.recommended">⭐</span>
+                    <span v-else-if="isSelectedProposal(item.answer, proposal, pi)">✅</span>
                   </div>
-                  <div class="scheme-metrics-grid">
-                    <div v-if="proposal.metrics.section" class="metric-row">
-                      <span class="metric-label">截面</span>
-                      <span class="metric-value">{{ proposal.metrics.section }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.material" class="metric-row">
-                      <span class="metric-label">材料</span>
-                      <span class="metric-value">{{ proposal.metrics.material }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.stress" class="metric-row">
-                      <span class="metric-label">应力</span>
-                      <span class="metric-value">{{ proposal.metrics.stress }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.displacement" class="metric-row">
-                      <span class="metric-label">位移</span>
-                      <span class="metric-value">{{ proposal.metrics.displacement }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.total_score" class="metric-row">
-                      <span class="metric-label">综合得分</span>
-                      <span class="metric-value">{{ proposal.metrics.total_score }}</span>
-                    </div>
-                    <div v-if="proposal.metrics.grade" class="metric-row">
-                      <span class="metric-label">等级</span>
-                      <span class="metric-value">{{ proposal.metrics.grade }}</span>
+                  <div class="scheme-body">
+                    <div v-for="(val, key) in proposal.metrics" :key="key" class="scheme-metric">
+                      <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
+                      <div class="scheme-metric-value">{{ val }}</div>
                     </div>
                   </div>
                   <!-- 历史记录中不显示选择按钮 -->
@@ -484,8 +397,8 @@
               <!-- 问题文字 -->
               <div class="history-q">{{ item.question }}</div>
 
-              <!-- 答案（非方案选择的情况） -->
-              <div v-if="!item.context?.proposals?.length" class="history-a">
+              <!-- 答案 -->
+              <div class="history-a">
                 ✅ 您的回答：{{ fmtAnswerLabel(item.answer, item.options) }}
               </div>
             </div>
