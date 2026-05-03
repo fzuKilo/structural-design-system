@@ -583,8 +583,8 @@
             <div class="param-card">
               <div class="param-title">🏗️ BIM导出</div>
               <div class="param-grid">
-                <div class="param-item"><span class="param-label">Speckle</span><span class="param-value" :class="displayParams?.speckleExported ? 'success' : ''">{{ displayParams?.speckleExported ? '✅ 已导出' : '⏸ 未导出' }}</span></div>
-                <div class="param-item"><span class="param-label">IFC</span><span class="param-value" :class="displayParams?.ifcExported ? 'success' : ''">{{ displayParams?.ifcExported ? '✅ 已生成' : '⏸ 未生成' }}</span></div>
+                <div class="param-item"><span class="param-label">Speckle</span><span class="param-value" :class="displayParams?.speckleExported ? 'success' : 'skipped'">{{ displayParams?.speckleExported ? '✅ 已导出' : '— 未导出' }}</span></div>
+                <div class="param-item"><span class="param-label">IFC</span><span class="param-value" :class="displayParams?.ifcExported ? 'success' : 'skipped'">{{ displayParams?.ifcExported ? '✅ 已生成' : '— 未生成' }}</span></div>
               </div>
             </div>
             <div class="param-card">
@@ -1170,6 +1170,7 @@ const submitAnswer = () => {
 .param-value { font-size: 13px; color: #333; font-weight: 500; }
 .param-value.success { color: #52c41a; }
 .param-value.warning { color: #faad14; }
+.param-value.skipped { color: #bfbfbf; font-weight: 400; }
 .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
 .score-num { font-size: 26px; font-weight: bold; }
 .score-label { font-size: 12px; color: #666; }
