@@ -337,12 +337,17 @@ class FrameReporter(BaseReporter):
                     if construction_issues:
                         report.append("**构造问题：**")
                         report.append("")
+                        _severity_map = {
+                            'severe': '严重', 'moderate': '中等', 'minor': '轻微',
+                            'critical': '严重', 'warning': '警告', 'unknown': '未知'
+                        }
                         for issue in construction_issues:
                             severity = issue.get('severity', 'unknown') if isinstance(issue, dict) else ''
                             message = issue.get('message', str(issue)) if isinstance(issue, dict) else str(issue)
                             recommendation = issue.get('recommendation', '') if isinstance(issue, dict) else ''
                             citation = issue.get('citation', '') if isinstance(issue, dict) else ''
-                            report.append(f"- **{severity.upper()}**: {message}")
+                            severity_cn = _severity_map.get(severity.lower(), severity)
+                            report.append(f"- **{severity_cn}**: {message}")
                             if citation:
                                 report.append(f"  - 规范依据：{citation}")
                             if recommendation:
