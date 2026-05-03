@@ -573,7 +573,7 @@
               </div>
               <div v-if="displayParams?.drawingFiles?.length">
                 <div class="param-label" style="margin-bottom:4px;">生成文件：</div>
-                <div v-for="(f, i) in displayParams.drawingFiles" :key="i" style="font-size:12px; color:#1890ff; padding:2px 0;">📄 {{ f }}</div>
+                <div v-for="(f, i) in displayParams.drawingFiles" :key="i" style="font-size:12px; color:#1890ff; padding:2px 0;">📄 {{ formatDrawingFileName(f) }}</div>
               </div>
             </div>
           </template>
@@ -895,6 +895,28 @@ function mapSnapshotData(d: any) {
 
 const previewImageUrl = ref('');
 const previewImageVisible = ref(false);
+
+const drawingFileNameMap: Record<string, string> = {
+  'beam_elevation': '简支梁立面图',
+  'beam_plan': '简支梁平面图',
+  'beam_detail': '简支梁截面详图',
+  'cantilever_beam_elevation': '悬臂梁立面图',
+  'cantilever_beam_plan': '悬臂梁平面图',
+  'cantilever_beam_details': '悬臂梁截面详图',
+  'continuous_beam_elevation': '连续梁立面图',
+  'continuous_beam_plan': '连续梁平面图',
+  'continuous_beam_detail': '连续梁截面详图',
+  'frame_elevation': '框架立面图',
+  'frame_details': '框架节点详图',
+  'truss_elevation': '桁架立面图',
+  'truss_details': '桁架杆件详图',
+};
+
+const formatDrawingFileName = (filePath: string): string => {
+  const basename = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+  const stem = basename.replace(/_\d{8}_\d{6}\.dxf$/, '').replace(/\.dxf$/, '');
+  return drawingFileNameMap[stem] || stem;
+};
 
 const translateViolation = (text: string): string => {
   let m;
