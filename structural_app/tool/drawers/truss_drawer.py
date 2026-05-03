@@ -56,6 +56,53 @@ class TrussDrawer(StructureDrawer):
         # Return None to skip
         return None
 
+    def _setup_chinese_style(self, doc):
+        """配置中文字体样式 CHINESE"""
+        try:
+            doc.styles.new(
+                name='CHINESE',
+                dxfattribs={'font': 'simhei.ttf'}
+            )
+        except Exception:
+            try:
+                doc.styles.new(
+                    name='CHINESE',
+                    dxfattribs={'font': 'simsun.ttc'}
+                )
+            except Exception:
+                doc.styles.new(
+                    name='CHINESE',
+                    dxfattribs={'font': 'Arial.ttf'}
+                )
+
+    def _setup_dimstyle(self, doc):
+        """配置 MM_UNITS 标注样式（坐标系为米，dimlfac=1.0）"""
+        if 'STANDARD' not in doc.styles:
+            doc.styles.new('STANDARD', dxfattribs={'font': 'txt.shx'})
+
+        try:
+            dimstyle = doc.dimstyles.get('EZDXF')
+            if dimstyle:
+                dimstyle.dxf.dimlfac = 1.0
+                dimstyle.dxf.dimtxsty = 'STANDARD'
+        except Exception:
+            pass
+
+        if 'TRUSS_DIM' not in doc.dimstyles:
+            dimstyle = doc.dimstyles.new('TRUSS_DIM')
+            dimstyle.dxf.dimtxt = 0.15
+            dimstyle.dxf.dimasz = 0.1
+            dimstyle.dxf.dimcen = 0
+            dimstyle.dxf.dimtsz = 0
+            dimstyle.dxf.dimaltf = 1.0
+            dimstyle.dxf.dimlfac = 1.0
+            dimstyle.dxf.dimtp = 0
+            dimstyle.dxf.dimtm = 0
+            dimstyle.dxf.dimtol = 0
+            dimstyle.dxf.dimlim = 0
+            dimstyle.dxf.dimclrt = colors.WHITE
+            dimstyle.dxf.dimtxsty = 'STANDARD'
+
     def draw_elevation(self, design: Dict[str, Any]) -> Optional[str]:
         """
         Draw elevation view (side view) of truss
@@ -76,12 +123,17 @@ class TrussDrawer(StructureDrawer):
         """
         try:
             # Create new DXF document
-            doc = ezdxf.new('R2010')
-            doc.styles.new('chinese', dxfattribs={'font': 'simsun.ttf'})
+            doc = ezdxf.new('R2010', setup=True)
             msp = doc.modelspace()
+
+            # Setup styles
+            self._setup_chinese_style(doc)
+            self._setup_dimstyle(doc)
 
             # Extract parameters (support both 'span'/'length' for compatibility)
             geometry = design.get('geometry', {})
+            material = design.get('material', {})
+            material_name = material.get('material_name', 'Q235')
 
             # Get span with fallback to length, ensure numeric type
             span = geometry.get('span')
@@ -129,13 +181,13 @@ class TrussDrawer(StructureDrawer):
             for i in range(n_panels):
                 start = bottom_nodes[i]
                 end = bottom_nodes[i + 1]
-                msp.add_line(start, end, dxfattribs={'color': colors.BLACK, 'lineweight': 35})
+                msp.add_line(start, end, dxfattribs={'color': colors.WHITE, 'lineweight': 35})
 
             # Draw top chord
             for i in range(n_panels):
                 start = top_nodes[i]
                 end = top_nodes[i + 1]
-                msp.add_line(start, end, dxfattribs={'color': colors.BLACK, 'lineweight': 35})
+                msp.add_line(start, end, dxfattribs={'color': colors.WHITE, 'lineweight': 35})
 
             # Draw vertical web members
             for i in range(n_panels + 1):
@@ -160,47 +212,51 @@ class TrussDrawer(StructureDrawer):
             self._draw_pinned_support(msp, bottom_nodes[0][0], bottom_nodes[0][1])
             self._draw_roller_support(msp, bottom_nodes[-1][0], bottom_nodes[-1][1])
 
-            # Add dimensions
-            # Span dimension
-            y_dim = -0.8
-            msp.add_text(
-                f'Span = {span:.1f}m',
-                dxfattribs={
-                    'height': 0.15,
-                    'color': colors.BLACK
-                }
-            ).set_placement((span / 2, y_dim), align=TextEntityAlignment.CENTER)
+            # Add dimensions (native DXF DIMENSION entities)
+            try:
+                # Span dimension
+                dim = msp.add_linear_dim(
+                    base=(span / 2, -0.8),
+                    p1=(0, 0),
+                    p2=(span, 0),
+                    dimstyle='TRUSS_DIM',
+                    override={'dimtxt': 0.15, 'dimclrt': colors.WHITE, 'dimpost': '<>m'}
+                )
+                dim.render()
 
-            # Height dimension
-            x_dim = -0.8
-            msp.add_text(
-                f'H = {height:.1f}m',
-                dxfattribs={
-                    'height': 0.15,
-                    'color': colors.BLACK,
-                    'rotation': 90
-                }
-            ).set_placement((x_dim, height / 2), align=TextEntityAlignment.CENTER)
+                # Height dimension
+                dim = msp.add_linear_dim(
+                    base=(-0.8, height / 2),
+                    p1=(0, 0),
+                    p2=(0, height),
+                    angle=90,
+                    dimstyle='TRUSS_DIM',
+                    override={'dimtxt': 0.15, 'dimclrt': colors.WHITE, 'dimpost': '<>m'}
+                )
+                dim.render()
+            except Exception as e:
+                print(f"Warning: Could not add dimensions: {e}")
 
             # Add title block
-            self._add_title_block(msp, design, span, height)
+            self._add_title_block(msp, design, span, height, material_name)
 
             # Add node labels
             for i, node in enumerate(bottom_nodes):
-                msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.BLACK})
+                msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.WHITE})
                 msp.add_text(
                     f'N{i+1}',
-                    dxfattribs={'height': 0.12, 'color': colors.WHITE}
+                    dxfattribs={'height': 0.12, 'color': colors.WHITE, 'style': 'CHINESE'}
                 ).set_placement((node[0], node[1] - 0.3), align=TextEntityAlignment.CENTER)
 
             for i, node in enumerate(top_nodes):
-                msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.BLACK})
+                msp.add_circle(node, radius=0.08, dxfattribs={'color': colors.WHITE})
                 msp.add_text(
                     f'N{n_panels+2+i}',
-                    dxfattribs={'height': 0.12, 'color': colors.WHITE}
+                    dxfattribs={'height': 0.12, 'color': colors.WHITE, 'style': 'CHINESE'}
                 ).set_placement((node[0], node[1] + 0.3), align=TextEntityAlignment.CENTER)
 
             # Save file
+            os.makedirs(self.output_dir, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join(self.output_dir, f"truss_elevation_{timestamp}.dxf")
             doc.saveas(filename)
@@ -452,7 +508,7 @@ class TrussDrawer(StructureDrawer):
             (x + size/2, y - size),
             (x, y)
         ]
-        msp.add_lwpolyline(points, dxfattribs={'color': colors.BLACK})
+        msp.add_lwpolyline(points, dxfattribs={'color': colors.WHITE})
 
         # Draw hatch lines
         for i in range(5):
@@ -460,7 +516,7 @@ class TrussDrawer(StructureDrawer):
             msp.add_line(
                 (x + x_offset, y - size),
                 (x + x_offset - 0.1, y - size - 0.15),
-                dxfattribs={'color': colors.BLACK}
+                dxfattribs={'color': colors.WHITE}
             )
 
     def _draw_roller_support(self, msp, x: float, y: float):
@@ -479,21 +535,21 @@ class TrussDrawer(StructureDrawer):
             (x + size/2, y - size),
             (x, y)
         ]
-        msp.add_lwpolyline(points, dxfattribs={'color': colors.BLACK})
+        msp.add_lwpolyline(points, dxfattribs={'color': colors.WHITE})
 
         # Draw rollers (circles)
         roller_radius = 0.08
-        msp.add_circle((x - size/4, y - size - roller_radius), radius=roller_radius, dxfattribs={'color': colors.BLACK})
-        msp.add_circle((x + size/4, y - size - roller_radius), radius=roller_radius, dxfattribs={'color': colors.BLACK})
+        msp.add_circle((x - size/4, y - size - roller_radius), radius=roller_radius, dxfattribs={'color': colors.WHITE})
+        msp.add_circle((x + size/4, y - size - roller_radius), radius=roller_radius, dxfattribs={'color': colors.WHITE})
 
         # Draw base line
         msp.add_line(
             (x - size/2, y - size - 2*roller_radius),
             (x + size/2, y - size - 2*roller_radius),
-            dxfattribs={'color': colors.BLACK}
+            dxfattribs={'color': colors.WHITE}
         )
 
-    def _add_title_block(self, msp, design: Dict, span: float, height: float):
+    def _add_title_block(self, msp, design: Dict, span: float, height: float, material_name: str = 'Q235'):
         """
         Add title block to drawing
 
@@ -502,48 +558,40 @@ class TrussDrawer(StructureDrawer):
             design: Design parameters
             span: Truss span
             height: Truss height
+            material_name: Material name
         """
         # Title block position (bottom right)
         x_title = span - 3.0
         y_title = -2.0
 
         # Draw title block border
-        msp.add_line((x_title, y_title), (x_title + 2.5, y_title), dxfattribs={'color': colors.BLACK})
-        msp.add_line((x_title + 2.5, y_title), (x_title + 2.5, y_title + 1.0), dxfattribs={'color': colors.BLACK})
-        msp.add_line((x_title + 2.5, y_title + 1.0), (x_title, y_title + 1.0), dxfattribs={'color': colors.BLACK})
-        msp.add_line((x_title, y_title + 1.0), (x_title, y_title), dxfattribs={'color': colors.BLACK})
+        msp.add_line((x_title, y_title), (x_title + 2.5, y_title), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x_title + 2.5, y_title), (x_title + 2.5, y_title + 1.0), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x_title + 2.5, y_title + 1.0), (x_title, y_title + 1.0), dxfattribs={'color': colors.WHITE})
+        msp.add_line((x_title, y_title + 1.0), (x_title, y_title), dxfattribs={'color': colors.WHITE})
 
         # Add title text
         msp.add_text(
-            'TRUSS STRUCTURE',
-            dxfattribs={'height': 0.15, 'color': colors.BLACK}
+            '桁架立面图',
+            dxfattribs={'height': 0.15, 'color': colors.WHITE, 'style': 'CHINESE'}
         ).set_placement((x_title + 1.25, y_title + 0.75), align=TextEntityAlignment.CENTER)
 
         # Add design info
         geometry = design.get('geometry', {})
         n_panels = geometry.get('n_panels', 5)
-
-        msp.add_text(
-            f'Span: {span:.1f}m',
-            dxfattribs={'height': 0.10, 'color': colors.BLACK}
-        ).set_placement((x_title + 0.1, y_title + 0.50), align=TextEntityAlignment.LEFT)
-
-        msp.add_text(
-            f'Height: {height:.1f}m',
-            dxfattribs={'height': 0.10, 'color': colors.BLACK}
-        ).set_placement((x_title + 0.1, y_title + 0.35), align=TextEntityAlignment.LEFT)
-
-        msp.add_text(
-            f'Panels: {n_panels}',
-            dxfattribs={'height': 0.10, 'color': colors.BLACK}
-        ).set_placement((x_title + 0.1, y_title + 0.20), align=TextEntityAlignment.LEFT)
-
-        # Add date
         date_str = datetime.now().strftime("%Y-%m-%d")
-        msp.add_text(
-            f'Date: {date_str}',
-            dxfattribs={'height': 0.08, 'color': colors.BLACK}
-        ).set_placement((x_title + 0.1, y_title + 0.05), align=TextEntityAlignment.LEFT)
+
+        params = [
+            (f'跨度: {span:.1f}m', y_title + 0.55),
+            (f'高度: {height:.1f}m', y_title + 0.40),
+            (f'节间数: {n_panels}', y_title + 0.25),
+            (f'材料: {material_name}', y_title + 0.10),
+        ]
+        for text, y_pos in params:
+            msp.add_text(
+                text,
+                dxfattribs={'height': 0.10, 'color': colors.WHITE, 'style': 'CHINESE'}
+            ).set_placement((x_title + 0.1, y_pos), align=TextEntityAlignment.LEFT)
 
     def _generate_notes(self, design: Dict[str, Any]) -> list:
         """
