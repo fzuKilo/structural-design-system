@@ -52,13 +52,13 @@ class DrawingResults:
         }
 
     def get_files(self) -> Dict[str, str]:
-        """Get dictionary of available drawing files"""
-        return {
+        """Get dictionary of available drawing files (only includes files that were actually generated)"""
+        return {k: v for k, v in {
             'plan_view': self.plan_view,
             'elevation_view': self.elevation_view,
             'section_view': self.section_view,
-            'detail_view': self.detail_view
-        }
+            'detail_view': self.detail_view,
+        }.items() if v is not None}
 
 
 class StructureDrawer(ABC):
