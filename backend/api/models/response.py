@@ -1,10 +1,17 @@
 """
 Response Models
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional, Any, List
 from datetime import datetime
 from uuid import UUID
+
+
+def _to_utc_iso(v: Optional[datetime]) -> Optional[str]:
+    """将无时区 datetime（数据库存储的 UTC）序列化为带 Z 后缀的 ISO 字符串，供前端正确解析。"""
+    if v is None:
+        return None
+    return v.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
 
 
 class TokenResponse(BaseModel):
@@ -28,6 +35,10 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_serializer('created_at')
+    def serialize_created_at(self, v):
+        return _to_utc_iso(v)
+
 
 class TaskResponse(BaseModel):
     """Task response"""
@@ -42,6 +53,10 @@ class TaskResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_serializer('created_at', 'completed_at')
+    def serialize_datetimes(self, v):
+        return _to_utc_iso(v)
+
 
 class TaskFileResponse(BaseModel):
     """Task file response"""
@@ -53,6 +68,10 @@ class TaskFileResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_serializer('created_at')
+    def serialize_created_at(self, v):
+        return _to_utc_iso(v)
 
 
 class TaskDetailResponse(TaskResponse):
