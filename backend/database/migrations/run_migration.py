@@ -27,8 +27,6 @@ def run_migration():
                  description='系统管理员，拥有所有权限'),
             Role(id='role-user', name='user', display_name='普通用户',
                  description='普通用户，可以创建和查看自己的设计'),
-            Role(id='role-guest', name='guest', display_name='访客',
-                 description='只读访客，只能查看公开内容')
         ]
         db.add_all(roles)
         db.flush()
@@ -64,11 +62,6 @@ def run_migration():
         design_perms = db.query(Permission).filter(Permission.resource == 'design').all()
         for perm in design_perms:
             db.add(RolePermission(role_id=user_role.id, permission_id=perm.id))
-
-        # Assign read permission to guest
-        guest_role = db.query(Role).filter(Role.name == 'guest').first()
-        read_perm = db.query(Permission).filter(Permission.name == 'design:read').first()
-        db.add(RolePermission(role_id=guest_role.id, permission_id=read_perm.id))
 
         db.commit()
         print("✓ RBAC migration completed successfully")

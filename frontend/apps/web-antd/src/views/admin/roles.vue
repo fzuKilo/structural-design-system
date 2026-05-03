@@ -17,7 +17,6 @@ const columns = [
 const roleColorMap: Record<string, string> = {
   admin: 'red',
   user: 'blue',
-  guest: 'default',
 };
 
 const fetchRoles = async () => {

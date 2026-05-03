@@ -23,13 +23,11 @@ const columns = [
 const roleColorMap: Record<string, string> = {
   admin: 'red',
   user: 'blue',
-  guest: 'default',
 };
 
 const roleNameMap: Record<string, string> = {
   admin: '管理员',
   user: '普通用户',
-  guest: '访客',
 };
 
 const fetchUsers = async () => {
