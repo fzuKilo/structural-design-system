@@ -78,7 +78,7 @@
                     <div class="scheme-body">
                       <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
                         <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                        <div class="scheme-metric-value">{{ val }}</div>
+                        <div class="scheme-metric-value">{{ metricValue(key, val) }}</div>
                       </div>
                     </div>
                   </div>
@@ -214,7 +214,7 @@
                   <div class="scheme-body">
                     <div v-for="(val, key) in proposal.metrics" :key="key" class="scheme-metric">
                       <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                      <div class="scheme-metric-value">{{ val }}</div>
+                      <div class="scheme-metric-value">{{ metricValue(key, val) }}</div>
                     </div>
                   </div>
                   <!-- 只在非只读模式下显示选择按钮 -->
@@ -244,7 +244,7 @@
                   <div class="scheme-metrics-grid">
                     <div v-for="(val, key) in scheme.metrics" :key="key" class="metric-row">
                       <span class="metric-label">{{ metricLabels[key] || key }}</span>
-                      <span class="metric-value">{{ val }}</span>
+                      <span class="metric-value">{{ metricValue(key, val) }}</span>
                     </div>
                   </div>
                   <button class="select-btn-new" :disabled="selectedSchemeIdx === scheme.index - 1" @click="selectedSchemeIdx = scheme.index - 1">
@@ -340,7 +340,7 @@
                 <div class="scheme-body">
                   <div v-for="(val, key) in scheme.metrics" :key="key" class="scheme-metric">
                     <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                    <div class="scheme-metric-value">{{ val }}</div>
+                    <div class="scheme-metric-value">{{ metricValue(key, val) }}</div>
                   </div>
                 </div>
               </div>
@@ -387,7 +387,7 @@
                   <div class="scheme-body">
                     <div v-for="(val, key) in proposal.metrics" :key="key" class="scheme-metric">
                       <div class="scheme-metric-label">{{ metricLabels[key] || key }}</div>
-                      <div class="scheme-metric-value">{{ val }}</div>
+                      <div class="scheme-metric-value">{{ metricValue(key, val) }}</div>
                     </div>
                   </div>
                   <!-- 历史记录中不显示选择按钮 -->
@@ -792,6 +792,16 @@ const metricLabels: Record<string, string> = {
   material: '材料', stress: '最大应力', displacement: '最大挠度',
   safety: '安全性', economy: '经济性', efficiency: '结构效率',
   sustainability: '可持续性', total_score: '综合得分', grade: '等级',
+};
+
+const metricUnits: Record<string, string> = {
+  stress: ' MPa',
+  displacement: ' mm',
+};
+
+const metricValue = (key: string, val: any): string => {
+  const unit = metricUnits[key];
+  return unit ? `${val}${unit}` : String(val);
 };
 
 // 监听实时方案推送 —— 直接 watch 数组长度，push 时可靠触发
