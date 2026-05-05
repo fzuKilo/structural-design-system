@@ -1,0 +1,23 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# 安装 pnpm
+RUN npm install -g pnpm
+
+# 复制依赖文件
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+COPY frontend/packages ./packages
+COPY frontend/apps/web-antd ./apps/web-antd
+COPY frontend/internal ./internal
+
+# 安装依赖并构建
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter web-antd build
+
+# 生产镜像：只保留构建产物
+FROM nginx:alpine
+COPY --from=builder /app/apps/web-antd/dist /usr/share/nginx/html
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
