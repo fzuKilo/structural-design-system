@@ -292,14 +292,9 @@ class TrussDrawer(StructureDrawer):
             # Extract parameters
             material = design.get('material', {})
             geometry = design.get('geometry', {})
-            A = material.get('A', 0.01)  # Cross-sectional area in m²
+            A = material.get('A', 0.01)  # Cross-sectional area in m²（所有杆件统一截面积）
             A_mm2 = A * 1e6
             diameter = np.sqrt(4 * A / np.pi) * 1000  # Convert to mm
-
-            # Web members (70% of chord area)
-            A_web = A * 0.7
-            A_web_mm2 = A_web * 1e6
-            diameter_web = np.sqrt(4 * A_web / np.pi) * 1000
 
             # Layout positions (2 rows × 3 columns)
             row1_y = 5.0
@@ -316,16 +311,16 @@ class TrussDrawer(StructureDrawer):
             self._draw_member_section(msp, col2_x, row1_y, '下弦杆', diameter, A_mm2)
 
             # Row 1, Col 3: 竖杆截面
-            self._draw_member_section(msp, col3_x, row1_y, '竖杆', diameter_web, A_web_mm2)
+            self._draw_member_section(msp, col3_x, row1_y, '竖杆', diameter, A_mm2)
 
             # Row 2, Col 1: 斜杆截面
-            self._draw_member_section(msp, col1_x, row2_y, '斜杆', diameter_web, A_web_mm2)
+            self._draw_member_section(msp, col1_x, row2_y, '斜杆', diameter, A_mm2)
 
             # Row 2, Col 2: 节点连接详图
             self._draw_node_detail(msp, col2_x, row2_y)
 
             # Row 2, Col 3: 材料表
-            self._draw_material_table(msp, col3_x, row2_y, design, diameter, diameter_web, A_mm2, A_web_mm2)
+            self._draw_material_table(msp, col3_x, row2_y, design, diameter, A_mm2)
 
             # Add title
             msp.add_text(
@@ -419,8 +414,7 @@ class TrussDrawer(StructureDrawer):
         ).set_placement((center_x, center_y - 0.6), align=TextEntityAlignment.CENTER)
 
     def _draw_material_table(self, msp, center_x: float, center_y: float,
-                            design: Dict[str, Any], diameter_chord: float,
-                            diameter_web: float, area_chord: float, area_web: float):
+                            design: Dict[str, Any], diameter: float, area: float):
         """
         Draw material specification table
 
@@ -428,10 +422,8 @@ class TrussDrawer(StructureDrawer):
             msp: Model space
             center_x, center_y: Center position
             design: Design parameters
-            diameter_chord: Chord diameter in mm
-            diameter_web: Web diameter in mm
-            area_chord: Chord area in mm²
-            area_web: Web area in mm²
+            diameter: Member diameter in mm（所有杆件统一）
+            area: Member area in mm²（所有杆件统一）
         """
         # Table border
         width = 1.2
@@ -465,16 +457,9 @@ class TrussDrawer(StructureDrawer):
         y_line = y0 + height - 0.35
         line_height = 0.15
 
-        # Chord members
+        # All members (unified section)
         msp.add_text(
-            f'弦杆: Ø{diameter_chord:.0f}',
-            dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
-        ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
-        y_line -= line_height
-
-        # Web members
-        msp.add_text(
-            f'腹杆: Ø{diameter_web:.0f}',
+            f'杆件: Ø{diameter:.0f}',
             dxfattribs={'height': 0.09, 'color': colors.BLACK, 'style': 'chinese'}
         ).set_placement((x0 + 0.1, y_line), align=TextEntityAlignment.LEFT)
         y_line -= line_height
