@@ -315,7 +315,7 @@ class BeamVisualizer(BaseVisualizer):
         fig, ax = plt.subplots(figsize=(14, 6))
 
         # Original shape
-        ax.plot(nodes[:, 0], nodes[:, 1], 'k--', linewidth=1, alpha=0.3, label='Original Shape')
+        ax.plot(nodes[:, 0], nodes[:, 1], 'k--', linewidth=1, alpha=0.3, label='原始形状')
 
         # Deformed shape with colour cloud
         lc = LineCollection(segments, cmap='jet',
@@ -325,7 +325,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.add_collection(lc)
 
         # Colorbar in mm
-        cbar = plt.colorbar(lc, ax=ax, label='Displacement (mm)')
+        cbar = plt.colorbar(lc, ax=ax, label='位移 (mm)')
         cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.3f} mm'))
 
         # Y-axis: replace scaled-metre ticks with actual mm values
@@ -337,18 +337,18 @@ class BeamVisualizer(BaseVisualizer):
         ax.set_ylim(y_min - y_range * 0.15, y_max + y_range * 0.15)
         ax.set_aspect('auto')  # not equal — beam is much longer than it deflects
         ax.grid(True, alpha=0.3)
-        ax.set_xlabel('Position along beam (m)', fontsize=12)
+        ax.set_xlabel('梁轴方向位置 (m)', fontsize=12)
 
         # Relabel Y ticks as mm values
         yticks = ax.get_yticks()
         ax.set_yticks(yticks)
         if scale > 0:
             ax.set_yticklabels([f'{v / scale * 1000:.2f}' for v in yticks])
-        ax.set_ylabel('Displacement (mm)', fontsize=12)
+        ax.set_ylabel('位移 (mm)', fontsize=12)
 
         ax.set_title(
-            f'Displacement Cloud Plot  (scale factor: {scale:.0f}×,  '
-            f'max = {max_disp*1000:.3f} mm)',
+            f'位移云图  (放大倍数: {scale:.0f}×,  '
+            f'最大位移 = {max_disp*1000:.3f} mm)',
             fontsize=13, fontweight='bold'
         )
         ax.legend()
@@ -389,16 +389,16 @@ class BeamVisualizer(BaseVisualizer):
         ax.add_collection(lc)
 
         # Add colorbar
-        cbar = plt.colorbar(lc, ax=ax, label='Bending Moment (N·m)')
+        cbar = plt.colorbar(lc, ax=ax, label='弯矩 (N·m)')
         cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1000:.1f} kN·m'))
 
         ax.set_xlim(-0.5, length + 0.5)
         ax.set_ylim(-0.5, 0.5)
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3)
-        ax.set_xlabel('Length (m)', fontsize=12)
-        ax.set_ylabel('Height (m)', fontsize=12)
-        ax.set_title('Bending Moment Cloud Plot', fontsize=14, fontweight='bold')
+        ax.set_xlabel('长度 (m)', fontsize=12)
+        ax.set_ylabel('高度 (m)', fontsize=12)
+        ax.set_title('弯矩云图', fontsize=14, fontweight='bold')
 
         plt.tight_layout()
         plt.savefig(filepath, dpi=200, bbox_inches='tight')
@@ -428,16 +428,16 @@ class BeamVisualizer(BaseVisualizer):
         ax.add_collection(lc)
 
         # Add colorbar
-        cbar = plt.colorbar(lc, ax=ax, label='Bending Stress (Pa)')
+        cbar = plt.colorbar(lc, ax=ax, label='弯曲应力 (Pa)')
         cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.2f} MPa'))
 
         ax.set_xlim(-0.5, length + 0.5)
         ax.set_ylim(-0.5, 0.5)
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3)
-        ax.set_xlabel('Length (m)', fontsize=12)
-        ax.set_ylabel('Height (m)', fontsize=12)
-        ax.set_title('Bending Stress Cloud Plot', fontsize=14, fontweight='bold')
+        ax.set_xlabel('长度 (m)', fontsize=12)
+        ax.set_ylabel('高度 (m)', fontsize=12)
+        ax.set_title('弯曲应力云图', fontsize=14, fontweight='bold')
 
         plt.tight_layout()
         plt.savefig(filepath, dpi=200, bbox_inches='tight')
@@ -467,7 +467,7 @@ class BeamVisualizer(BaseVisualizer):
         fig, ax = plt.subplots(figsize=(14, 6))
 
         # Draw beam outline
-        ax.plot([0, length], [0, 0], 'k-', linewidth=3, label='Beam')
+        ax.plot([0, length], [0, 0], 'k-', linewidth=3, label='梁')
 
         # Adaptive scaling
         max_moment = max(abs(m_smooth)) if len(m_smooth) > 0 else 1.0
@@ -475,7 +475,7 @@ class BeamVisualizer(BaseVisualizer):
         moment_y_smooth = -m_smooth * moment_scale
 
         # Fill and line using smooth data
-        ax.fill_between(x_smooth, 0, moment_y_smooth, alpha=0.6, color='red', label='Bending Moment')
+        ax.fill_between(x_smooth, 0, moment_y_smooth, alpha=0.6, color='red', label='弯矩')
         ax.plot(x_smooth, moment_y_smooth, 'r-', linewidth=2)
 
         # Annotate maximum moment (from original data)
@@ -497,7 +497,7 @@ class BeamVisualizer(BaseVisualizer):
         ax.set_xlim(-0.5, length + 0.5)
         ax.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.1)
         ax.grid(True, alpha=0.3)
-        ax.set_xlabel('Length (m)', fontsize=12)
+        ax.set_xlabel('长度 (m)', fontsize=12)
 
         ax2 = ax.twinx()
         y_ticks_scaled = ax.get_yticks()
@@ -505,11 +505,11 @@ class BeamVisualizer(BaseVisualizer):
         ax2.set_yticks(y_ticks_scaled)
         ax2.set_yticklabels([f'{val:.1f}' for val in y_ticks_actual])
         ax2.set_ylim(y_min - y_range * 0.1, y_max + y_range * 0.1)
-        ax2.set_ylabel('Bending Moment (kN·m)', fontsize=12)
+        ax2.set_ylabel('弯矩 (kN·m)', fontsize=12)
 
         ax.set_ylabel('')
         ax.set_yticklabels([])
-        ax.set_title('Bending Moment Diagram', fontsize=14, fontweight='bold')
+        ax.set_title('弯矩图', fontsize=14, fontweight='bold')
         ax.legend(fontsize=11)
 
         plt.tight_layout()

@@ -238,7 +238,7 @@ class TrussVisualizer(BaseVisualizer):
 
         ax.set_xlabel('X (m)', fontsize=12)
         ax.set_ylabel('Y (m)', fontsize=12)
-        ax.set_title('Truss Displacement Cloud', fontsize=14, fontweight='bold')
+        ax.set_title('桁架位移云图', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
 
@@ -276,7 +276,7 @@ class TrussVisualizer(BaseVisualizer):
 
         ax.set_xlabel('X (m)', fontsize=12)
         ax.set_ylabel('Y (m)', fontsize=12)
-        ax.set_title('Truss Stress Distribution', fontsize=14, fontweight='bold')
+        ax.set_title('桁架应力分布图', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
         ax.autoscale()
@@ -451,7 +451,7 @@ class TrussVisualizer(BaseVisualizer):
                 color=displacements,
                 colorscale='Jet',
                 showscale=True,
-                colorbar=dict(title="Displacement (m)"),
+                colorbar=dict(title="位移 (m)"),
                 line=dict(width=1, color='black')
             ),
             text=[f'Node {i}<br>Disp: {d:.6f} m' for i, d in enumerate(displacements)],
@@ -465,7 +465,7 @@ class TrussVisualizer(BaseVisualizer):
             fig.add_trace(line)
 
         fig.update_layout(
-            title='Interactive Truss Displacement',
+            title='桁架位移交互图',
             xaxis_title='X (m)',
             yaxis_title='Y (m)',
             hovermode='closest',
@@ -526,7 +526,7 @@ class TrussVisualizer(BaseVisualizer):
                 ))
 
         fig.update_layout(
-            title='Interactive Truss Stress Distribution',
+            title='桁架应力分布交互图',
             xaxis_title='X (m)',
             yaxis_title='Y (m)',
             hovermode='closest',

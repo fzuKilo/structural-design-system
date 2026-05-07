@@ -217,14 +217,14 @@ class FrameVisualizer(BaseVisualizer):
 
         self._draw_frame(ax, node_coords, num_bays, num_stories,
                          color='gray', linestyle='--', linewidth=0.8,
-                         alpha=0.4, label='Original')
+                         alpha=0.4, label='原始形状')
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        plt.colorbar(sm, ax=ax, label='Displacement (mm)')
+        plt.colorbar(sm, ax=ax, label='位移 (mm)')
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
-        ax.set_title(f'Frame Displacement Contour  (scale x{scale})')
+        ax.set_title(f'框架位移云图  (放大 {scale}×)')
         ax.legend(fontsize=9)
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3)
@@ -283,7 +283,7 @@ class FrameVisualizer(BaseVisualizer):
                 add_elem(s*(num_bays+1)+b, s*(num_bays+1)+b+1, 'Beam')
 
         fig.update_layout(
-            title=f'Frame Displacement Contour (scale x{scale})',
+            title=f'框架位移云图 (放大 {scale}×)',
             xaxis_title='X (m)', yaxis_title='Y (m)',
             yaxis=dict(scaleanchor='x'), showlegend=False, hovermode='closest'
         )
@@ -328,9 +328,9 @@ class FrameVisualizer(BaseVisualizer):
                          color='black', linestyle='-', linewidth=0.6, alpha=0.3)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        plt.colorbar(sm, ax=ax, label='Moment (N·m)')
+        plt.colorbar(sm, ax=ax, label='弯矩 (N·m)')
         ax.set_xlabel('X (m)'); ax.set_ylabel('Y (m)')
-        ax.set_title('Frame Moment Diagram')
+        ax.set_title('框架弯矩图')
         ax.set_aspect('equal'); ax.grid(True, alpha=0.3)
         return self._save_png(fig, 'moment', ts)
 
@@ -369,7 +369,7 @@ class FrameVisualizer(BaseVisualizer):
                     showlegend=False
                 ))
         fig.update_layout(
-            title='Frame Moment Diagram',
+            title='框架弯矩图',
             xaxis_title='X (m)', yaxis_title='Y (m)',
             yaxis=dict(scaleanchor='x'), hovermode='closest'
         )
