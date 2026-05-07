@@ -145,7 +145,7 @@ async def respond_ask_human(
         raise HTTPException(status_code=400, detail="任务当前不在等待输入状态")
 
     redis_key = f"ask_human:{task_id}"
-    _redis.set(redis_key, body.answer, ex=300)
+    _redis.set(redis_key, body.answer, ex=3600)  # TTL must exceed WebAskHuman.timeout (1800s)
     return MessageResponse(message="已提交回答")
 
 

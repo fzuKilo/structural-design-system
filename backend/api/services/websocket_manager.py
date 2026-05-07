@@ -13,6 +13,7 @@ class WebSocketManager:
 
     def __init__(self, redis_url: str = "redis://localhost:6379/0"):
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.redis_url = redis_url
         self.redis_client = redis.from_url(redis_url, decode_responses=True)
         self.pubsub = None
 
@@ -57,13 +58,7 @@ class WebSocketManager:
             import aioredis
 
         channel = f"task:{task_id}"
-        # Use the same redis_url from initialization
-        redis_url = self.redis_client.connection_pool.connection_kwargs.get('host', 'localhost')
-        redis_port = self.redis_client.connection_pool.connection_kwargs.get('port', 6379)
-        redis_db = self.redis_client.connection_pool.connection_kwargs.get('db', 0)
-        full_url = f"redis://{redis_url}:{redis_port}/{redis_db}"
-
-        client = aioredis.from_url(full_url, decode_responses=True)
+        client = aioredis.from_url(self.redis_url, decode_responses=True)
         pubsub = client.pubsub()
 
         try:

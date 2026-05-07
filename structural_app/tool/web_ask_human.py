@@ -386,6 +386,12 @@ class WebAskHuman(AskHuman):
                     return answer
                 await asyncio.sleep(1)
                 elapsed += 1
+
+            # Timeout: clean up stale keys so they don't poison the next ask_human round
+            # or replay as a zombie question on WebSocket reconnect.
+            await client.delete(redis_key)
+            await client.delete(f"ask_human_pending:{self.task_id}")
+            print(f"[WebAskHuman] Timeout waiting for answer (task={self.task_id}), using default: {default!r}")
         finally:
             await client.aclose()
 

@@ -38,7 +38,8 @@ export class WebSocketManager {
   }
 
   private _connect() {
-    const wsUrl = `ws://localhost:8000/ws/design/${this.taskId}?token=${this.token}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/design/${this.taskId}?token=${this.token}`;
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
