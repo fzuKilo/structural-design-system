@@ -547,7 +547,7 @@ class BeamVisualizer(BaseVisualizer):
             y=nodes[:, 1],
             mode='lines',
             line=dict(color='gray', width=2, dash='dash'),
-            name='Original Shape',
+            name='原始形状',
             hoverinfo='skip'
         ))
 
@@ -586,18 +586,18 @@ class BeamVisualizer(BaseVisualizer):
         fig.update_layout(
             title=dict(
                 text=(
-                    f'Interactive Displacement Cloud Plot  '
-                    f'(scale factor: {scale:.0f}×,  max = {max_disp*1000:.3f} mm)'
+                    f'位移云图（交互）  '
+                    f'(放大倍数: {scale:.0f}×,  最大位移 = {max_disp*1000:.3f} mm)'
                 ),
                 font=dict(size=16, family='Arial', color='black')
             ),
             xaxis=dict(
-                title='Position along beam (m)',
+                title='梁轴方向位置 (m)',
                 gridcolor='lightgray',
                 showgrid=True
             ),
             yaxis=dict(
-                title='Displacement (mm)',
+                title='位移 (mm)',
                 gridcolor='lightgray',
                 showgrid=True,
                 range=[y_lo, y_hi],
@@ -679,11 +679,11 @@ class BeamVisualizer(BaseVisualizer):
         # Layout settings
         fig.update_layout(
             title=dict(
-                text='Interactive Bending Moment Cloud Plot',
+                text='弯矩云图（交互）',
                 font=dict(size=18, family='Arial', color='black')
             ),
             xaxis=dict(
-                title='Length (m)',
+                title='长度 (m)',
                 gridcolor='lightgray',
                 showgrid=True
             ),
@@ -767,11 +767,11 @@ class BeamVisualizer(BaseVisualizer):
         # Layout settings
         fig.update_layout(
             title=dict(
-                text='Interactive Bending Stress Cloud Plot',
+                text='弯曲应力云图（交互）',
                 font=dict(size=18, family='Arial', color='black')
             ),
             xaxis=dict(
-                title='Length (m)',
+                title='长度 (m)',
                 gridcolor='lightgray',
                 showgrid=True
             ),

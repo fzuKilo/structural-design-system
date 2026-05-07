@@ -413,7 +413,7 @@ class FrameVisualizer(BaseVisualizer):
             ax.text(0.5, 0.5, 'No lateral load applied\nStory drift = 0',
                     ha='center', va='center', fontsize=14, color='gray',
                     transform=ax.transAxes)
-            ax.set_title('Story Drift Ratio Distribution')
+            ax.set_title('层间位移角分布')
             return self._save_png(fig, 'story_drift', ts)
 
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
@@ -424,9 +424,9 @@ class FrameVisualizer(BaseVisualizer):
                     bar.get_height() + limit*0.02,
                     f'{val:.5f}', ha='center', va='bottom', fontsize=9)
         ax.axhline(limit, color='red', linestyle='--', linewidth=1.5,
-                   label=f'Limit 1/500 = {limit:.4f}')
-        ax.set_xlabel('Story'); ax.set_ylabel('Story Drift Ratio')
-        ax.set_title('Story Drift Ratio Distribution')
+                   label=f'限值 1/500 = {limit:.4f}')
+        ax.set_xlabel('楼层'); ax.set_ylabel('层间位移角')
+        ax.set_title('层间位移角分布')
         ax.legend(fontsize=9); ax.grid(True, axis='y', alpha=0.3)
         return self._save_png(fig, 'story_drift', ts)
 
@@ -441,7 +441,7 @@ class FrameVisualizer(BaseVisualizer):
             fig.add_annotation(text='No lateral load applied — Story drift = 0',
                                xref='paper', yref='paper', x=0.5, y=0.5,
                                showarrow=False, font=dict(size=16, color='gray'))
-            fig.update_layout(title='Story Drift Ratio Distribution')
+            fig.update_layout(title='层间位移角分布')
             return self._save_html(fig, 'story_drift_interactive')
 
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
@@ -454,23 +454,23 @@ class FrameVisualizer(BaseVisualizer):
                 xref='paper', yref='paper', x=0.5, y=0.5,
                 showarrow=False, font=dict(size=16, color='gray')
             )
-            fig.update_layout(title='Story Drift Ratio Distribution',
-                              xaxis_title='Story', yaxis_title='Story Drift Ratio')
+            fig.update_layout(title='层间位移角分布',
+                              xaxis_title='楼层', yaxis_title='层间位移角')
             return self._save_html(fig, 'story_drift_interactive')
 
         colors = ['red' if r > limit else 'steelblue' for r in ratios]
         fig.add_trace(go.Bar(
             x=labels, y=ratios, marker_color=colors,
             text=[f'{r:.5f}' for r in ratios], textposition='outside',
-            hovertemplate='%{x}<br>Drift: %{y:.6f}<extra></extra>',
-            name='Story Drift'
+            hovertemplate='%{x}<br>层间位移角: %{y:.6f}<extra></extra>',
+            name='层间位移角'
         ))
         fig.add_hline(y=limit, line_dash='dash', line_color='red',
-                      annotation_text=f'Limit 1/500={limit:.4f}',
+                      annotation_text=f'限值 1/500={limit:.4f}',
                       annotation_position='top right')
         fig.update_layout(
-            title='Story Drift Ratio Distribution',
-            xaxis_title='Story', yaxis_title='Story Drift Ratio',
+            title='层间位移角分布',
+            xaxis_title='楼层', yaxis_title='层间位移角',
             hovermode='x unified'
         )
         return self._save_html(fig, 'story_drift_interactive')

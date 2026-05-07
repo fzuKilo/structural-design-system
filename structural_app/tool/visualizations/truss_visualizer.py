@@ -234,7 +234,7 @@ class TrussVisualizer(BaseVisualizer):
 
         # Colorbar
         cbar = plt.colorbar(scatter, ax=ax)
-        cbar.set_label('Displacement (m)', fontsize=12)
+        cbar.set_label('位移 (m)', fontsize=12)
 
         ax.set_xlabel('X (m)', fontsize=12)
         ax.set_ylabel('Y (m)', fontsize=12)
@@ -267,7 +267,7 @@ class TrussVisualizer(BaseVisualizer):
 
             # Colorbar
             cbar = plt.colorbar(lc, ax=ax)
-            cbar.set_label('Stress (Pa)', fontsize=12)
+            cbar.set_label('应力 (Pa)', fontsize=12)
 
         # Draw nodes
         x_coords = nodes[:, 0]
@@ -456,7 +456,7 @@ class TrussVisualizer(BaseVisualizer):
             ),
             text=[f'Node {i}<br>Disp: {d:.6f} m' for i, d in enumerate(displacements)],
             hoverinfo='text',
-            name='Nodes'
+            name='节点'
         ))
 
         # Add truss members
@@ -490,7 +490,7 @@ class TrussVisualizer(BaseVisualizer):
             x=x_coords, y=y_coords,
             mode='markers',
             marker=dict(size=10, color='black'),
-            name='Nodes',
+            name='节点',
             hoverinfo='skip'
         ))
 
