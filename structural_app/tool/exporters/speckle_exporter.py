@@ -309,6 +309,98 @@ class SpeckleExporter:
         mesh = Mesh(vertices=verts, faces=faces, units='m')
         return mesh
 
+    def _cylinder_mesh(self, x0: float, y0: float, z0: float,
+                       length: float, radius: float, segments: int = 12):
+        """沿 X 轴方向的圆柱体 Mesh（桁架水平杆）。"""
+        from specklepy.objects.geometry import Mesh
+        import math
+
+        verts = []
+        for x in (x0, x0 + length):
+            for k in range(segments):
+                angle = 2 * math.pi * k / segments
+                verts.extend([x, y0 + radius * math.cos(angle), z0 + radius * math.sin(angle)])
+
+        faces = []
+        # 两端封口
+        for start_idx in (0, segments):
+            for k in range(1, segments - 1):
+                faces.extend([3, start_idx, start_idx + k, start_idx + k + 1])
+        # 侧面
+        for k in range(segments):
+            k_next = (k + 1) % segments
+            faces.extend([4, k, k_next, segments + k_next, segments + k])
+
+        return Mesh(vertices=verts, faces=faces, units='m')
+
+    def _vertical_cylinder_mesh(self, x: float, y0: float, z0: float,
+                                 height: float, radius: float, segments: int = 12):
+        """沿 Z 轴方向的圆柱体 Mesh（桁架竖腹杆）。"""
+        from specklepy.objects.geometry import Mesh
+        import math
+
+        verts = []
+        for z in (z0, z0 + height):
+            for k in range(segments):
+                angle = 2 * math.pi * k / segments
+                verts.extend([x + radius * math.cos(angle), y0 + radius * math.sin(angle), z])
+
+        faces = []
+        for start_idx in (0, segments):
+            for k in range(1, segments - 1):
+                faces.extend([3, start_idx, start_idx + k, start_idx + k + 1])
+        for k in range(segments):
+            k_next = (k + 1) % segments
+            faces.extend([4, k, k_next, segments + k_next, segments + k])
+
+        return Mesh(vertices=verts, faces=faces, units='m')
+
+    def _diagonal_cylinder_mesh(self, x0: float, y0: float, z0: float,
+                                 x1: float, y1: float, z1: float,
+                                 radius: float, segments: int = 12):
+        """连接两点的斜向圆柱体 Mesh（桁架斜腹杆）。"""
+        from specklepy.objects.geometry import Mesh
+        import math
+
+        dx, dy, dz = x1 - x0, y1 - y0, z1 - z0
+        length = math.sqrt(dx**2 + dy**2 + dz**2)
+        if length < 1e-6:
+            return None
+
+        ux, uy, uz = dx / length, dy / length, dz / length
+
+        # 构建垂直于轴向的局部坐标系
+        ref = (1.0, 0.0, 0.0) if abs(ux) < 0.9 else (0.0, 1.0, 0.0)
+        wx = uy * ref[2] - uz * ref[1]
+        wy = uz * ref[0] - ux * ref[2]
+        wz = ux * ref[1] - uy * ref[0]
+        w_len = math.sqrt(wx**2 + wy**2 + wz**2)
+        wx, wy, wz = wx / w_len, wy / w_len, wz / w_len
+        nx = uy * wz - uz * wy
+        ny = uz * wx - ux * wz
+        nz = ux * wy - uy * wx
+
+        verts = []
+        for end in ((x0, y0, z0), (x1, y1, z1)):
+            for k in range(segments):
+                angle = 2 * math.pi * k / segments
+                c, s = math.cos(angle), math.sin(angle)
+                verts.extend([
+                    end[0] + radius * (c * wx + s * nx),
+                    end[1] + radius * (c * wy + s * ny),
+                    end[2] + radius * (c * wz + s * nz),
+                ])
+
+        faces = []
+        for start_idx in (0, segments):
+            for k in range(1, segments - 1):
+                faces.extend([3, start_idx, start_idx + k, start_idx + k + 1])
+        for k in range(segments):
+            k_next = (k + 1) % segments
+            faces.extend([4, k, k_next, segments + k_next, segments + k])
+
+        return Mesh(vertices=verts, faces=faces, units='m')
+
     def _build_geometry(self, structure_type: str, design_proposal: Dict) -> List:
         """根据结构类型分发几何构建。"""
         if structure_type in ('beam', 'cantilever_beam', 'continuous_beam'):
@@ -365,38 +457,40 @@ class SpeckleExporter:
         return meshes
 
     def _truss_meshes(self, design_proposal: Dict) -> List:
-        """桁架结构：下弦、上弦、腹杆。"""
+        """桁架结构：下弦、上弦、腹杆（圆形截面）。"""
+        import math
         geometry = design_proposal.get('geometry', {})
+        material = design_proposal.get('material', {})
         span = float(geometry.get('span', 10.0))
         height = float(geometry.get('height', 2.0))
         n_panels = int(geometry.get('n_panels', 4))
-        bar_size = 0.1  # 桁架杆件截面默认0.1m
+
+        # 从截面积 A 反算圆形截面半径，与分析器保持一致；A 缺失时退化为默认值
+        A = float(material.get('A', math.pi * 0.05 ** 2))
+        radius = math.sqrt(A / math.pi)
 
         panel_len = span / n_panels
         meshes = []
 
-        # 下弦杆
+        # 下弦杆（圆柱）
         for i in range(n_panels):
-            meshes.append(self._box_mesh(i * panel_len, 0.0, 0.0, panel_len, bar_size, bar_size))
+            meshes.append(self._cylinder_mesh(i * panel_len, 0.0, 0.0, panel_len, radius))
 
-        # 上弦杆
+        # 上弦杆（圆柱）
         for i in range(n_panels):
-            meshes.append(self._box_mesh(i * panel_len, 0.0, height, panel_len, bar_size, bar_size))
+            meshes.append(self._cylinder_mesh(i * panel_len, 0.0, height, panel_len, radius))
 
-        # 竖腹杆（含两端）
+        # 竖腹杆（圆柱）
         for i in range(n_panels + 1):
-            meshes.append(self._vertical_box_mesh(i * panel_len, 0.0, 0.0, height, bar_size, bar_size))
+            meshes.append(self._vertical_cylinder_mesh(i * panel_len, 0.0, 0.0, height, radius))
 
-        # 斜腹杆（使用真正的斜向杆件）
+        # 斜腹杆（斜向圆柱）
         for i in range(n_panels):
             x0 = i * panel_len
             x1 = x0 + panel_len
-            # 奇偶交替方向：偶数从下到上，奇数从上到下
             if i % 2 == 0:
-                # 从下左到上右
-                meshes.append(self._diagonal_box_mesh(x0, 0.0, 0.0, x1, 0.0, height, bar_size))
+                meshes.append(self._diagonal_cylinder_mesh(x0, 0.0, 0.0, x1, 0.0, height, radius))
             else:
-                # 从上左到下右
-                meshes.append(self._diagonal_box_mesh(x0, 0.0, height, x1, 0.0, 0.0, bar_size))
+                meshes.append(self._diagonal_cylinder_mesh(x0, 0.0, height, x1, 0.0, 0.0, radius))
 
         return meshes

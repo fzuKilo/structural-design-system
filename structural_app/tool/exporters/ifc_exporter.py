@@ -259,66 +259,67 @@ class IfcExporter:
 
     def _build_truss(self, model, body_ctx, storey, design_proposal: Dict) -> List:
         geometry  = design_proposal.get('geometry', {})
+        material  = design_proposal.get('material', {})
         span      = float(geometry.get('span', 10.0))
         height    = float(geometry.get('height', 2.0))
         n_panels  = int(geometry.get('n_panels', 4))
-        bar_size  = 0.1
+
+        # 从截面积 A 反算圆形截面半径，与分析器保持一致；A 缺失时退化为默认值
+        A = float(material.get('A', math.pi * 0.05 ** 2))
+        radius = math.sqrt(A / math.pi)
 
         panel_len = span / n_panels
         elements  = []
 
-        # 下弦
+        # 下弦（圆形截面水平杆）
         for i in range(n_panels):
-            m = self._create_beam_member(
+            m = self._create_circular_beam_member(
                 model, body_ctx, storey,
                 name=f'BottomChord-{i+1}',
                 x0=i * panel_len, y0=0.0, z0=0.0,
-                length=panel_len, width=bar_size, height=bar_size,
+                length=panel_len, radius=radius,
             )
             elements.append(m)
 
-        # 上弦
+        # 上弦（圆形截面水平杆）
         for i in range(n_panels):
-            m = self._create_beam_member(
+            m = self._create_circular_beam_member(
                 model, body_ctx, storey,
                 name=f'TopChord-{i+1}',
                 x0=i * panel_len, y0=0.0, z0=height,
-                length=panel_len, width=bar_size, height=bar_size,
+                length=panel_len, radius=radius,
             )
             elements.append(m)
 
-        # 竖腹杆
+        # 竖腹杆（圆形截面竖向杆）
         for i in range(n_panels + 1):
-            m = self._create_column_member(
+            m = self._create_circular_column_member(
                 model, body_ctx, storey,
                 name=f'Vertical-{i+1}',
                 x=i * panel_len, y=0.0, z_base=0.0,
-                height=height, width=bar_size, depth=bar_size,
+                height=height, radius=radius,
             )
             elements.append(m)
 
-        # 斜腹杆（真正的斜向杆件）
+        # 斜腹杆（圆形截面斜向杆）
         for i in range(n_panels):
             x0 = i * panel_len
             x1 = x0 + panel_len
-            # 奇偶交替方向
             if i % 2 == 0:
-                # 从下左到上右
-                m = self._create_diagonal_member(
+                m = self._create_circular_diagonal_member(
                     model, body_ctx, storey,
                     name=f'Diagonal-{i+1}',
                     x0=x0, y0=0.0, z0=0.0,
                     x1=x1, y1=0.0, z1=height,
-                    width=bar_size, depth=bar_size,
+                    radius=radius,
                 )
             else:
-                # 从上左到下右
-                m = self._create_diagonal_member(
+                m = self._create_circular_diagonal_member(
                     model, body_ctx, storey,
                     name=f'Diagonal-{i+1}',
                     x0=x0, y0=0.0, z0=height,
                     x1=x1, y1=0.0, z1=0.0,
-                    width=bar_size, depth=bar_size,
+                    radius=radius,
                 )
             elements.append(m)
 
@@ -507,6 +508,171 @@ class IfcExporter:
         diag.Representation = prod_def
 
         return diag
+
+    def _create_circular_beam_member(
+        self, model, body_ctx, storey,
+        name: str,
+        x0: float, y0: float, z0: float,
+        length: float, radius: float,
+    ):
+        """创建沿 X 轴方向的 IfcMember（圆形截面拉伸体，用于桁架水平杆）。"""
+        import ifcopenshell.api
+
+        member = ifcopenshell.api.run('root.create_entity', model,
+                                      ifc_class='IfcMember', name=name)
+        ifcopenshell.api.run('spatial.assign_container', model,
+                             relating_structure=storey, products=[member])
+
+        profile = model.createIfcCircleProfileDef(
+            'AREA', None,
+            model.createIfcAxis2Placement2D(
+                model.createIfcCartesianPoint([0.0, 0.0])
+            ),
+            radius,
+        )
+
+        extrusion_dir = model.createIfcDirection([0.0, 0.0, 1.0])
+        axis_placement = model.createIfcAxis2Placement3D(
+            model.createIfcCartesianPoint([0.0, 0.0, 0.0]),
+            model.createIfcDirection([1.0, 0.0, 0.0]),
+            model.createIfcDirection([0.0, 1.0, 0.0]),
+        )
+        solid = model.createIfcExtrudedAreaSolid(
+            profile, axis_placement, extrusion_dir, length
+        )
+
+        shape_rep = model.createIfcShapeRepresentation(
+            body_ctx, 'Body', 'SweptSolid', [solid]
+        )
+        prod_def = model.createIfcProductDefinitionShape(
+            None, None, [shape_rep]
+        )
+
+        location = model.createIfcCartesianPoint([x0, y0, z0])
+        local_placement = model.createIfcLocalPlacement(
+            None,
+            model.createIfcAxis2Placement3D(
+                location,
+                model.createIfcDirection([0.0, 0.0, 1.0]),
+                model.createIfcDirection([1.0, 0.0, 0.0]),
+            )
+        )
+        member.ObjectPlacement = local_placement
+        member.Representation = prod_def
+
+        return member
+
+    def _create_circular_column_member(
+        self, model, body_ctx, storey,
+        name: str,
+        x: float, y: float, z_base: float,
+        height: float, radius: float,
+    ):
+        """创建沿 Z 轴方向的 IfcMember（圆形截面拉伸体，用于桁架竖腹杆）。"""
+        import ifcopenshell.api
+
+        member = ifcopenshell.api.run('root.create_entity', model,
+                                      ifc_class='IfcMember', name=name)
+        ifcopenshell.api.run('spatial.assign_container', model,
+                             relating_structure=storey, products=[member])
+
+        profile = model.createIfcCircleProfileDef(
+            'AREA', None,
+            model.createIfcAxis2Placement2D(
+                model.createIfcCartesianPoint([0.0, 0.0])
+            ),
+            radius,
+        )
+
+        extrusion_dir = model.createIfcDirection([0.0, 0.0, 1.0])
+        axis_placement = model.createIfcAxis2Placement3D(
+            model.createIfcCartesianPoint([0.0, 0.0, 0.0]),
+            model.createIfcDirection([0.0, 0.0, 1.0]),
+            model.createIfcDirection([1.0, 0.0, 0.0]),
+        )
+        solid = model.createIfcExtrudedAreaSolid(
+            profile, axis_placement, extrusion_dir, height
+        )
+
+        shape_rep = model.createIfcShapeRepresentation(
+            body_ctx, 'Body', 'SweptSolid', [solid]
+        )
+        prod_def = model.createIfcProductDefinitionShape(
+            None, None, [shape_rep]
+        )
+
+        location = model.createIfcCartesianPoint([x, y, z_base])
+        local_placement = model.createIfcLocalPlacement(
+            None,
+            model.createIfcAxis2Placement3D(
+                location,
+                model.createIfcDirection([0.0, 0.0, 1.0]),
+                model.createIfcDirection([1.0, 0.0, 0.0]),
+            )
+        )
+        member.ObjectPlacement = local_placement
+        member.Representation = prod_def
+
+        return member
+
+    def _create_circular_diagonal_member(
+        self, model, body_ctx, storey,
+        name: str,
+        x0: float, y0: float, z0: float,
+        x1: float, y1: float, z1: float,
+        radius: float,
+    ):
+        """创建斜向 IfcMember（圆形截面，用于桁架斜腹杆）。"""
+        import ifcopenshell.api
+
+        member = ifcopenshell.api.run('root.create_entity', model,
+                                      ifc_class='IfcMember', name=name)
+        ifcopenshell.api.run('spatial.assign_container', model,
+                             relating_structure=storey, products=[member])
+
+        dx = x1 - x0
+        dy = y1 - y0
+        dz = z1 - z0
+        length = math.sqrt(dx**2 + dy**2 + dz**2)
+
+        profile = model.createIfcCircleProfileDef(
+            'AREA', None,
+            model.createIfcAxis2Placement2D(
+                model.createIfcCartesianPoint([0.0, 0.0])
+            ),
+            radius,
+        )
+
+        extrusion_dir = model.createIfcDirection([0.0, 0.0, 1.0])
+        axis_placement = model.createIfcAxis2Placement3D(
+            model.createIfcCartesianPoint([0.0, 0.0, 0.0]),
+            model.createIfcDirection([dx/length, dy/length, dz/length]),
+            model.createIfcDirection([1.0, 0.0, 0.0]) if abs(dz) > 0.01 else model.createIfcDirection([0.0, 1.0, 0.0]),
+        )
+        solid = model.createIfcExtrudedAreaSolid(
+            profile, axis_placement, extrusion_dir, length
+        )
+
+        shape_rep = model.createIfcShapeRepresentation(
+            body_ctx, 'Body', 'SweptSolid', [solid]
+        )
+        prod_def = model.createIfcProductDefinitionShape(
+            None, None, [shape_rep]
+        )
+
+        location = model.createIfcCartesianPoint([x0, y0, z0])
+        local_placement = model.createIfcLocalPlacement(
+            None,
+            model.createIfcAxis2Placement3D(
+                location,
+                model.createIfcDirection([0.0, 0.0, 1.0]),
+                model.createIfcDirection([1.0, 0.0, 0.0]),
+            )
+        )
+        member.ObjectPlacement = local_placement
+        member.Representation = prod_def
+
+        return member
 
     # ------------------------------------------------------------------
     # 材料
