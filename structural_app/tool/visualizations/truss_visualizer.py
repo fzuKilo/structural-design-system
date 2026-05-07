@@ -299,13 +299,16 @@ class TrussVisualizer(BaseVisualizer):
         y_coords = nodes[:, 1]
 
         # Draw original truss (gray, dashed)
-        self._draw_truss_members(ax, nodes, n_panels, color='gray', linestyle='--', alpha=0.5, label='Original')
+        self._draw_truss_members(ax, nodes, n_panels, color='gray', linestyle='--', alpha=0.5, label='原始形状')
 
         # Draw deformed shape if displacements available
+        scale_factor = None
+        max_disp = None
         if len(displacements) > 0 and len(displacements) == len(nodes):
             # Scale factor for visibility
             max_disp = max(displacements) if max(displacements) > 0 else 1.0
             scale_factor = span * 0.1 / max_disp  # Scale to 10% of span
+            scale_factor_rounded = round(scale_factor)
 
             # Calculate deformed positions (simplified: assume vertical displacement)
             deformed_nodes = nodes.copy()
@@ -314,14 +317,23 @@ class TrussVisualizer(BaseVisualizer):
                 deformed_nodes[i, 1] -= displacements[i] * scale_factor
 
             # Draw deformed truss (red, solid)
-            self._draw_truss_members(ax, deformed_nodes, n_panels, color='red', linestyle='-', alpha=0.8, label='Deformed (scaled)')
+            self._draw_truss_members(ax, deformed_nodes, n_panels, color='red', linestyle='-', alpha=0.8,
+                                     label=f'变形图 (放大 {scale_factor_rounded}×)')
 
         # Draw nodes
-        ax.scatter(x_coords, y_coords, c='blue', s=100, zorder=5, label='Nodes')
+        ax.scatter(x_coords, y_coords, c='blue', s=100, zorder=5, label='节点')
 
         ax.set_xlabel('X (m)', fontsize=12)
         ax.set_ylabel('Y (m)', fontsize=12)
-        ax.set_title('Truss Topology and Deformation', fontsize=14, fontweight='bold')
+
+        # Title with actual max displacement
+        if max_disp is not None:
+            max_disp_mm = max_disp * 1000
+            ax.set_title(f'桁架拓扑与变形图\n最大位移: {max_disp_mm:.3f} mm（变形已放大 {scale_factor_rounded}× 显示）',
+                         fontsize=13, fontweight='bold')
+        else:
+            ax.set_title('桁架拓扑图', fontsize=14, fontweight='bold')
+
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
         ax.set_aspect('equal')
