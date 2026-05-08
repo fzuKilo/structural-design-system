@@ -26,10 +26,7 @@ export async function loginApi(data: AuthApi.LoginParams) {
     '/auth/login',
     { username, password },
   );
-  console.log('[loginApi] 完整响应:', res);
-  // 兼容不同结构
   const token = res?.access_token ?? res?.data?.access_token ?? res?.accessToken;
-  console.log('[loginApi] 提取到token:', token);
   return { accessToken: token };
 }
 
