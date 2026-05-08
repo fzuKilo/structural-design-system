@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useAccessStore } from '@vben/stores';
 
-import { cancelDesignApi, getDesignDetailApi, getPendingAskApi } from '#/api/design';
+import { cancelDesignApi, getDesignDetailApi, getPendingAskApi, respondDesignApi } from '#/api/design';
 import ProgressBar from '#/components/design/ProgressBar.vue';
 import ResultViewer from '#/components/design/ResultViewer.vue';
 import { WebSocketManager } from '#/utils/websocket';
@@ -36,7 +36,7 @@ const taskParams = computed(() => {
     maxStress: r.analysis_results?.results?.max_stress_MPa ?? null,
     maxDeflection: r.analysis_results?.results?.max_displacement_mm ?? null,
     safetyFactor: r.analysis_results?.results?.safety_factor ?? null,
-    complianceStatus: r.analysis_results?.code_check?.compliant ? 'compliant' : 'non_compliant',
+    complianceStatus: r.analysis_results?.code_check?.compliant === true ? 'compliant' : r.analysis_results?.code_check?.compliant === false ? 'non_compliant' : null,
     violations: r.analysis_results?.code_check?.violations || [],
     safetyScore: r.evaluation_report?.dimensions?.safety?.score ?? null,
     economyScore: r.evaluation_report?.dimensions?.economy?.score ?? null,
@@ -312,12 +312,7 @@ const handleAskHumanSubmit = async (answer: string) => {
       },
     ];
   }
-  const token = accessStore.accessToken;
-  await fetch(`/api/design/${route.params.id}/respond`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ answer }),
-  });
+  await respondDesignApi(route.params.id as string, answer);
 };
 
 const handleCancel = async () => {
@@ -331,7 +326,6 @@ const handleCancel = async () => {
   try {
     wsManager?.disconnect();
     wsManager = null;
-    addLog('任务已取消', '#fa8c16');
     message.success('任务已成功取消');
     await loadTask();
   } finally {

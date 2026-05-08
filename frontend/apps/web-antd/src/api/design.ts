@@ -44,3 +44,8 @@ export async function getPendingAskApi(taskId: string) {
   const res = await baseRequestClient.get<any>(`/design/${taskId}/pending-ask`);
   return (res as any)?.data ?? res;
 }
+
+export async function respondDesignApi(taskId: string, answer: string) {
+  const res = await baseRequestClient.post<any>(`/design/${taskId}/respond`, { answer });
+  return (res as any)?.data ?? res;
+}
