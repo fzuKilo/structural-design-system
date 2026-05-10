@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y \
 
 # 先安装后端专用依赖（变化少，利用缓存）
 COPY backend/requirements-api.txt ./backend/requirements-api.txt
-RUN pip install --no-cache-dir -r backend/requirements-api.txt
+RUN pip install --no-cache-dir --retries 5 --timeout 120 -r backend/requirements-api.txt
 
 # 再安装核心依赖（含 OpenManus，从 GitHub 安装）
 COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --retries 5 --timeout 120 -r requirements.txt
 
 # 复制项目代码
 COPY . .
