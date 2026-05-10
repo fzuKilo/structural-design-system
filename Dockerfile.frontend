@@ -2,8 +2,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 安装 pnpm
-RUN npm install -g pnpm
+# 安装 git（lefthook 需要）和 pnpm
+RUN apk add --no-cache git && npm install -g pnpm
 
 # 复制依赖文件
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
