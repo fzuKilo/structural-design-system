@@ -797,6 +797,7 @@ const metricLabels: Record<string, string> = {
 const metricUnits: Record<string, string> = {
   stress: ' MPa',
   displacement: ' mm',
+  section: ' m',
 };
 
 const metricValue = (key: string, val: any): string => {
