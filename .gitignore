@@ -88,3 +88,8 @@ frontend_backup/
 
 # 自动生成的空模板，未实际配置
 lefthook.yml
+
+# OpenManus vendor - 排除运行时生成目录
+vendor/OpenManus/logs/
+vendor/OpenManus/workspace/
+vendor/OpenManus/*.egg-info/
