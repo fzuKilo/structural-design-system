@@ -14,7 +14,12 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements-api.txt ./backend/requirements-api.txt
 RUN pip install --no-cache-dir --retries 5 --timeout 120 -r backend/requirements-api.txt
 
-# 再安装核心依赖（含 OpenManus，从 GitHub 安装）
+# 单独安装 OpenManus（用镜像加速，避免直连 GitHub 超时）
+RUN git clone --depth=1 https://ghproxy.cn/https://github.com/FoundationAgents/OpenManus.git /tmp/OpenManus \
+    && pip install --no-cache-dir /tmp/OpenManus \
+    && rm -rf /tmp/OpenManus
+
+# 安装其余核心依赖
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --retries 5 --timeout 120 -r requirements.txt
 

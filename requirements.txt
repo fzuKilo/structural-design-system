@@ -2,8 +2,7 @@
 # CI 可安装的核心依赖（不含需要本地软件的包）
 # ===========================================================================
 
-# OpenManus 框架
-git+https://github.com/FoundationAgents/OpenManus.git
+# OpenManus 框架（在 Dockerfile 中单独通过镜像安装）
 
 # 有限元分析（核心）
 openseespy>=3.5.0
