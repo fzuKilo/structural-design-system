@@ -32,9 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
-      console.log('[Login] 开始登录, params:', params);
       const { accessToken } = await loginApi(params);
-      console.log('[Login] 获取到token:', accessToken);
 
       if (accessToken) {
         accessStore.setAccessToken(accessToken);
@@ -45,8 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
         ]);
 
         userInfo = fetchUserInfoResult;
-        console.log('[Login] 用户信息:', userInfo);
-        console.log('[Login] 权限码:', accessCodes);
 
         userStore.setUserInfo(userInfo);
         accessStore.setAccessCodes(accessCodes);
@@ -69,8 +65,13 @@ export const useAuthStore = defineStore('auth', () => {
           });
         }
       }
-    } catch (error) {
-      console.error('[Login] 登录失败:', error);
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail ?? error?.message ?? '登录失败，请检查用户名和密码';
+      notification.error({
+        description: detail,
+        duration: 4,
+        message: '登录失败',
+      });
     } finally {
       loginLoading.value = false;
     }

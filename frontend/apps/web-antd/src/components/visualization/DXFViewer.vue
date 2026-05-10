@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { Button as AButton, Spin as ASpin } from 'ant-design-vue'
+import { useAccessStore } from '@vben/stores'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -68,6 +69,7 @@ const props = defineProps<{
 }>()
 
 const height = props.height ?? 400
+const accessStore = useAccessStore()
 const svgContent = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -78,7 +80,7 @@ const dragStart = ref({ x: 0, y: 0 })
 const containerRef = ref<HTMLElement | null>(null)
 
 const downloadUrl = computed(() => {
-  const token = localStorage.getItem('token')
+  const token = accessStore.accessToken
   return `/api/file/download?path=${encodeURIComponent(props.src)}&token=${token}`
 })
 
@@ -95,7 +97,7 @@ const loadDxf = async () => {
   error.value = ''
   svgContent.value = ''
   try {
-    const token = localStorage.getItem('token')
+    const token = accessStore.accessToken
     const res = await axios.get('/api/file/preview', {
       params: { path: props.src },
       headers: token ? { Authorization: `Bearer ${token}` } : {},
