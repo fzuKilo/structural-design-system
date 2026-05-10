@@ -90,7 +90,7 @@ class RAGEnhancedEvaluatorMixin:
                 if clause:
                     parts.append(f"第{clause}条")
                 if snippet:
-                    parts.append(f"— {snippet}")
+                    parts.append(f"- {snippet}")
 
                 return " ".join(parts) if parts else f"参考: {source}"
 
@@ -177,7 +177,7 @@ class RAGEnhancedEvaluatorMixin:
             chinese_chars = sum(1 for c in line if '\u4e00' <= c <= '\u9fff')
             if chinese_chars < 3:
                 continue
-            return line[:max_len] + ('…' if len(line) > max_len else '')
+            return line[:max_len].rstrip(':') + ('…' if len(line) > max_len else '')
         return None
 
     def enhance_construction_issue_with_citation(

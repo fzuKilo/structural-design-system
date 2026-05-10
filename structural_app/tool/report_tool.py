@@ -87,6 +87,8 @@ class ReportTool(BaseTool):
             if report_data and isinstance(report_data, str):
                 # Parse JSON string
                 try:
+                    # 预处理：替换全角破折号等可能导致 LLM 序列化出错的特殊字符
+                    report_data = report_data.replace('\u2014', '-').replace('\u2013', '-')
                     parsed_data = json.loads(report_data)
                     design_proposal = parsed_data.get('design_proposal')
                     analysis_results = parsed_data.get('analysis_results')
