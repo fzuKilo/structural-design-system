@@ -33,7 +33,8 @@ RUN pip install --no-cache-dir --no-deps /tmp/OpenManus \
         "unidiff~=0.7.5" \
         "aiofiles~=24.1.0" \
         "colorama~=0.4.6" \
-    && rm -rf /tmp/OpenManus
+    && rm -rf /tmp/OpenManus \
+    && pip install --no-cache-dir "bcrypt==3.2.2" "passlib[bcrypt]==1.7.4"
 
 # 安装其余核心依赖
 COPY requirements.txt ./requirements.txt
