@@ -34,6 +34,7 @@ RUN pip install --no-cache-dir --no-deps /tmp/OpenManus \
         "aiofiles~=24.1.0" \
         "colorama~=0.4.6" \
         "tiktoken>=0.7.0" \
+        "boto3>=1.34.0" \
     && rm -rf /tmp/OpenManus
 
 # 安装其余核心依赖

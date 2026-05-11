@@ -5,10 +5,7 @@ import sys
 import os
 import json
 
-# Add OpenManus to Python path
-openmanus_path = r"C:\Users\86177\Desktop\OpenManus"
-if openmanus_path not in sys.path:
-    sys.path.insert(0, openmanus_path)
+# OpenManus is installed as a package via pip, no manual path needed
 
 import asyncio
 from backend.tasks.celery_app import celery_app
@@ -91,8 +88,8 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
         """Async wrapper that calls sync Redis publish"""
         ws_callback_sync(message)
 
-    # Set OpenManus config path to avoid "No configuration file found" error
-    os.environ['OPENMANUS_CONFIG_DIR'] = 'C:/Users/86177/projects/structural-design-system'
+    # Set OpenManus config path
+    os.environ['OPENMANUS_CONFIG_DIR'] = '/app'
 
     with get_db_context() as db:
         task = db.query(Task).filter(Task.id == task_id).first()
