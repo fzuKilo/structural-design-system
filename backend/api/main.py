@@ -1,6 +1,7 @@
 """
 FastAPI Main Application
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.config import settings
@@ -8,12 +9,18 @@ from backend.api.routes import auth, design, file, websocket, admin
 from backend.api.middleware import get_current_user
 from backend.database import Base, engine, User
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create database tables on startup (after container joins the network)
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title=settings.API_TITLE,
-    version=settings.API_VERSION
+    version=settings.API_VERSION,
+    lifespan=lifespan,
 )
 
 # CORS middleware
