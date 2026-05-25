@@ -29,8 +29,8 @@ from .base_visualizer import BaseVisualizer
 
 # ── Chinese font setup ────────────────────────────────────────────────────────
 def _setup_chinese_font():
-    candidates = ['Microsoft YaHei', 'SimHei', 'SimSun', 'WenQuanYi Micro Hei',
-                  'Noto Sans CJK SC', 'Arial Unicode MS']
+    candidates = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei',
+                  'Noto Sans CJK SC', 'Microsoft YaHei', 'SimHei', 'SimSun']
     available = {f.name for f in font_manager.fontManager.ttflist}
     for font in candidates:
         if font in available:

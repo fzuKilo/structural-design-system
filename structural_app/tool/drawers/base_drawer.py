@@ -289,7 +289,19 @@ class StructureDrawer(ABC):
             import ezdxf
             from ezdxf.addons.drawing import RenderContext, Frontend
             from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+            import matplotlib
             import matplotlib.pyplot as plt
+            from matplotlib import font_manager
+
+            # Chinese font setup for DXF preview rendering
+            candidates = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei',
+                          'Noto Sans CJK SC', 'Microsoft YaHei', 'SimHei', 'SimSun']
+            available = {f.name for f in font_manager.fontManager.ttflist}
+            for font in candidates:
+                if font in available:
+                    matplotlib.rcParams['font.family'] = font
+                    break
+            matplotlib.rcParams['axes.unicode_minus'] = False
 
             doc = ezdxf.readfile(dxf_path)
             msp = doc.modelspace()

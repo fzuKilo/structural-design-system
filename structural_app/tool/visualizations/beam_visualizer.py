@@ -22,6 +22,21 @@ except ImportError:
 from .base_visualizer import BaseVisualizer
 
 
+# ── Chinese font setup ────────────────────────────────────────────────────────
+def _setup_chinese_font():
+    from matplotlib import font_manager
+    candidates = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei',
+                  'Noto Sans CJK SC', 'Microsoft YaHei', 'SimHei', 'SimSun']
+    available = {f.name for f in font_manager.fontManager.ttflist}
+    for font in candidates:
+        if font in available:
+            matplotlib.rcParams['font.family'] = font
+            break
+    matplotlib.rcParams['axes.unicode_minus'] = False
+
+_setup_chinese_font()
+
+
 class BeamVisualizer(BaseVisualizer):
     """
     Visualizer for beam structure analysis results

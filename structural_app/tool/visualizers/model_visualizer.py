@@ -11,6 +11,21 @@ from matplotlib.patches import FancyArrowPatch
 from typing import Dict, Any
 
 
+# ── Chinese font setup ────────────────────────────────────────────────────────
+def _setup_chinese_font():
+    from matplotlib import font_manager
+    candidates = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei',
+                  'Noto Sans CJK SC', 'Microsoft YaHei', 'SimHei', 'SimSun']
+    available = {f.name for f in font_manager.fontManager.ttflist}
+    for font in candidates:
+        if font in available:
+            matplotlib.rcParams['font.family'] = font
+            break
+    matplotlib.rcParams['axes.unicode_minus'] = False
+
+_setup_chinese_font()
+
+
 class ModelVisualizer:
     """
     Static methods to visualize structural models and save as PNG.
