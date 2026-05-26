@@ -303,6 +303,11 @@ class StructureDrawer(ABC):
                     break
             matplotlib.rcParams['axes.unicode_minus'] = False
 
+            # Let ezdxf find system fonts (it does not scan system dirs by default)
+            from pathlib import Path as _Path
+            import ezdxf.fonts.fonts as _ezdxf_fonts
+            _ezdxf_fonts.font_manager.scan_folder(_Path('/usr/share/fonts'))
+
             doc = ezdxf.readfile(dxf_path)
             msp = doc.modelspace()
 

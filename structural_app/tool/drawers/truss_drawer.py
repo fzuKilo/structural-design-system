@@ -61,19 +61,13 @@ class TrussDrawer(StructureDrawer):
         try:
             doc.styles.new(
                 name='CHINESE',
-                dxfattribs={'font': 'simhei.ttf'}
+                dxfattribs={'font': 'wqy-microhei.ttc'}
             )
         except Exception:
-            try:
-                doc.styles.new(
-                    name='CHINESE',
-                    dxfattribs={'font': 'simsun.ttc'}
-                )
-            except Exception:
-                doc.styles.new(
-                    name='CHINESE',
-                    dxfattribs={'font': 'Arial.ttf'}
-                )
+            doc.styles.new(
+                name='CHINESE',
+                dxfattribs={'font': 'Arial.ttf'}
+            )
 
     def _setup_dimstyle(self, doc):
         """配置 MM_UNITS 标注样式（坐标系为米，dimlfac=1.0）"""
@@ -286,7 +280,7 @@ class TrussDrawer(StructureDrawer):
         try:
             # Create new DXF document
             doc = ezdxf.new('R2010')
-            doc.styles.new('chinese', dxfattribs={'font': 'simsun.ttf'})
+            doc.styles.new('chinese', dxfattribs={'font': 'wqy-microhei.ttc'})
             msp = doc.modelspace()
 
             # Extract parameters

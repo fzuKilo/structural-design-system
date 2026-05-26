@@ -343,19 +343,13 @@ class BeamDrawer(StructureDrawer):
         try:
             doc.styles.new(
                 name='CHINESE',
-                dxfattribs={'font': 'simhei.ttf'}
+                dxfattribs={'font': 'wqy-microhei.ttc'}
             )
         except Exception:
-            try:
-                doc.styles.new(
-                    name='CHINESE',
-                    dxfattribs={'font': 'simsun.ttc'}
-                )
-            except Exception:
-                doc.styles.new(
-                    name='CHINESE',
-                    dxfattribs={'font': 'Arial.ttf'}
-                )
+            doc.styles.new(
+                name='CHINESE',
+                dxfattribs={'font': 'Arial.ttf'}
+            )
 
     def _draw_beam_elevation(
         self,

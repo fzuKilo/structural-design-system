@@ -250,12 +250,9 @@ class FrameDrawer(StructureDrawer):
     def _setup_chinese_style(self, doc):
         """Setup Chinese font style for the DXF document"""
         try:
-            doc.styles.new('CHINESE', dxfattribs={'font': 'simhei.ttf'})
+            doc.styles.new('CHINESE', dxfattribs={'font': 'wqy-microhei.ttc'})
         except Exception:
-            try:
-                doc.styles.new('CHINESE', dxfattribs={'font': 'simsun.ttc'})
-            except Exception:
-                doc.styles.new('CHINESE', dxfattribs={'font': 'Arial.ttf'})
+            doc.styles.new('CHINESE', dxfattribs={'font': 'Arial.ttf'})
 
     def _add_dimensions(self, msp, num_bays: int, num_stories: int,
                        bay_widths_mm: List[float], story_heights_mm: List[float]):
