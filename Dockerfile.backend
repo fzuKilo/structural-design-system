@@ -18,8 +18,11 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements-api.txt ./backend/requirements-api.txt
 RUN pip install --no-cache-dir --retries 5 --timeout 120 -r backend/requirements-api.txt
 
+# 安装中文字体（解决 matplotlib/ezdxf 中文渲染问题）
+RUN apt-get update && apt-get install -y fonts-wqy-microhei && rm -rf /var/lib/apt/lists/*
+
 # 单独安装 OpenManus（从本地 vendor 目录安装，无需网络）
-# 用 --no-deps 跳过 browsergym/browser-use/torch 等不需要的重型依赖
+# 用 --no-deps 安装包本身，再手动补齐所有运行时依赖（跳过 playwright/browsergym 等浏览器自动化重型依赖）
 COPY vendor/OpenManus /tmp/OpenManus
 RUN pip install --no-cache-dir --no-deps /tmp/OpenManus \
     && pip install --no-cache-dir \
@@ -35,11 +38,16 @@ RUN pip install --no-cache-dir --no-deps /tmp/OpenManus \
         "colorama~=0.4.6" \
         "tiktoken>=0.7.0" \
         "boto3>=1.34.0" \
+        "docker~=7.1.0" \
+        "structlog~=24.1.0" \
+        "browser-use~=0.1.40" \
+        "pyee>=11.0.0" \
+        "pyyaml~=6.0.2" \
     && rm -rf /tmp/OpenManus
 
 # 为 OpenManus 创建最小配置文件（仅用于通过初始化检查，实际 API key 由用户动态注入）
 RUN mkdir -p /usr/local/lib/python3.12/site-packages/config && \
-    printf '[llm]\nmodel = "deepseek-chat"\nbase_url = "https://api.deepseek.com/v1"\napi_key = "placeholder"\nmax_tokens = 4000\ntemperature = 0.7\n\n[llm.vision]\nmodel = "deepseek-chat"\nbase_url = "https://api.deepseek.com/v1"\napi_key = "placeholder"\nmax_tokens = 4000\ntemperature = 0.7\n\n[mcp]\nserver_reference = "app.mcp.server"\n' \
+    printf '[llm]\nmodel = "deepseek-chat"\nbase_url = "https://api.deepseek.com/v1"\napi_key = "placeholder"\nmax_tokens = 4000\ntemperature = 0.7\n\n[llm.vision]\nmodel = "deepseek-chat"\nbase_url = "https://api.deepseek.com/v1"\napi_key = "placeholder"\nmax_tokens = 4000\ntemperature = 0.7\n\n[mcp]\nserver_reference = "app.mcp.server"\n\n[daytona]\ndaytona_api_key = "placeholder"\n' \
     > /usr/local/lib/python3.12/site-packages/config/config.toml
 
 # 安装其余核心依赖
@@ -49,8 +57,9 @@ RUN pip install --no-cache-dir --retries 5 --timeout 120 -r requirements.txt
 # 复制项目代码
 COPY . .
 
-# 创建输出目录
-RUN mkdir -p output/drawings output/reports output/visualizations logs
+# 创建输出目录，预构建 ezdxf 字体缓存（包含 wqy-microhei.ttc）
+RUN mkdir -p output/drawings output/reports output/visualizations logs \
+    && python3 -c "import ezdxf.fonts.fonts as f; f.build_font_manager_cache(f._get_font_manager_path()); print('ezdxf font cache built')"
 
 EXPOSE 8000
 
