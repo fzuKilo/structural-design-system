@@ -43,6 +43,15 @@ RUN pip install --no-cache-dir --no-deps /tmp/OpenManus \
         "browser-use~=0.1.40" \
         "pyee>=11.0.0" \
         "pyyaml~=6.0.2" \
+        "baidusearch~=1.0.3" \
+        "googlesearch-python~=1.3.0" \
+        "duckduckgo_search~=7.5.3" \
+        "mcp~=1.5.0" \
+        "httpx>=0.27.0" \
+        "tomli>=2.0.0" \
+        "requests~=2.32.3" \
+        "beautifulsoup4~=4.13.3" \
+        "huggingface-hub~=0.29.2" \
     && rm -rf /tmp/OpenManus
 
 # 为 OpenManus 创建最小配置文件（仅用于通过初始化检查，实际 API key 由用户动态注入）
