@@ -61,7 +61,7 @@ RUN mkdir -p /usr/local/lib/python3.12/site-packages/config && \
 
 # 安装其余核心依赖
 COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir --retries 5 --timeout 120 -r requirements.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 600 -r requirements.txt
 
 # 复制项目代码
 COPY . .
