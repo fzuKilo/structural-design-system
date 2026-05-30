@@ -52,3 +52,6 @@ psycopg2-binary>=2.9.0
 
 # 加密
 cryptography>=41.0.0
+
+# 版本锁定：防止 mcp/chromadb 将 starlette 升级到不兼容 FastAPI 0.109.0 的版本
+starlette==0.35.0
