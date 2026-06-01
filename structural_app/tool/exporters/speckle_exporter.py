@@ -72,7 +72,7 @@ class SpeckleExporter:
                 message=f"{structure_type} 结构设计方案 {timestamp}",
             )
 
-            url = f"{self.server_url}/streams/{stream_id}/commits/{commit_id}"
+            url = f"{self.server_url}/projects/{stream_id}/models/{commit_id}"
             embed_url = f"{self.server_url}/embed?stream={stream_id}&commit={commit_id}"
             return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': commit_id}
 
