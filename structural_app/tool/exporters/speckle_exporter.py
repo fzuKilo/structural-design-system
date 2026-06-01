@@ -51,7 +51,7 @@ class SpeckleExporter:
 
             # specklepy 2.x: stream_id = project_id，创建 branch 对应 3.x 的 model
             stream_id = self.project_id
-            client.branch.create(
+            branch_id = client.branch.create(
                 stream_id=stream_id,
                 name=branch_name,
                 description=f"{structure_type} 结构设计方案"
@@ -72,9 +72,10 @@ class SpeckleExporter:
                 message=f"{structure_type} 结构设计方案 {timestamp}",
             )
 
-            url = f"{self.server_url}/projects/{stream_id}/models/{commit_id}"
+            # 新 UI URL 格式：/projects/{id}/models/{branch_id}@{commit_id}
+            url = f"{self.server_url}/projects/{stream_id}/models/{branch_id}@{commit_id}"
             embed_url = f"{self.server_url}/embed?stream={stream_id}&commit={commit_id}"
-            return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': commit_id}
+            return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': branch_id}
 
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
