@@ -8,12 +8,13 @@ from backend.api.config import settings
 from backend.api.routes import auth, design, file, websocket, admin
 from backend.api.middleware import get_current_user
 from backend.database import Base, engine, User
+from backend.database.migrations.run_migration import run_migration
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create database tables on startup (after container joins the network)
-    Base.metadata.create_all(bind=engine)
+    # Create database tables and initialize RBAC + default admin on startup
+    run_migration()
     yield
 
 

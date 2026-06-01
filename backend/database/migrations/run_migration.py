@@ -2,9 +2,11 @@
 Database migration script for RBAC
 Run this to initialize roles and permissions
 """
+import uuid
 from sqlalchemy.orm import Session
 from backend.database.session import engine, SessionLocal
-from backend.database.models import Base, Role, Permission, RolePermission
+from backend.database.models import Base, Role, Permission, RolePermission, User, UserRole
+import bcrypt
 
 
 def run_migration():
@@ -19,6 +21,7 @@ def run_migration():
         existing_roles = db.query(Role).count()
         if existing_roles > 0:
             print("Roles already exist, skipping migration")
+            _ensure_admin_user(db)
             return
 
         # Create roles
@@ -66,12 +69,39 @@ def run_migration():
         db.commit()
         print("✓ RBAC migration completed successfully")
 
+        _ensure_admin_user(db)
+
     except Exception as e:
         db.rollback()
         print(f"✗ Migration failed: {e}")
         raise
     finally:
         db.close()
+
+
+def _ensure_admin_user(db: Session):
+    """创建默认管理员账号（admin / 123456），已存在则跳过。"""
+    existing = db.query(User).filter(User.username == 'admin').first()
+    if existing:
+        print("Admin user already exists, skipping")
+        return
+
+    password_hash = bcrypt.hashpw('123456'.encode(), bcrypt.gensalt()).decode()
+    admin_user = User(
+        id=str(uuid.uuid4()),
+        username='admin',
+        email='admin@structural-design.local',
+        password_hash=password_hash,
+        quota_daily=9999,
+        quota_monthly=99999,
+    )
+    db.add(admin_user)
+    db.flush()
+
+    admin_role = db.query(Role).filter(Role.name == 'admin').first()
+    db.add(UserRole(user_id=admin_user.id, role_id=admin_role.id))
+    db.commit()
+    print("✓ Default admin user created (username: admin, password: 123456)")
 
 
 if __name__ == "__main__":
