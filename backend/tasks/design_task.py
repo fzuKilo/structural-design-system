@@ -3,6 +3,7 @@ Design Task - Celery task to run PlanningFlow
 """
 import sys
 import os
+import re
 import json
 
 # OpenManus is installed as a package via pip, no manual path needed
@@ -13,6 +14,19 @@ from backend.database import get_db_context, Task
 from backend.api.services import ws_manager
 from backend.api.config import settings
 from structural_app.planning_flow import PlanningFlow
+
+
+def _to_relative_path(path: str) -> str:
+    """将绝对路径转换为相对路径（去掉任意项目根前缀）。"""
+    if not path:
+        return ""
+    path = path.replace("\\", "/")
+    # 匹配 /app/、/root/xxx/、C:/Users/xxx/ 等各种绝对路径前缀，截取 output/ 之后的部分
+    match = re.search(r'(output/.+)', path)
+    if match:
+        return match.group(1)
+    # 如果路径不含 output/，但仍是绝对路径，直接返回文件名
+    return os.path.basename(path)
 
 
 @celery_app.task
@@ -278,7 +292,7 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 "preview_image": preview_image,
                 "evaluation": result.get("evaluation_report"),
                 "bim_url": (result.get("bim_results") or {}).get("url") or (result.get("bim_results") or {}).get("embed_url"),
-                "ifc_path": (result.get("ifc_results") or {}).get("path", "").replace("\\", "/").replace("C:/Users/86177/projects/structural-design-system/", "") if (result.get("ifc_results") or {}).get("path") else "",
+                "ifc_path": _to_relative_path((result.get("ifc_results") or {}).get("path", "")),
                 "interaction_history": interaction_history,
                 "raw": result
             }

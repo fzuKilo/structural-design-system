@@ -33,6 +33,7 @@ class SpeckleExporter:
     ) -> Dict[str, Any]:
         """
         推送结构设计结果到Speckle。
+        使用 specklepy 2.x API（stream/branch/commit 模型）。
 
         Returns:
             {'status': 'success', 'url': '...', 'model_id': '...'}
@@ -41,40 +42,39 @@ class SpeckleExporter:
         try:
             from specklepy.objects.base import Base
             from specklepy.transports.server import ServerTransport
-            from specklepy.core.api import operations
+            from specklepy.api import operations
 
             client = self._get_client()
             structure_type = design_proposal.get('type', 'unknown')
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            model_name = f"{structure_type}_{timestamp}"
+            branch_name = f"{structure_type}/{timestamp}"
 
-            # 创建model
-            from specklepy.core.api.inputs.model_inputs import CreateModelInput
-            model = client.model.create(
-                CreateModelInput(name=model_name, project_id=self.project_id)
+            # specklepy 2.x: stream_id = project_id，创建 branch 对应 3.x 的 model
+            stream_id = self.project_id
+            client.branch.create(
+                stream_id=stream_id,
+                name=branch_name,
+                description=f"{structure_type} 结构设计方案"
             )
 
-            # 构建Base对象
+            # 构建 Base 对象
             base = self._build_base_object(design_proposal, analysis_results, evaluation_report)
 
             # 推送对象
-            transport = ServerTransport(client=client, stream_id=self.project_id)
+            transport = ServerTransport(client=client, stream_id=stream_id)
             obj_id = operations.send(base, [transport])
 
-            # 创建version
-            from specklepy.core.api.inputs.version_inputs import CreateVersionInput
-            client.version.create(
-                CreateVersionInput(
-                    object_id=obj_id,
-                    model_id=model.id,
-                    project_id=self.project_id,
-                    message=f"{structure_type} 结构设计方案 {timestamp}"
-                )
+            # 创建 commit（对应 3.x 的 version）
+            commit_id = client.commit.create(
+                stream_id=stream_id,
+                object_id=obj_id,
+                branch_name=branch_name,
+                message=f"{structure_type} 结构设计方案 {timestamp}",
             )
 
-            url = f"{self.server_url}/projects/{self.project_id}/models/{model.id}"
-            embed_url = f"{self.server_url}/embed?stream={self.project_id}&object={obj_id}"
-            return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': model.id}
+            url = f"{self.server_url}/streams/{stream_id}/commits/{commit_id}"
+            embed_url = f"{self.server_url}/embed?stream={stream_id}&commit={commit_id}"
+            return {'status': 'success', 'url': url, 'embed_url': embed_url, 'model_id': commit_id}
 
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
