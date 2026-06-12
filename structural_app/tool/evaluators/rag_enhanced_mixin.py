@@ -5,6 +5,18 @@ Provides standard citation capabilities for construction checks
 
 from typing import List, Dict, Any, Optional
 import os
+from contextvars import ContextVar
+
+# Per-task RAG kill switch for the A3 ablation (paper §4.3). Set in
+# PlanningFlow.run_full_design via set_rag_enabled(); a ContextVar is isolated per
+# asyncio task, so concurrent runs with different exp_mode never interfere. Default
+# True preserves normal (web / B4 / non-A3) behavior.
+_rag_runtime_enabled: ContextVar[bool] = ContextVar("rag_runtime_enabled", default=True)
+
+
+def set_rag_enabled(enabled: bool) -> None:
+    """Enable/disable RAG citation lookups for the current async task context."""
+    _rag_runtime_enabled.set(enabled)
 
 
 class RAGEnhancedEvaluatorMixin:
@@ -63,6 +75,8 @@ class RAGEnhancedEvaluatorMixin:
         Returns:
             Standard citation string or None
         """
+        if not _rag_runtime_enabled.get():   # A3 ablation: RAG disabled for this task
+            return None
         if not self._rag_enabled:
             rag = self._get_rag_engine()
             if not self._rag_enabled:
@@ -117,6 +131,8 @@ class RAGEnhancedEvaluatorMixin:
         Returns:
             List of requirement dictionaries
         """
+        if not _rag_runtime_enabled.get():   # A3 ablation: RAG disabled for this task
+            return []
         if not self._rag_enabled:
             rag = self._get_rag_engine()
             if not self._rag_enabled:

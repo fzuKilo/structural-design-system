@@ -44,7 +44,7 @@ async def create_design(
     deduct_quota(current_user, db, task.id)
 
     # Queue Celery task and save celery_task_id
-    celery_result = run_design_task.delay(str(task.id), request.request_text)
+    celery_result = run_design_task.delay(str(task.id), request.request_text, request.exp_mode)
     task.celery_task_id = celery_result.id
     db.commit()
 

@@ -21,6 +21,11 @@ class UserLogin(BaseModel):
 class DesignCreateRequest(BaseModel):
     """Design task creation request"""
     request_text: str = Field(..., min_length=1, max_length=5000)
+    # Experiment mode for the paper's baseline/ablation configurations.
+    # None/"B4" = full closed loop (default web behavior, unchanged).
+    # "B3"/"A1" = skip Node1 repair (continue to evaluation); "A2" = disable Node2;
+    # "A3" = disable RAG clause retrieval; "A4" = drop g(s) optimization constraints.
+    exp_mode: Optional[str] = None
 
 
 class AskHumanResponse(BaseModel):

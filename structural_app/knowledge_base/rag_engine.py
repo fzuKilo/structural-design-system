@@ -7,6 +7,21 @@ import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
+# NumPy 2.0 compatibility shim: chromadb 0.4.24 (pinned to avoid an httpx conflict
+# with specklepy) references np.float_/np.int_, which were removed in NumPy 2.0.
+# Restore them as aliases before chromadb is imported, otherwise the RAG engine
+# fails to initialize and all code-clause citations silently disappear.
+try:
+    import numpy as _np
+    if not hasattr(_np, "float_"):
+        _np.float_ = _np.float64
+    if not hasattr(_np, "int_"):
+        _np.int_ = _np.int64
+    if not hasattr(_np, "uint"):
+        _np.uint = _np.uint64
+except Exception:
+    pass
+
 
 class RAGEngine:
     """

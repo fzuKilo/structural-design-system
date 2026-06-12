@@ -30,15 +30,16 @@ def _to_relative_path(path: str) -> str:
 
 
 @celery_app.task
-def run_design_task(task_id: str, user_request: str):
+def run_design_task(task_id: str, user_request: str, exp_mode: str = None):
     """
     Run design workflow in background
 
     Args:
         task_id: Task UUID
         user_request: User's design request text
+        exp_mode: Experiment configuration (None/B4=full loop, B3/A1/A2/A3/A4 baselines/ablations)
     """
-    print(f"[DEBUG] Starting task {task_id} with request: {user_request}")
+    print(f"[DEBUG] Starting task {task_id} (exp_mode={exp_mode}) with request: {user_request}")
 
     # Create Redis client for publishing messages
     import redis
@@ -80,7 +81,7 @@ def run_design_task(task_id: str, user_request: str):
 
     # Run async workflow
     try:
-        asyncio.run(_run_workflow(task_id, user_request, websocket_callback_sync))
+        asyncio.run(_run_workflow(task_id, user_request, websocket_callback_sync, exp_mode))
         print(f"[DEBUG] Task {task_id} completed successfully")
     except Exception as e:
         print(f"[ERROR] Task {task_id} failed: {str(e)}")
@@ -89,7 +90,7 @@ def run_design_task(task_id: str, user_request: str):
         raise
 
 
-async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
+async def _run_workflow(task_id: str, user_request: str, ws_callback_sync, exp_mode: str = None):
     """Run the actual workflow"""
     import os
     import redis
@@ -141,14 +142,29 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
             from app.llm import LLM
             from app.config import LLMSettings
             config_key = f"user_{task_id}"
+
+            # E4 cross-model override (paper §4.3): when EXP_LLM_* env vars are set on the
+            # worker, run B4 with a different backing model instead of DeepSeek. Key comes
+            # from EXP_LLM_API_KEY (falls back to the user's stored key). Affects both the
+            # agents' LLM and PlanningFlow's own direct calls (flow.api_* below).
+            _exp_model = os.environ.get("EXP_LLM_MODEL")
+            if _exp_model:
+                _llm_model = _exp_model
+                _llm_base = os.environ.get("EXP_LLM_BASE_URL", "https://api.deepseek.com/v1")
+                _llm_type = os.environ.get("EXP_LLM_API_TYPE", "openai")
+                _llm_key = os.environ.get("EXP_LLM_API_KEY") or plain_api_key
+            else:
+                _llm_model, _llm_base, _llm_type, _llm_key = (
+                    "deepseek-chat", "https://api.deepseek.com/v1", "openai", plain_api_key)
+
             user_llm_config = LLMSettings(
-                model="deepseek-chat",
-                base_url="https://api.deepseek.com/v1",
-                api_key=plain_api_key,
-                api_type="openai",
+                model=_llm_model,
+                base_url=_llm_base,
+                api_key=_llm_key,
+                api_type=_llm_type,
                 api_version="",
                 max_tokens=4000,
-                temperature=0.7,
+                temperature=0,
             )
             user_llm = LLM(config_name=config_key, llm_config={config_key: user_llm_config, "default": user_llm_config})
 
@@ -183,12 +199,13 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 websocket_callback=ws_callback,
                 task_id=task_id,
                 redis_url=settings.REDIS_URL,
+                exp_mode=exp_mode,
             )
 
             # Override PlanningFlow's api_key with user's key (it loads from config.toml by default)
-            flow.api_key = plain_api_key
-            flow.api_base_url = "https://api.deepseek.com/v1"
-            flow.api_model = "deepseek-chat"
+            flow.api_key = _llm_key
+            flow.api_base_url = _llm_base
+            flow.api_model = _llm_model
 
             # Run workflow with cancellation monitor
             async def cancel_monitor():
@@ -296,6 +313,32 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync):
                 "interaction_history": interaction_history,
                 "raw": result
             }
+
+            # Promote objective metrics to top level for experiment analysis (paper §5.2/§5.3).
+            # Sources: evaluation_report.dimensions.{economy,safety}.indicators + code_check.
+            try:
+                _eval = result.get("evaluation_report") or {}
+                _dims = _eval.get("dimensions") or {}
+                _econ_ind = (_dims.get("economy") or {}).get("indicators") or {}
+                _safe_ind = (_dims.get("safety") or {}).get("indicators") or {}
+                _cc = (result.get("analysis_results") or {}).get("code_check") or {}
+                _sfs = _cc.get("safety_factors") or {}
+                flattened_result["metrics"] = {
+                    "exp_mode": result.get("exp_mode"),
+                    "llm_model": _llm_model,
+                    "compliant": _cc.get("compliant"),
+                    "violations_count": len(_cc.get("violations") or []),
+                    "comprehensive_score": _eval.get("comprehensive_score"),
+                    "dimension_scores": {k: (v or {}).get("score") for k, v in _dims.items()},
+                    "material_volume": _econ_ind.get("volume_m3"),
+                    "min_safety_factor": _safe_ind.get("min_safety_factor")
+                        if _safe_ind.get("min_safety_factor") is not None
+                        else (min(_sfs.values()) if _sfs else None),
+                    "safety_factors": _sfs,
+                    "score_history": result.get("score_history"),
+                }
+            except Exception as _me:
+                print(f"[WARN] Failed to promote metrics: {_me}")
 
             # Update task with results
             task.status = "success"

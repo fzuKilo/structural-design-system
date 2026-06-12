@@ -93,3 +93,14 @@ lefthook.yml
 vendor/OpenManus/logs/
 vendor/OpenManus/workspace/
 vendor/OpenManus/*.egg-info/
+
+# 实验大文件与运行时数据（代码提交，数据/模型不提交）
+# docker_assets 是烤进镜像的嵌入模型(87MB)，不进git
+docker_assets/
+# 实验产出数据，不进git
+experiments/results_*.jsonl
+experiments/smoke_*.jsonl
+experiments/*.log
+experiments/.claude/
+experiments/__pycache__/
+stats_report.md

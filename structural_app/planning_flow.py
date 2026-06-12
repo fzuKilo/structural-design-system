@@ -78,6 +78,7 @@ class PlanningFlow:
         task_id: Optional[str] = None,
         redis_url: str = "redis://localhost:6379/0",
         api_config: Optional[Dict[str, Any]] = None,
+        exp_mode: Optional[str] = None,
     ):
         """
         Initialize PlanningFlow with agents.
@@ -93,7 +94,14 @@ class PlanningFlow:
             task_id: Task UUID (enables WebAskHuman mode when provided)
             redis_url: Redis URL for WebAskHuman answer polling
             api_config: API configuration dict for creating agents
+            exp_mode: Experiment config (None/"B4"=full closed loop; "B3"/"A1"=skip
+                Node1 repair; "A2"=disable Node2; "A3"=disable RAG; "A4"=drop g(s)).
+                Reproducibility: drives deterministic auto-answers for the human
+                decision nodes so baseline/ablation runs need no interactive input.
         """
+        # None = normal web run (original interactive behavior, BIM prompt shown).
+        # Any explicit value ("B4"/"B3"/"A1".."A4") = automated experiment run.
+        self.exp_mode = exp_mode.upper() if exp_mode else None
         self.websocket_callback = websocket_callback
         self.task_id = task_id
         self.redis_url = redis_url
@@ -416,6 +424,14 @@ class PlanningFlow:
         ifc_cfg = self._load_ifc_config()
 
         if not speckle_cfg and not ifc_cfg:
+            return None, None
+
+        # Experiment runs skip the optional BIM/IFC export prompt: it is irrelevant
+        # to the paper's metrics and its prompt is not surfaced via the pending-ask
+        # API, which would otherwise stall an automated (non-interactive) run.
+        if self.exp_mode is not None:
+            if verbose:
+                print("[exp] BIM/IFC导出在实验模式下自动跳过")
             return None, None
 
         if verbose:
@@ -770,6 +786,14 @@ class PlanningFlow:
             print("=" * 60)
             print()
 
+        # A3 ablation: disable RAG clause citations for this run (paper §4.3). Uses a
+        # per-task ContextVar, so this only affects the current async task.
+        try:
+            from structural_app.tool.evaluators.rag_enhanced_mixin import set_rag_enabled
+            set_rag_enabled(self.exp_mode != "A3")
+        except Exception as _e:
+            print(f"[WARN] set_rag_enabled failed: {_e}")
+
         # Generate timestamp for output directory (at the start of test run)
         from datetime import datetime
         self.test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -874,6 +898,18 @@ class PlanningFlow:
             "compliant": self.results["analysis_results"].get("code_check", {}).get("compliant"),
             "violations": self.results["analysis_results"].get("code_check", {}).get("violations", []),
         })
+
+        # score_history[0]: baseline comprehensive score on the as-generated design
+        # (before any Node1 repair), for the paper's two-node contribution analysis (§5.3).
+        self.score_history = []
+        try:
+            _initial_eval = await self._run_evaluation(
+                self.results["design_proposal"], self.results["analysis_results"]
+            )
+            if _initial_eval:
+                self.score_history.append(round(_initial_eval.get("comprehensive_score", 0), 1))
+        except Exception as _e:
+            print(f"[WARN] initial score capture failed: {_e}")
 
         # Export OpenSees script for expert review
         if self.results.get("analysis_results") and self.results["analysis_results"].get("status") == "success":
@@ -1050,6 +1086,13 @@ class PlanningFlow:
         )
         await self._broadcast_progress("evaluation", 1, 2, "grading", "正在计算综合评分...")
 
+        # score_history[1]: comprehensive score after Node1 (code-check repair).
+        # In skip-Node1 modes (B3/A1) this equals the baseline; recorded either way.
+        if self.results["evaluation_report"]:
+            self.score_history.append(
+                round(self.results["evaluation_report"].get("comprehensive_score", 0), 1)
+            )
+
         if verbose and self.results["evaluation_report"]:
             status = self.results['evaluation_report'].get('status', 'unknown')
             grade = self.results['evaluation_report'].get('grade', 'N/A')
@@ -1092,6 +1135,11 @@ class PlanningFlow:
                 self.results["analysis_results"] = opt_analysis
                 self.results["evaluation_report"] = opt_evaluation
                 self.skip_drawing = False
+                # score_history[2]: comprehensive score after Node2 (warning optimization).
+                if self.results["evaluation_report"]:
+                    self.score_history.append(
+                        round(self.results["evaluation_report"].get("comprehensive_score", 0), 1)
+                    )
                 # 广播更新后的设计方案，前端右侧状态栏同步
                 await self._broadcast_stage("design_proposal", "completed", "设计方案已更新（优化后）", data={
                     "type": self.results["design_proposal"].get("type"),
@@ -1239,6 +1287,16 @@ class PlanningFlow:
 
         # Add main_output_dir to results for test result saving
         self.results["main_output_dir"] = str(self.main_output_dir)
+
+        # Normalize score_history to a 3-point trajectory [initial, after_Node1,
+        # after_Node2] for §5.3 contribution decomposition. Forward-fill missing
+        # nodes (e.g. Node1 not triggered / Node2 skipped) with the last known score.
+        sh = list(getattr(self, "score_history", []) or [])
+        if sh:
+            while len(sh) < 3:
+                sh.append(sh[-1])
+            self.results["score_history"] = sh[:3]
+        self.results["exp_mode"] = self.exp_mode
 
         return self.results
 
@@ -1403,6 +1461,14 @@ class PlanningFlow:
 
         if not alerts:
             return "continue"
+
+        # Experiment auto-answer for Node2 (warning-triggered optimization).
+        # B3 (open loop) and A2 (Node2 ablation) skip optimization; B4 and the other
+        # ablations optimize whenever an alert fires. Deterministic, no input needed.
+        if self.exp_mode in ("B3", "A2"):
+            return "continue"
+        if self.exp_mode in ("B4", "A1", "A3", "A4"):
+            return "optimize"
 
         print("\n" + "=" * 60)
         print("设计评估预警")
@@ -1671,6 +1737,16 @@ class PlanningFlow:
             print(f"[WARNING] 仅生成了 {len(candidates)}/{target_count} 个合规方案")
 
         candidates.sort(key=lambda x: x[2].get("comprehensive_score", 0), reverse=True)
+
+        # Experiment runs auto-select the top-scoring scheme (paper's default path
+        # "选方案→评分最高"). The interactive comparison prompt is not surfaced via
+        # the pending-ask API, so an automated run would otherwise stall here.
+        if self.exp_mode is not None:
+            selected_design, selected_analysis, selected_evaluation = candidates[0]
+            if verbose:
+                print(f"[exp] 自动选择最高分方案（得分 "
+                      f"{selected_evaluation.get('comprehensive_score', 0):.1f}）")
+            return selected_design, selected_analysis, selected_evaluation
 
         # Display comparison table and let user choose
         choice = await self._display_optimization_comparison(
@@ -2069,7 +2145,12 @@ class PlanningFlow:
                 else:
                     constraint_rules.append("- 【严重违规】当前设计存在长细比超限，所有候选方案截面积必须大于当前值，禁止减小截面")
 
-        constraint_text = "\n".join(constraint_rules) if constraint_rules else "- 无特殊约束，均衡优化各维度"
+        # A4 ablation: drop the g(s) optimization constraints entirely and let the
+        # LLM optimize freely (paper §4.3 — evidence for the necessity of constraints).
+        if self.exp_mode == "A4":
+            constraint_text = "- 无特殊约束，自由优化各维度"
+        else:
+            constraint_text = "\n".join(constraint_rules) if constraint_rules else "- 无特殊约束，均衡优化各维度"
 
         # 违规信息文本
         violation_text = ""
@@ -2085,7 +2166,7 @@ class PlanningFlow:
         _member_lengths = _detailed.get('extra', {}).get('member_lengths', [])
         _slenderness_sf = analysis.get('code_check', {}).get('safety_factors', {}).get('slenderness', float('inf'))
         _design_type = design.get('type', '')
-        if _design_type == 'truss' and _member_lengths:
+        if self.exp_mode != "A4" and _design_type == 'truss' and _member_lengths:
             _max_len = max(_member_lengths)
             # 圆形截面：r = sqrt(A/π)/2，λ = L/r ≤ 150 → A ≥ (2L*sqrt(π)/150)²
             _min_A_m2 = (2 * _max_len * _math.sqrt(_math.pi) / 150) ** 2
@@ -2437,6 +2518,14 @@ class PlanningFlow:
         """
         violations = code_check.get('violations', [])
         summary = code_check.get('summary', 'Unknown')
+
+        # Experiment auto-answer for Node1 (code-check repair).
+        # B3/A1 skip the repair loop but still proceed to evaluation (return a
+        # non-action value so the caller falls through); all other modes auto-repair.
+        if self.exp_mode in ("B3", "A1"):
+            return "skip"
+        if self.exp_mode in ("B4", "A2", "A3", "A4"):
+            return "auto"
 
         if verbose:
             print()

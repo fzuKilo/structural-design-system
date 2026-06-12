@@ -63,6 +63,10 @@ RUN mkdir -p /usr/local/lib/python3.12/site-packages/config && \
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --retries 10 --timeout 600 -r requirements.txt
 
+# 预置 ChromaDB 本地嵌入模型 (all-MiniLM-L6-v2)，避免运行时联网下载
+# chromadb 默认在 /root/.cache/chroma 查找 ONNX 模型
+COPY docker_assets/chroma_cache /root/.cache/chroma
+
 # 复制项目代码
 COPY . .
 
