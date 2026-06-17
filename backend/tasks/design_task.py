@@ -184,7 +184,12 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync, exp_m
             )
 
             design_agent = StructuralDesignAgent(tools=[web_ask_human], llm=user_llm)
-            analysis_agent = FEAnalysisAgent(tools=[web_ask_human], llm=user_llm)
+            # In experiment mode, skip the interactive model-confirmation step that
+            # calls WebAskHuman (which the exp_client cannot reliably answer in time).
+            analysis_agent = FEAnalysisAgent(
+                tools=[web_ask_human], llm=user_llm,
+                enable_visual_validation=(exp_mode is None),
+            )
             drawing_agent = CADDrawingAgent(tools=[web_ask_human], llm=user_llm)
             evaluation_agent = EvaluationAgent(tools=[web_ask_human], llm=user_llm)
             report_agent = ReportGenerationAgent(tools=[web_ask_human], llm=user_llm)
@@ -353,6 +358,9 @@ async def _run_workflow(task_id: str, user_request: str, ws_callback_sync, exp_m
             })
 
         except Exception as e:
+            import traceback as _tb
+            _full_tb = _tb.format_exc()
+            print(f"[ERROR] workflow exception:\n{_full_tb}")
             task.status = "failed"
             task.error = str(e)
             db.commit()

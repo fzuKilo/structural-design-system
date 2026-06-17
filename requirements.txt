@@ -13,7 +13,10 @@ scipy>=1.10.0
 ezdxf>=1.1.0
 
 # 知识库
-langchain>=0.1.0
+# langchain 钉死到镜像实测可用版本：langchain>=0.1.0 浮动时 pip 解析器会回溯到
+# 需要 gql==3.3.0 / uvicorn==0.18.3 的旧 langchain，与 specklepy/uvicorn 冲突
+# (ResolutionImpossible)。1.3.2 是 2026-06-12 镜像里实际跑通的版本。
+langchain==1.3.2
 chromadb==0.4.24
 openai>=1.0.0
 PyPDF2>=3.0.0

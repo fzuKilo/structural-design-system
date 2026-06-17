@@ -2112,6 +2112,14 @@ class PlanningFlow:
         violations = code_check.get('violations', [])
         is_compliant = code_check.get('compliant', True)
 
+        # A violation entry may be a dict ({"type","message"}) or a bare string,
+        # depending on which analyzer produced it. Normalize to searchable text so
+        # downstream filters don't assume .get() (str has no .get → AttributeError).
+        def _vtext(v):
+            if isinstance(v, dict):
+                return f"{v.get('type', '')} {v.get('message', '')}".lower()
+            return str(v).lower()
+
         # 根据得分动态生成约束规则
         constraint_rules = []
         if economy_score < 70:
@@ -2127,7 +2135,7 @@ class PlanningFlow:
 
         # 长细比违规时，强制要求候选方案截面不得减小
         if not is_compliant and violations:
-            slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
+            slenderness_violations = [v for v in violations if 'slenderness' in _vtext(v)]
             if slenderness_violations:
                 # 计算当前截面对应的最小合规截面（λ=L/r≤150，r=sqrt(A/π)，A≥(L/150)²*π）
                 detailed = analysis.get('results', {}).get('detailed_results', {})
@@ -2155,7 +2163,9 @@ class PlanningFlow:
         # 违规信息文本
         violation_text = ""
         if not is_compliant and violations:
-            violation_text = f"\n规范检查违规项（必须在候选方案中解决）：\n" + "\n".join(f"- {v.get('message', v)}" for v in violations)
+            def _vmsg(v):
+                return v.get('message', str(v)) if isinstance(v, dict) else str(v)
+            violation_text = f"\n规范检查违规项（必须在候选方案中解决）：\n" + "\n".join(f"- {_vmsg(v)}" for v in violations)
 
         # 方案C：计算合规下限 + 方案A：反馈已失败截面
         compliance_hint = ""
@@ -2184,7 +2194,7 @@ class PlanningFlow:
                 )
             elif not is_compliant and violations:
                 # 当前不合规，给出下限提示
-                slenderness_violations = [v for v in violations if 'slenderness' in v.get('type', '').lower() or 'slenderness' in v.get('message', '').lower()]
+                slenderness_violations = [v for v in violations if 'slenderness' in _vtext(v)]
                 if slenderness_violations:
                     compliance_hint += (
                         f"\n【长细比合规下限（精确计算）】\n"

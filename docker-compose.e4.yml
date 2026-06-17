@@ -1,0 +1,7 @@
+services:
+  worker:
+    environment:
+      EXP_LLM_MODEL: "${EXP_LLM_MODEL}"
+      EXP_LLM_BASE_URL: "${EXP_LLM_BASE_URL}"
+      EXP_LLM_API_TYPE: "${EXP_LLM_API_TYPE}"
+      EXP_LLM_API_KEY: "${EXP_LLM_API_KEY}"
